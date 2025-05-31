@@ -11,5 +11,9 @@
     "ace_plus_fft.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/ace_plus_fft.safetensors",
     "comfyui_subject_lora16.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/subject/comfyui_subject_lora16.safetensors",
     "comfyui_portrait_lora64.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/portrait/comfyui_portrait_lora64.safetensors",
-    "comfyui_local_lora16.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/local_editing/comfyui_local_lora16.safetensors"
+    "comfyui_local_lora16.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/local_editing/comfyui_local_lora16.safetensors",
+    "dreamo_cfg_distill.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_cfg_distill.safetensors",
+    "dreamo_quality_lora_neg.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_quality_lora_neg.safetensors",
+    "dreamo_quality_lora_pos.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_quality_lora_pos.safetensors",
+    "dreamo.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo.safetensors"
 }
