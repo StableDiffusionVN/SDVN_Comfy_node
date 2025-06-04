@@ -250,7 +250,7 @@ class img_scraper:
         folder = os.path.join(main_folder,sub_folder)
         command = ["gallery-dl", "--cookies-from-browser", cookies, "--directory", folder, url]
         subprocess.run(command, check=True,text=True, capture_output=True)
-        result = ALL_NODE["SDVN Load Image Folder"]().load_image(folder, -1, False)[0]
+        result = ALL_NODE["SDVN Load Image Folder"]().load_image(folder, -1, False, 0)["result"][0]
         return (result,)
 
 class film_grain:
