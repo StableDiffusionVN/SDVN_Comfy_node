@@ -574,6 +574,64 @@ class ICLora_Layout_Crop:
     def ICLora_Layout_Crop(s, crop, image):
         return (ALL_NODE["ImageCrop"]().crop(image, *crop)[0],)
 
+class CropByRatio:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "ratio": (["1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16"],),
+                "position": ([
+                    "top-left", "top-mid", "top-right",
+                    "center-left", "center-mid", "center-right",
+                    "bottom-left", "bottom-mid", "bottom-right"
+                ],)
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("cropped_image",)
+    FUNCTION = "crop_image"
+
+    def crop_image(self, image, ratio, position):
+        b, h, w, c = image.shape
+
+        # Tính khích thước crop theo tỉ lệ
+        rw, rh = map(int, ratio.split(":"))
+        target_aspect = rw / rh
+        image_aspect = w / h
+
+        if image_aspect > target_aspect:
+            crop_h = h
+            crop_w = int(h * target_aspect)
+        else:
+            crop_w = w
+            crop_h = int(w / target_aspect)
+
+        # Vị trí crop
+        vertical, horizontal = position.split("-")
+
+        if horizontal == "left":
+            x1 = 0
+        elif horizontal == "mid":
+            x1 = (w - crop_w) // 2
+        else:  # right
+            x1 = w - crop_w
+
+        if vertical == "top":
+            y1 = 0
+        elif vertical == "center":
+            y1 = (h - crop_h) // 2
+        else:  # bottom
+            y1 = h - crop_h
+
+        x2 = x1 + crop_w
+        y2 = y1 + crop_h
+
+        cropped = image[:, y1:y2, x1:x2, :]
+        return (cropped,)
+    
 NODE_CLASS_MAPPINGS = {
     "SDVN Image Scraper": img_scraper,
     "SDVM Image List Repeat": img_list_repeat,
@@ -588,6 +646,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Fill Background": FillBackground,
     "SDVN IC Lora Layout": ICLora_layout,
     "SDVN IC Lora Layout Crop": ICLora_Layout_Crop,
+    "SDVN Crop By Ratio": CropByRatio,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -604,4 +663,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Fill Background": "🎨 Fill Background",
     "SDVN IC Lora Layout": "🧩 IC Lora Layout",
     "SDVN IC Lora Layout Crop": "✂️ IC Lora Layout Crop",
+    "SDVN Crop By Ratio": "✂️ Crop By Ratio",
 }
