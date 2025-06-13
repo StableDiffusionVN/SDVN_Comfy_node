@@ -871,6 +871,40 @@ class LoadGoogleSheet:
                 values.append(value)
         return (values,)
 
+class slider100:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "num": ("INT", {"default": "0", "min": 0, "max": 100, "step": 1, "tooltip": "An integer slider", "display": "slider",}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💡 Creative"
+    RETURN_TYPES = ("INT",)
+    RETURN_NAMES = ("int",)
+    FUNCTION = "slider100"
+
+    def slider100(self, num):
+        return (num,)
+
+class slider1:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "num": ("FLOAT", {"default": "0", "min": 0, "max": 1, "step": 0.05, "display": "slider",}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💡 Creative"
+    RETURN_TYPES = ("FLOAT",)
+    RETURN_NAMES = ("int",)
+    FUNCTION = "slider100"
+
+    def slider100(self, num):
+        return (num,)
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Easy IPAdapter weight": Easy_IPA_weight,
     "SDVN Any Input Type": AnyInput,
@@ -896,6 +930,8 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Menu Option": menu_option,
     "SDVN Dic Convert": dic_convert,
     "SDVN Load Google Sheet": LoadGoogleSheet,
+    "SDVN Slider 100": slider100,
+    "SDVN Slider 1": slider1,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -923,4 +959,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Menu Option": "📋 Menu Option",
     "SDVN Dic Convert": "🔄 Dic Convert",
     "SDVN Load Google Sheet": "📋 Load Google Sheet",
+    "SDVN Slider 100": "📊 Slider 100",
+    "SDVN Slider 1": "📊 Slider 1",
 }
