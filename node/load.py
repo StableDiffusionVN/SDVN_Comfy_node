@@ -1402,8 +1402,8 @@ class QuadrupleCLIPDownload:
     def download(s, CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4):
         download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
         download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
-        download_model(s.modellist[CLIP_name2][0], CLIP_name3, "text_encoders")
-        download_model(s.modellist[CLIP_name2][0], CLIP_name4, "text_encoders")
+        download_model(s.modellist[CLIP_name3][0], CLIP_name3, "text_encoders")
+        download_model(s.modellist[CLIP_name4][0], CLIP_name4, "text_encoders")
         return ALL_NODE["QuadrupleCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4)
     
 class AnyDownloadList:
