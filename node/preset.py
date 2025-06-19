@@ -206,6 +206,10 @@ class auto_generate:
         n_h = int(round(n_h))
         n_w = int(round(n_w))
         rand_seed = random.randint(0, 0xffffffffffffffff)
+        if "DPRandomGenerator" in ALL_NODE:
+            cls = ALL_NODE["DPRandomGenerator"]
+            Prompt = cls().get_prompt(Prompt, seed, 'No')[0]
+            Negative = cls().get_prompt(Negative, seed, 'No')[0]
         Prompt = ALL_NODE["SDVN Translate"]().ggtranslate(Prompt,"en")[0]
         Prompt = f"{Active_prompt}, {Prompt}"
         Negative = ALL_NODE["SDVN Translate"]().ggtranslate(Negative,"en")[0]
