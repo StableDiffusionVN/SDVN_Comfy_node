@@ -161,7 +161,7 @@ class image_layout:
         align = align[0]
         font_size = font_size[0]
         for i in [image1, image2, image3, image4, image5, image6]:
-            if i != None:
+            if i != None and i != [None]:
                 if isinstance(i, list):
                     full_img += [*i]
                 else:
