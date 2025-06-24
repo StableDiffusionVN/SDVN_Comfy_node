@@ -166,6 +166,7 @@ class image_layout:
                     full_img += [*i]
                 else:
                     full_img += [i]
+        full_img = [RGBAtoRGB().RGBAtoRGB(i)[0] for i in full_img]
         if mode != "auto":
             for i in full_img:
                 samples = i.movedim(-1, 1)
@@ -631,7 +632,24 @@ class CropByRatio:
 
         cropped = image[:, y1:y2, x1:x2, :]
         return (cropped,)
-    
+
+class RGBAtoRGB:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),   
+                }}
+    CATEGORY = "📂 SDVN/🏞️ Image"  
+    RETURN_TYPES = ("IMAGE",) 
+    RETURN_NAMES = ("image",) 
+    FUNCTION = "RGBAtoRGB" 
+
+    def RGBAtoRGB(s, image):
+        if image.shape[-1] == 4:
+            image = image[..., :3]
+        return (image,)
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Image Scraper": img_scraper,
     "SDVM Image List Repeat": img_list_repeat,
@@ -647,6 +665,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN IC Lora Layout": ICLora_layout,
     "SDVN IC Lora Layout Crop": ICLora_Layout_Crop,
     "SDVN Crop By Ratio": CropByRatio,
+    "SDVN RGBA to RGB": RGBAtoRGB,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -664,4 +683,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN IC Lora Layout": "🧩 IC Lora Layout",
     "SDVN IC Lora Layout Crop": "✂️ IC Lora Layout Crop",
     "SDVN Crop By Ratio": "✂️ Crop By Ratio",
+    "SDVN RGBA to RGB": "🔄 RGBA to RGB",
 }
