@@ -150,10 +150,10 @@ def function(input):
         return ([*output],)
 
 model_list = {
+    "Gemini | 2.5 Flash (Img support)": "gemini-2.5-flash",
+    "Gemini | 2.5 Pro (Img support)": "gemini-2.5-pro",
     "Gemini | 2.0 Flash (Img support)" : "gemini-2.0-flash",
     "Gemini | 2.0 Flash Lite (Img support)": "gemini-2.0-flash-lite",
-    "Gemini | 2.5 Pro Preview (Img support)": "gemini-2.5-pro-preview-03-25",
-    "Gemini | 2.5 Flash Preview (Img support)": "gemini-2.5-flash-preview-04-17",
     "OpenAI | GPT o4-mini (Img support)": "o4-mini",
     "OpenAI | GPT 4-o mini (Img support)": "gpt-4o-mini",
     "OpenAI | GPT o3 (Img support)": "o3",
