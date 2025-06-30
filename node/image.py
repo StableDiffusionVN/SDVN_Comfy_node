@@ -581,7 +581,7 @@ class CropByRatio:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "ratio": (["1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16"],),
+                "ratio": (["1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16", "1:2", "2:1",],),
                 "position": ([
                     "top-left", "top-mid", "top-right",
                     "center-left", "center-mid", "center-right",
@@ -633,6 +633,32 @@ class CropByRatio:
         cropped = image[:, y1:y2, x1:x2, :]
         return (cropped,)
 
+class EmptyLatentRatio:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "ratio": (["1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16", "1:2", "2:1",],),
+                "maxsize": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, }),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("LATENT",)
+    RETURN_NAMES = ("latent",)
+    FUNCTION = "EmptyLatentRatio"
+
+    def EmptyLatentRatio(self, ratio, maxsize):
+        w,h = map(int, ratio.split(":"))
+        if w > h:
+            h = round(maxsize * h / w)
+            w = maxsize
+        else:
+            w = round(maxsize * w / h)
+            h = maxsize
+        latent = ALL_NODE["EmptyLatentImage"]().generate(w,h,1)[0]
+        return (latent,)
+
 class RGBAtoRGB:
     @classmethod
     def INPUT_TYPES(cls):
@@ -666,6 +692,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN IC Lora Layout Crop": ICLora_Layout_Crop,
     "SDVN Crop By Ratio": CropByRatio,
     "SDVN RGBA to RGB": RGBAtoRGB,
+    "SDVN Empty Latent Ratio": EmptyLatentRatio,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -684,4 +711,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN IC Lora Layout Crop": "✂️ IC Lora Layout Crop",
     "SDVN Crop By Ratio": "✂️ Crop By Ratio",
     "SDVN RGBA to RGB": "🔄 RGBA to RGB",
+    "SDVN Empty Latent Ratio": "⚡️ Empty Latent Ratio",
 }

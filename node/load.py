@@ -1140,6 +1140,36 @@ class ApplyStyleModel:
         else:
             return (positive, para)
 
+class KontextReference:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "conditioning": ("CONDITIONING", ),
+                    "vae": ("VAE", ),
+                             },
+                "optional": {
+                     "image": ("IMAGE",),
+                     "image2": ("IMAGE",),
+                     "image3": ("IMAGE",),
+                },
+                             }
+    
+    RETURN_TYPES = ("CONDITIONING",)
+    FUNCTION = "append"
+
+    CATEGORY = "📂 SDVN"
+
+    def append(s, conditioning, vae, image, image2=None, image3=None):
+        img_list = [image, image2, image3]
+        for img in img_list:
+            if img is not None:
+                img = UpscaleImage().upscale("Maxsize", 1024, 1024, 1, "None", img)[0]
+                latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
+            else:
+                latent = None
+            conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
+        return (conditioning,)
+
 class CheckpointDownload:
     @classmethod
     def INPUT_TYPES(s):
@@ -1476,6 +1506,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN UNET Download":UNETDownload,
     "SDVN CLIP Download":CLIPDownload,
     "SDVN StyleModel Download":StyleModelDownload,
+    "SDVN Apply Kontext Reference": KontextReference,
     "SDVN IPAdapterModel Download": IPAdapterModelDownload,
     "SDVN InstantIDModel Download": InstantIDModelDownload,
     "SDVN AnyDownload List": AnyDownloadList,
@@ -1497,6 +1528,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Controlnet Apply": "🎚️ Controlnet Apply",
     "SDVN Inpaint": "👨‍🎨 Inpaint",
     "SDVN Apply Style Model": "🌈 Apply Style Model",
+    "SDVN Apply Kontext Reference": "🌈 Apply Kontext Reference",
     "SDVN Styles":"🗂️ Prompt Styles",
     "SDVN Upscale Image": "↗️ Upscale Image",
     "SDVN UPscale Latent": "↗️ Upscale Latent",
