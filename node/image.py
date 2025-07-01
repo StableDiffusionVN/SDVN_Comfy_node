@@ -13,6 +13,8 @@ def create_image_with_text(text, image_size=(1200, 100), font_size=40, align = "
         if os_name == "Darwin":
             font = ImageFont.truetype("Tahoma.ttf", font_size)
         elif os_name == "Linux":
+            #sudo apt install fonts-jetbrains-mono
+            #font = ImageFont.truetype("JetBrainsMono-Regular.ttf", font_size)
             font = ImageFont.truetype("LiberationMono-Regular.ttf", font_size)
         else:
             font = ImageFont.truetype("arialbd.ttf", font_size)
