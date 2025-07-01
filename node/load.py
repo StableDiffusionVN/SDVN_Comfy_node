@@ -268,6 +268,7 @@ class LoadImageFolder:
         index = index%len(list_img)
         len_img = number if number > 0 else len(list_img)
         image = []
+        new_list = []
         image_path = list_img
         for x in range(len_img):
             if random:
@@ -276,13 +277,14 @@ class LoadImageFolder:
             else:
                 new_index = (index+x)%len(image_path)
                 path = list_img[new_index]
+            new_list.append(path)
             img = Image.open(path)
             img = i2tensor(img)
             image.append(img)
         ui = {"images":[]}
         for i in image:
             ui["images"].append(ALL_NODE["PreviewImage"]().save_images(i)["ui"]["images"][0])
-        return {"ui":ui, "result":(image,image_path)}
+        return {"ui":ui, "result":(image,new_list)}
     
 class LoadImageUrl:
     @classmethod
