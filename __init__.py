@@ -4,30 +4,37 @@ import sys, os
 import platform, urllib.request, zipfile, shutil
 
 def ensure_aria2_installed():
-    if platform.system().lower() != "windows":
-        return
-    try:
-        subprocess.run(["aria2c", "--version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("✅ Đã cài aria2c.")
-        return
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("⚠️ Chưa cài aria2c. Tiến hành cài đặt...")
+    system = platform.system().lower()
+    if system == "windows":
+        try:
+            subprocess.run(["aria2c", "--version"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("✅ Đã cài aria2c.")
+            return
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("⚠️ Chưa cài aria2c. Tiến hành cài đặt...")
 
-    aria2_url = "https://github.com/aria2/aria2/releases/download/release-1.36.0/aria2-1.36.0-win-64bit-build1.zip"
-    temp_zip = os.path.join(os.environ["TEMP"], "aria2.zip")
-    install_dir = os.path.join(os.environ["ProgramFiles"], "aria2")
+        aria2_url = "https://github.com/aria2/aria2/releases/download/release-1.36.0/aria2-1.36.0-win-64bit-build1.zip"
+        temp_zip = os.path.join(os.environ["TEMP"], "aria2.zip")
+        install_dir = os.path.join(os.environ["ProgramFiles"], "aria2")
 
-    try:
-        urllib.request.urlretrieve(aria2_url, temp_zip)
-        if os.path.exists(install_dir):
-            shutil.rmtree(install_dir)
-        with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
-            zip_ref.extractall(install_dir)
-        os.environ["PATH"] += os.pathsep + install_dir
-        subprocess.run(["aria2c", "--version"])
-        print("✅ Đã cài aria2c thành công!")
-    except Exception as e:
-        print("❌ Lỗi khi cài aria2c, nên cài đặt thủ công để tự động tải model:", e)
+        try:
+            urllib.request.urlretrieve(aria2_url, temp_zip)
+            if os.path.exists(install_dir):
+                shutil.rmtree(install_dir)
+            with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+                zip_ref.extractall(install_dir)
+            os.environ["PATH"] += os.pathsep + install_dir
+            subprocess.run(["aria2c", "--version"])
+            print("✅ Đã cài aria2c thành công!")
+        except Exception as e:
+            print("❌ Lỗi khi cài aria2c, nên cài đặt thủ công để tự động tải model:", e)
+    elif system == "linux":
+        try:
+            print("✅ Đang cài fonts-jetbrains-mono trên Linux...")
+            subprocess.check_call(["sudo", "apt", "install", "-y", "fonts-jetbrains-mono"])
+            print("✅ Đã cài fonts-jetbrains-mono thành công!")
+        except Exception as e:
+            print("❌ Lỗi khi cài fonts-jetbrains-mono:", e)
 
 ensure_aria2_installed()
 
