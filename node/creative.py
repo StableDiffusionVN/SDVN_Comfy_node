@@ -4,6 +4,7 @@ import torch, os, re
 import folder_paths
 import nodes
 import pandas as pd
+import random as rd
 
 def check_mask(mask_tensor):
     if not isinstance(mask_tensor, torch.Tensor):
@@ -233,13 +234,17 @@ class Seed:
         return {
             "required": {
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, }),
+                "random": ("BOOLEAN", {"default": False, "label_on": "random", "label_off": "fixed"},),
             }}
     CATEGORY = "📂 SDVN/💡 Creative"
     RETURN_TYPES = ("INT",)
     RETURN_NAMES = ("seed",)
     FUNCTION = "seed"
 
-    def seed(s, seed=0):
+    def seed(s, seed, random):
+        if random:
+            seed = rd.randint(0, 0xffffffffffffffff)
+            print(f"Random seed: {seed}")
         return (seed,)
 
 
