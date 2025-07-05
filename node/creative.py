@@ -102,7 +102,7 @@ class AnyInput:
     def INPUT_TYPES(s):
         return {"required": {
             "input": ("STRING", {"default": "","placeholder": "Ex: (in1+in2)/in3; in1 in2, in3; or every", "multiline": True, }),
-            "output_list": (["None", "keywork", "line"], {"default": "None"}),
+            "output_list": (["None", "keywork", "keywork_all", "line", "line_all"], {"default": "None"}),
             "translate": (lang_list(),),
             "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
         },
@@ -133,10 +133,22 @@ class AnyInput:
         true_values = ["true",  "1", "yes", "y", "on"]
         if output_list == "None":
             input = [input]
+        elif output_list == "keywork_all":
+            input = input.split(',')
+        elif output_list == "line_all":
+            input = input.splitlines()
         elif output_list == "keywork":
             input = input.split(',')
+            if len(input) > 1:
+                input = [item for item in input if not item.startswith("#")]
+            id = seed % len(input) if seed > 0 else 0
+            input = [input[id].strip()]
         elif output_list == "line":
             input = input.splitlines()
+            if len(input) > 1:
+                input = [item for item in input if not item.startswith("#")]
+            id = seed % len(input) if seed > 0 else 0
+            input = [input[id].strip()]
         if len(input) > 1:
             input = [item for item in input if not item.startswith("#")]
         input = [i.strip() for i in input]
