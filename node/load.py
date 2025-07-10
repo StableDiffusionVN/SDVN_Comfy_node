@@ -564,8 +564,8 @@ class CLIPTextEncode:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "positive": ("STRING", {"multiline": True, "dynamicPrompts": True, "tooltip": "The text to be encoded."}),
-                "negative": ("STRING", {"multiline": True, "dynamicPrompts": True, "tooltip": "The text to be encoded."}),
+                "positive": ("STRING", {"multiline": True}),
+                "negative": ("STRING", {"multiline": True}),
                 "style": (none2list(style_list()[0]),{"default": "None"}),
                 "translate": (lang_list(),),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
@@ -605,8 +605,8 @@ class StyleLoad:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "positive": ("STRING", {"multiline": True, "dynamicPrompts": True, "placeholder": "Adding style tags: Edit the file my_styles.csv.example to my_styles.csv, then add the style you desire"}),
-                "negative": ("STRING", {"multiline": True, "dynamicPrompts": True, "tooltip": "The text to be encoded."}),
+                "positive": ("STRING", {"multiline": True}),
+                "negative": ("STRING", {"multiline": True}),
                 "style": (none2list(style_list()[0]),{"default": "None"}),
                 "style2": (none2list(style_list()[0]),{"default": "None"}),
                 "style3": (none2list(style_list()[0]),{"default": "None"}),
