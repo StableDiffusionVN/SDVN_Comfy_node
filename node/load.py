@@ -1146,6 +1146,7 @@ class KontextReference:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
+                    "img_size": ("INT",  {"default": 1024, "min": 0, "max": 4096, "step": 1}),
                     "conditioning": ("CONDITIONING", ),
                     "vae": ("VAE", ),
                              },
@@ -1156,21 +1157,28 @@ class KontextReference:
                 },
                              }
     
-    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_TYPES = ("CONDITIONING", "INT", "INT")
+    RETURN_NAMES= ("conditioning", "width", "height")
     FUNCTION = "append"
 
     CATEGORY = "📂 SDVN"
 
-    def append(s, conditioning, vae, image, image2=None, image3=None):
+    def append(s, img_size, conditioning, vae, image, image2=None, image3=None):
         img_list = [image, image2, image3]
         for img in img_list:
             if img is not None:
-                img = UpscaleImage().upscale("Maxsize", 1024, 1024, 1, "None", img)[0]
+                width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = img_size)
+                break
+            else:
+                width, height = img_size, img_size
+        for img in img_list:
+            if img is not None:
+                img = UpscaleImage().upscale("Maxsize", img_size, img_size, 1, "None", img)[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
             else:
                 latent = None
             conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
-        return (conditioning,)
+        return (conditioning,width,height,)
 
 class CheckpointDownload:
     @classmethod
