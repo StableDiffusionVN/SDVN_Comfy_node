@@ -135,36 +135,18 @@ class MaskRegions:
     
     def separate_regions(s, mask):
         threshold = 0.3
-        max_iter = 100
- 
-        device = mask.device
         mask_bin = (mask > threshold).float()
-        mask = mask_bin.clone()
- 
+        mask_np = mask_bin.squeeze().cpu().numpy().astype(np.uint8)
+
+        import cv2
+        n_labels, labels = cv2.connectedComponents(mask_np)
         regions = []
-        kernel = torch.tensor([[0., 1., 0.],
-                                [1., 1., 1.],
-                                [0., 1., 0.]], device=device).reshape(1, 1, 3, 3)
- 
-        while mask.sum() > 0 and len(regions) < max_iter:
-            coords = (mask > 0).nonzero(as_tuple=False)[0]
-            y, x = coords[1], coords[2]
- 
-            seed = torch.zeros_like(mask)
-            seed[0, y, x] = 1.0
- 
-            region = seed.clone()
-            prev = torch.zeros_like(region)
- 
-            while not torch.equal(region, prev):
-                prev = region
-                region = FF.conv2d(region.unsqueeze(0), kernel, padding=1)[0]
-                region = (region > 0).float() * mask
- 
-            regions.append(region.clone())
- 
-            mask = mask * (region == 0).float()
- 
+        for i in range(1, n_labels):
+            region = (labels == i).astype(np.float32)
+            region_tensor = torch.from_numpy(region).to(mask.device).unsqueeze(0)
+            regions.append(region_tensor)
+
+        # Filter lớn
         def is_large_enough(region):
             coords = (region > 0).nonzero(as_tuple=False)
             if coords.numel() == 0:
@@ -172,10 +154,10 @@ class MaskRegions:
             y_min, x_min = coords.min(dim=0).values[1:]
             y_max, x_max = coords.max(dim=0).values[1:]
             return (y_max - y_min + 1 > 50) and (x_max - x_min + 1 > 50)
- 
+        
         regions = [r for r in regions if is_large_enough(r)]
         regions_sorted = sorted(regions, key=s.get_top_left_coords)
- 
+
         return (regions_sorted,)
 
 class inpaint_crop:
@@ -184,7 +166,7 @@ class inpaint_crop:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "crop_size": ([512,768,896,1024,1280], {"default": 768}),
+                "crop_size": ([512,768,896,1024,1280,1408,1536,1664,1792,1920,2048], {"default": 1024}),
                 "extend": ("FLOAT", {"default": 1.2, "min": 0, "max": 100}),
             },
             "optional": {
