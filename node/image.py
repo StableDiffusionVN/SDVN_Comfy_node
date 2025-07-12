@@ -583,7 +583,7 @@ class CropByRatio:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "ratio": (["1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16", "1:2", "2:1",],),
+                "ratio": (["None","1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16", "1:2", "2:1",],),
                 "position": ([
                     "top-left", "top-mid", "top-right",
                     "center-left", "center-mid", "center-right",
@@ -598,6 +598,8 @@ class CropByRatio:
     FUNCTION = "crop_image"
 
     def crop_image(self, image, ratio, position):
+        if ratio == "None":
+            return (image,)
         b, h, w, c = image.shape
 
         # Tính khích thước crop theo tỉ lệ
