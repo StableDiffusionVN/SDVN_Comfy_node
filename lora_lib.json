@@ -15,5 +15,6 @@
     "dreamo_cfg_distill.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_cfg_distill.safetensors",
     "dreamo_quality_lora_neg.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_quality_lora_neg.safetensors",
     "dreamo_quality_lora_pos.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_quality_lora_pos.safetensors",
-    "dreamo.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo.safetensors"
+    "dreamo.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo.safetensors",
+    "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors"
 }
