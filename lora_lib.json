@@ -16,5 +16,7 @@
     "dreamo_quality_lora_neg.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_quality_lora_neg.safetensors",
     "dreamo_quality_lora_pos.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo_quality_lora_pos.safetensors",
     "dreamo.safetensors": "https://huggingface.co/ByteDance/DreamO/blob/main/dreamo.safetensors",
+    "Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors",
+    "lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank32_bf16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/Lightx2v/lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank32_bf16.safetensors",
     "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors"
 }
