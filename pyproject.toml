@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update support Flux kontext dev, fix, optimal"
-version = "1.10.1"   
+description = "Update Kontext Ref, Mask overlay, and more"
+version = "1.10.2"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 

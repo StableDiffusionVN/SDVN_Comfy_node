@@ -1147,7 +1147,7 @@ class KontextReference:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-                    "img_size": ("INT",  {"default": 1024, "min": 0, "max": 4096, "step": 1}),
+                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
                     "conditioning": ("CONDITIONING", ),
                     "vae": ("VAE", ),
                              },
@@ -1174,7 +1174,7 @@ class KontextReference:
                 width, height = img_size, img_size
         for img in img_list:
             if img is not None:
-                image = ALL_NODE["SDVN Image Layout"]().layout("row", "", "left", 40, image, image2, image3)[0]
+                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
                 break
             else:
