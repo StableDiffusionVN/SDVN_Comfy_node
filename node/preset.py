@@ -117,7 +117,7 @@ class join_parameter:
     def join_parameter(s, **kargs):
         r = []
         for i in kargs:
-            if kargs[i] != None:
+            if kargs[i] is not None:
                 if isinstance(kargs[i], list):
                     r += [*kargs[i]]
                 else:
@@ -186,7 +186,7 @@ class auto_generate:
         else:
             w, h = size[:2]
 
-        if image != None:
+        if image is not None:
             samples = image.movedim(-1, 1)
             i_w = samples.shape[3]
             i_h = samples.shape[2]
@@ -195,7 +195,7 @@ class auto_generate:
             else:
                 h = int(round(w * i_h / i_w))
 
-        Denoise = 1 if image == None else Denoise
+        Denoise = 1 if image is None else Denoise
         max_size = s.model_para[type_model][0] / Denoise
         if w > h:
             n_w = max_size if max_size < w else w
@@ -214,12 +214,12 @@ class auto_generate:
         Prompt = f"{Active_prompt}, {Prompt}"
         Negative = ALL_NODE["SDVN Translate"]().ggtranslate(Negative,"en")[0]
         p, n, _ = ALL_NODE["SDVN CLIP Text Encode"]().encode(clip, Prompt, Negative, s.model_para[type_model][1], "None", rand_seed if Random_prompt else seed)
-        if image == None:
+        if image is None:
             latent = ALL_NODE["EmptyLatentImage"]().generate(n_w, n_h, 1)[0]
         else:
             image = ALL_NODE["SDVN Upscale Image"]().upscale("Resize", n_w, n_h, 1, "None", image)[0]
             p, n, latent = ALL_NODE["SDVN Inpaint"]().encode(False if Inpaint_model else True, image, vae, mask, p, n)
-        if parameter != None:
+        if parameter is not None:
             if not isinstance(parameter, list):
                 parameter = [parameter]
             for para in parameter:
@@ -232,7 +232,25 @@ class auto_generate:
         if AdvSetting:
             type_model = "None"
 
-        _, img = ALL_NODE["SDVN KSampler"]().sample(model, p, type_model, "Denoise", sampler_name, scheduler, seed, Tiled=True if (n_w > tile_size or n_h > tile_size) and Denoise < 0.5 else False, tile_width=int(round(n_w/2)), tile_height=int(round(n_h/2)), steps=Steps, cfg=cfg, denoise=Denoise, negative=n, latent_image=latent, vae=vae, FluxGuidance = 35 if Inpaint_model and type_model == "Flux" and AdvSetting == False else FluxGuidance)
+        _, img = ALL_NODE["SDVN KSampler"]().sample(
+            model,
+            p,
+            type_model,
+            "Denoise",
+            sampler_name,
+            scheduler,
+            seed,
+            Tiled=True if (n_w > tile_size or n_h > tile_size) and Denoise < 0.5 else False,
+            tile_width=int(round(n_w/2)),
+            tile_height=int(round(n_h/2)),
+            steps=Steps,
+            cfg=cfg,
+            denoise=Denoise,
+            negative=n,
+            latent_image=latent,
+            vae=vae,
+            FluxGuidance=35 if Inpaint_model and type_model == "Flux" and not AdvSetting else FluxGuidance,
+        )
         if w == n_w:
             return (img,)
         else:
@@ -243,7 +261,25 @@ class auto_generate:
             print(f"Upscale by {upscale_model}")
             img = ALL_NODE["SDVN Upscale Image"]().upscale("Resize", w, h, 1, upscale_model, img)[0]
             latent = ALL_NODE["SDVN Inpaint"]().encode(True, img, vae, mask, None, None)[2]
-            img = ALL_NODE["SDVN KSampler"]().sample(model, p, type_model, "Denoise", sampler_name, scheduler, seed,  Tiled=True if (n_w > tile_size or n_h > tile_size) else False, tile_width=int(round(w/2)), tile_height=int(round(h/2)), steps=Steps, cfg=cfg, denoise=s.model_para[type_model][2], negative=n, latent_image=latent, vae=vae, FluxGuidance = 35 if Inpaint_model and type_model == "Flux" and AdvSetting == False else FluxGuidance)[1]
+            img = ALL_NODE["SDVN KSampler"]().sample(
+                model,
+                p,
+                type_model,
+                "Denoise",
+                sampler_name,
+                scheduler,
+                seed,
+                Tiled=True if (n_w > tile_size or n_h > tile_size) else False,
+                tile_width=int(round(w/2)),
+                tile_height=int(round(h/2)),
+                steps=Steps,
+                cfg=cfg,
+                denoise=s.model_para[type_model][2],
+                negative=n,
+                latent_image=latent,
+                vae=vae,
+                FluxGuidance=35 if Inpaint_model and type_model == "Flux" and not AdvSetting else FluxGuidance,
+            )[1]
             return (img,)
         
                 

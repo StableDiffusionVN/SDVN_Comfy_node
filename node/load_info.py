@@ -388,7 +388,7 @@ class model_info_editor:
             txt_path = os.path.join(os.path.dirname(model_path),f"{name}.txt")
             with open(txt_path, "w", encoding="utf-8") as file:
                 file.write(Txt_note)
-        if image_cover != None:
+        if image_cover is not None:
             name = model_path.split("/")[-1].rsplit(".", 1)[0]
             img_path = os.path.join(os.path.dirname(model_path),f"{name}.png")
             image = tensor2pil(image_cover)

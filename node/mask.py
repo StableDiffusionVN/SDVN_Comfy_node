@@ -1,6 +1,8 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 import folder_paths
-import os, numpy as np, torch
+import os
+import numpy as np
+import torch
 from PIL import Image, ImageOps
 from torch.hub import download_url_to_file
 import torch.nn.functional as FF
@@ -96,7 +98,7 @@ class yoloseg:
         num_objects = len(id_box)
         image = Image.fromarray(r.plot()[..., ::-1])
         image = pil2tensor(image)
-        if len(id_box) > 0 and r.masks != None:
+        if len(id_box) > 0 and r.masks is not None:
             mask = r.masks.data
             mask = torch.sum(mask, dim=0, keepdim=True)
             mask = FF.interpolate(mask.unsqueeze(0),
@@ -194,7 +196,7 @@ class inpaint_crop:
         result = s.inpaint_crop(image, crop_size, extend,  mask)
         image = result[1]
         mask_out = result[2]
-        if mask != None:
+        if mask is not None:
             invert_mask = 1.0 - mask_out
             alpha_image = ALL_NODE["JoinImageWithAlpha"]().join_image_with_alpha(image, invert_mask)[0]
             ui = ALL_NODE["PreviewImage"]().save_images(alpha_image)["ui"]
