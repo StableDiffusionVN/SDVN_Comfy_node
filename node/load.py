@@ -741,7 +741,6 @@ class Easy_KSampler:
             images = None
         return (samples, images,)
 
-
 class UpscaleImage:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
     with open(model_lib_path, 'r') as json_file:
@@ -1165,25 +1164,28 @@ class KontextReference:
     CATEGORY = "📂 SDVN"
 
     def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
-        img_list = [image, image2, image3]
-        for img in img_list:
+        if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
+            mask = None
+        img_list = []
+        for img in [image, image2, image3]:
             if img is not None:
-                width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = img_size)
-                break
-            else:
-                width, height = img_size, img_size
-        for img in img_list:
-            if img is not None:
-                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
+                img_list.append(img)
+        if len(img_list) > 0:
+            width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = img_list[0], latent = None, maxsize = img_size)
+            first_img = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img_list[0])[0]
+            first_img_latent = ALL_NODE["VAEEncode"]().encode(vae, first_img)[0]
+            if len(img_list) > 1:
+                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], img_list)[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
-                if mask is not None:
-                    latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(latent, mask)[0]
-                break
             else:
-                latent = None
-        
-        conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
-        return (conditioning,width,height,latent)
+                latent = first_img_latent
+            conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
+            if mask is not None:
+                first_img_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_img_latent, mask)[0]
+            return (conditioning,width,height,first_img_latent)
+        else:
+            return (conditioning, img_size, img_size, None)
+
 
 class CheckpointDownload:
     @classmethod

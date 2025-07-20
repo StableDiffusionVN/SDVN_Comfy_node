@@ -182,6 +182,8 @@ class inpaint_crop:
     FUNCTION = "inpaint"
 
     def inpaint_crop(self, image,crop_size, extend,  mask = None):
+        if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
+            mask = None
         if image.shape[-1] == 4:
             image = image[..., :3]
         if "InpaintCropImproved" not in ALL_NODE:
@@ -273,5 +275,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Mask Regions": "🧩 Mask Regions",
     "SDVN Inpaint Crop": "⚡️ Crop Inpaint",
     "SDVN Loop Inpaint Stitch": "🔄 Loop Inpaint Stitch",
-    "SDVN Get Mask Size": "📏 Get Mask Size",
+    "SDVN Get Mask Size": "📐 Mask Size",
 }
