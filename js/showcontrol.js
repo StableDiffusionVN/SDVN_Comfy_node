@@ -43,7 +43,9 @@ function addShowControl(nodeType, nodeData) {
                     sampler_name: v === true,
                     scheduler: v === true,
                     FluxGuidance: v === true,
-                    Upscale_model: v === true
+                    Upscale_model: v === true,
+                    Auto_hires: v === true,
+                    Kontext_model: v === true,
                 })
             },
             "SDVN Load Image Ultimate": {

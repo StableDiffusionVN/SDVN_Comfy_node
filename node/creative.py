@@ -186,6 +186,7 @@ class SimpleAnyInput:
     FUNCTION = "simple_any"
 
     def simple_any(s,input):
+        input = str(input)
         input = [item.strip() for item in input.split(",")]
         result = []
         for i in input:

@@ -932,6 +932,9 @@ class Inpaint:
     CATEGORY = "📂 SDVN"
 
     def encode(self, SetLatentNoiseMask, pixels, vae, mask = None, positive = None, negative = None):
+        if mask is not None:
+            if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
+                mask = None
         if SetLatentNoiseMask or mask == None:
             r = ALL_NODE["VAEEncode"]().encode(vae,pixels)[0]
             if mask != None:
@@ -1164,8 +1167,9 @@ class KontextReference:
     CATEGORY = "📂 SDVN"
 
     def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
-        if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
-            mask = None
+        if mask is not None:
+            if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
+                mask = None
         img_list = []
         for img in [image, image2, image3]:
             if img is not None:

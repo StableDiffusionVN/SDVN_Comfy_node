@@ -155,6 +155,8 @@ class auto_generate:
                 "scheduler": (comfy.samplers.KSampler.SCHEDULERS, {"tooltip": "The scheduler controls how noise is gradually removed to form the image."}),
                 "FluxGuidance":  ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1}),
                 "Upscale_model": (none2list(s.list_full_upscale_model), {"default": "None", }),
+                "Auto_hires": ("BOOLEAN", {"default": False},),
+                "Kontext_model": ("BOOLEAN", {"default": False},),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -174,7 +176,9 @@ class auto_generate:
         "SD 1.5": [768, "1.5-BasePrompt", 0.4, 1920],
         "None": [768, "1.5-BasePrompt", 0.4, 1920],
     }
-    def auto_generate(s, model, clip, vae, Prompt, Negative, Active_prompt, Image_size, Steps, Denoise, Inpaint_model, Random_prompt, AdvSetting, cfg, sampler_name, scheduler, FluxGuidance, Upscale_model, seed, image = None, mask = None, parameter = None):
+    def auto_generate(s, model, clip, vae, Prompt, Negative, Active_prompt, Image_size, Steps, Denoise, Inpaint_model, Random_prompt, AdvSetting, cfg, sampler_name, scheduler, FluxGuidance, Upscale_model, seed, Auto_hires = False, Kontext_model = False, image = None, mask = None, parameter = None):
+        if AdvSetting == False:
+            Auto_hires == True 
         type_model = check_type_model(model)
         type_model = "None" if type_model not in s.model_para else type_model
         print(f"Type model : {type_model}")
@@ -196,13 +200,17 @@ class auto_generate:
                 h = int(round(w * i_h / i_w))
 
         Denoise = 1 if image is None else Denoise
-        max_size = s.model_para[type_model][0] / Denoise
-        if w > h:
-            n_w = max_size if max_size < w else w
-            n_h = h * (max_size/w) if max_size < w else h
+        if Auto_hires:
+            max_size = s.model_para[type_model][0] / Denoise
+            if w > h:
+                n_w = max_size if max_size < w else w
+                n_h = h * (max_size/w) if max_size < w else h
+            else:
+                n_h = max_size if max_size < h else h
+                n_w = w * (max_size/h) if max_size < h else w
         else:
-            n_h = max_size if max_size < h else h
-            n_w = w * (max_size/h) if max_size < h else w
+            n_w = w
+            n_h = h
         n_h = int(round(n_h))
         n_w = int(round(n_w))
         rand_seed = random.randint(0, 0xffffffffffffffff)
@@ -218,7 +226,10 @@ class auto_generate:
             latent = ALL_NODE["EmptyLatentImage"]().generate(n_w, n_h, 1)[0]
         else:
             image = ALL_NODE["SDVN Upscale Image"]().upscale("Resize", n_w, n_h, 1, "None", image)[0]
-            p, n, latent = ALL_NODE["SDVN Inpaint"]().encode(False if Inpaint_model else True, image, vae, mask, p, n)
+            if Kontext_model == False:
+                p, n, latent = ALL_NODE["SDVN Inpaint"]().encode(False if Inpaint_model else True, image, vae, mask, p, n)
+            else:
+                p, _, __, latent = ALL_NODE["SDVN Apply Kontext Reference"]().append(0, p, vae, image=image, mask=mask)
         if parameter is not None:
             if not isinstance(parameter, list):
                 parameter = [parameter]
