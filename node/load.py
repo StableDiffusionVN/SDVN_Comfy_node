@@ -202,14 +202,22 @@ class LoadImage:
             mask = 1. - torch.from_numpy(mask)
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
-        image = pil2tensor(i)
+        image = self.i2tensor(i)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image, mask.unsqueeze(0), image_path)
         if image_path != None:
             if 'clipspace' in image_path:
                 del results["ui"]
         return results
+    
+    def i2tensor(s, i) -> torch.Tensor:
+        i = ImageOps.exif_transpose(i)
+        image = i.convert("RGB")
+        image = np.array(image).astype(np.float32) / 255.0
 
+        image = torch.from_numpy(image)[None,]
+        return image
+    
     @classmethod
     def IS_CHANGED(self, Load_url, Url, image="None"):
         image_path = folder_paths.get_annotated_filepath(image)

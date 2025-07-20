@@ -180,6 +180,8 @@ class inpaint_crop:
     FUNCTION = "inpaint"
 
     def inpaint_crop(self, image,crop_size, extend,  mask = None):
+        if image.shape[-1] == 4:
+            image = image[..., :3]
         if "InpaintCropImproved" not in ALL_NODE:
             raise Exception("Install node InpaintCrop and update (https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch)")
         input = ALL_NODE["InpaintCropImproved"]().inpaint_crop(image, "bilinear", "bicubic", False, "ensure minimum resolution", 1024, 1024, 2048, 2048, False, 1, 1, 1, 1, 0.1, True, 0, False, 32, extend, True, crop_size, crop_size, 32, mask, None)
