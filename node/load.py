@@ -1154,16 +1154,17 @@ class KontextReference:
                      "image": ("IMAGE",),
                      "image2": ("IMAGE",),
                      "image3": ("IMAGE",),
+                     "mask": ("MASK",),
                 },
                              }
     
-    RETURN_TYPES = ("CONDITIONING", "INT", "INT")
-    RETURN_NAMES= ("conditioning", "width", "height")
+    RETURN_TYPES = ("CONDITIONING", "INT", "INT", "LATENT")
+    RETURN_NAMES= ("conditioning", "width", "height", "latent")
     FUNCTION = "append"
 
     CATEGORY = "📂 SDVN"
 
-    def append(s, img_size, conditioning, vae, image, image2=None, image3=None):
+    def append(s, img_size, conditioning, vae, image, image2=None, image3=None, mask=None):
         img_list = [image, image2, image3]
         for img in img_list:
             if img is not None:
@@ -1175,11 +1176,14 @@ class KontextReference:
             if img is not None:
                 img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
+                if mask is not None:
+                    latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(latent, mask)[0]
                 break
             else:
                 latent = None
+        
         conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
-        return (conditioning,width,height,)
+        return (conditioning,width,height,latent)
 
 class CheckpointDownload:
     @classmethod

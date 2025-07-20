@@ -234,16 +234,44 @@ class LoopInpaintStitch:
                 canva = ALL_NODE["SDVN Inpaint Crop"]().inpaint_crop(image,  stitchers[stit_index]["crop_size"], stitchers[stit_index]["extend"], stitchers[stit_index]["mask"])[0]["canvas_image"]
         return (image,)
     
+class GetMaskSize:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🎭 Mask"
+    RETURN_TYPES = ("INT", "INT")
+    RETURN_NAMES = ("width", "height")
+    FUNCTION = "get_size"
+
+    def get_size(self, mask):
+        mask_tensor = mask[0]  # shape: [1, H, W]
+        binary_mask = (mask_tensor > 0.5).squeeze(0)  # [H, W]
+        coords = binary_mask.nonzero(as_tuple=False)
+        if coords.numel() == 0:
+            return (0, 0)
+        y_min, x_min = coords.min(dim=0).values
+        y_max, x_max = coords.max(dim=0).values
+        width = (x_max - x_min + 1).item()
+        height = (y_max - y_min + 1).item()
+        return (width, height)
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Yolo8 Seg": yoloseg,
     "SDVN Mask Regions": MaskRegions,
     "SDVN Inpaint Crop": inpaint_crop,
-    "SDVN Loop Inpaint Stitch": LoopInpaintStitch
+    "SDVN Loop Inpaint Stitch": LoopInpaintStitch,
+    "SDVN Get Mask Size": GetMaskSize,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Yolo8 Seg": "🎭 Yolo Seg Mask",
     "SDVN Mask Regions": "🧩 Mask Regions",
     "SDVN Inpaint Crop": "⚡️ Crop Inpaint",
-    "SDVN Loop Inpaint Stitch": "🔄 Loop Inpaint Stitch"
+    "SDVN Loop Inpaint Stitch": "🔄 Loop Inpaint Stitch",
+    "SDVN Get Mask Size": "📏 Get Mask Size",
 }
