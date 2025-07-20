@@ -790,5 +790,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Empty Latent Ratio": "⚡️ Empty Latent Ratio",
     "SDVN Overlay Images": "🧅 Overlay Two Images",
     "SDVN Mask To Transparent Color": "🎭 Mask → Transparent Color",
-    "SDVN Overlay Mask Color Image": "🧩 Overlay Mask Color on Image",
+    "SDVN Overlay Mask Color Image": "🧩 Overlay Mask",
 }
