@@ -1164,7 +1164,7 @@ class KontextReference:
 
     CATEGORY = "📂 SDVN"
 
-    def append(s, img_size, conditioning, vae, image, image2=None, image3=None, mask=None):
+    def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
         img_list = [image, image2, image3]
         for img in img_list:
             if img is not None:
