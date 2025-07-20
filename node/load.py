@@ -1172,10 +1172,9 @@ class KontextReference:
                 break
             else:
                 width, height = img_size, img_size
-        image = ALL_NODE["image_layout"]().layout("row", "", "left", 40, image, image2, image3)[0]
         for img in img_list:
             if img is not None:
-                image = ALL_NODE["image_layout"]().layout("row", "", "left", 40, image, image2, image3)[0]
+                image = ALL_NODE["SDVN Image Layout"]().layout("row", "", "left", 40, image, image2, image3)[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
                 break
             else:
