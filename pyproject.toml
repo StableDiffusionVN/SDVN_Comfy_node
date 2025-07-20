@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update Kontext Ref, Mask overlay, and more"
-version = "1.10.2"   
+description = "Update Kontext Support, Autogenerate, and more for SDVN Comfy Node"
+version = "1.11.0"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 
