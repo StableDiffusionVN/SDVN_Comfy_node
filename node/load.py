@@ -46,13 +46,12 @@ def none2list(folderlist):
     return list
 
 
-def pil2tensor(i) -> torch.Tensor:
+def i2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
-    if i.mode not in ["RGB", "RGBA"]:
-        i = i.convert("RGBA")
-    image = np.array(i).astype(np.float32) / 255.0
+    image = i.convert("RGB")
+    image = np.array(image).astype(np.float32) / 255.0
     image = torch.from_numpy(image)[None,]
-    return image  # shape: [1, H, W, 3] hoặc [1, H, W, 4]
+    return image
 
 def insta_download(url,index):
     if "index=" in url:
@@ -202,22 +201,14 @@ class LoadImage:
             mask = 1. - torch.from_numpy(mask)
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
-        image = self.i2tensor(i)
+        image = i2tensor(i)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image, mask.unsqueeze(0), image_path)
         if image_path != None:
             if 'clipspace' in image_path:
                 del results["ui"]
         return results
-    
-    def i2tensor(s, i) -> torch.Tensor:
-        i = ImageOps.exif_transpose(i)
-        image = i.convert("RGB")
-        image = np.array(image).astype(np.float32) / 255.0
 
-        image = torch.from_numpy(image)[None,]
-        return image
-    
     @classmethod
     def IS_CHANGED(self, Load_url, Url, image="None"):
         image_path = folder_paths.get_annotated_filepath(image)
@@ -288,7 +279,7 @@ class LoadImageFolder:
                 path = list_img[new_index]
             new_list.append(path)
             img = Image.open(path)
-            img = pil2tensor(img)
+            img = i2tensor(img)
             image.append(img)
         ui = {"images":[]}
         for i in image:
@@ -314,7 +305,7 @@ class LoadImageUrl:
             image = Image.open(requests.get(Url, stream=True).raw)
         else:
             image = Image.open(Url)
-        image = pil2tensor(image)
+        image = i2tensor(image)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image,)
         return results
@@ -502,7 +493,7 @@ class CheckpointLoaderDownload:
                     index += 1
         if index > 0:
             i = Image.open(i_cover)
-            i = pil2tensor(i)
+            i = i2tensor(i)
             ui = ALL_NODE["PreviewImage"]().save_images(i)["ui"]
             return {"ui":ui, "result":(results[0],results[1],results[2],path)}
         else:
@@ -562,7 +553,7 @@ class LoraLoader:
             results = ALL_NODE["LoraLoader"]().load_lora(model, clip, lora_name, strength_model, strength_clip)
         if index > 0:
             i = Image.open(i_cover)
-            i = pil2tensor(i)
+            i = i2tensor(i)
             ui = ALL_NODE["PreviewImage"]().save_images(i)["ui"]
             return {"ui":ui, "result":(results[0],results[1],path)}
         else:
