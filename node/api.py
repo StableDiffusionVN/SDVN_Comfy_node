@@ -8,21 +8,21 @@ from gradio_client import Client, handle_file
 from google.genai import types
 from io import BytesIO
 
-def i2tensor(i) -> torch.Tensor:
+def pil2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
-    image = i.convert("RGB")
-    image = np.array(image).astype(np.float32) / 255.0
+    if i.mode not in ["RGB", "RGBA"]:
+        i = i.convert("RGBA")
+    image = np.array(i).astype(np.float32) / 255.0
     image = torch.from_numpy(image)[None,]
-    return image 
+    return image  # shape: [1, H, W, 3] hoặc [1, H, W, 4]
 
 def tensor2pil(tensor: torch.Tensor) -> Image.Image:
-    if tensor.ndim == 4:
-        tensor = tensor.squeeze(0)
-    if tensor.ndim == 3 and tensor.shape[-1] == 3:
+    if tensor.ndim == 3:
         np_image = (tensor.numpy() * 255).astype(np.uint8)
+    elif tensor.ndim == 4 and tensor.shape[0] == 1:
+        np_image = (tensor.squeeze(0).numpy() * 255).astype(np.uint8)
     else:
-        raise ValueError(
-            "Tensor phải có shape [H, W, C] hoặc [1, H, W, C] với C = 3 (RGB).")
+        raise ValueError("Tensor phải có shape [H, W, C] hoặc [1, H, W, C]")
     pil_image = Image.fromarray(np_image)
     return pil_image
 
@@ -478,7 +478,7 @@ class API_GPT_image:
             image_base64 = result.data[i].b64_json
             image_bytes = base64.b64decode(image_base64)
             image_pil = Image.open(BytesIO(image_bytes))
-            image_ten = i2tensor(image_pil)
+            image_ten = pil2tensor(image_pil)
             images.append(image_ten)
         return (images,)
     
@@ -530,7 +530,7 @@ class Gemini_Flash2_Image:
                 print(part.text)
             elif part.inline_data is not None:
                 image = Image.open(BytesIO(part.inline_data.data))              
-        image = i2tensor(image)
+        image = pil2tensor(image)
         return (image,)
 
 class API_Imagen:
@@ -573,7 +573,7 @@ class API_Imagen:
         )
         for generated_image in response.generated_images:
             image = Image.open(BytesIO(generated_image.image.image_bytes))
-        image = i2tensor(image)
+        image = pil2tensor(image)
         return (image,)
         
 class ic_light_v2:

@@ -1,6 +1,6 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 import torch, numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
 import platform, math, folder_paths, os, subprocess, cv2
 import torchvision.transforms.functional as F
 os_name = platform.system()
@@ -36,21 +36,21 @@ def create_image_with_text(text, image_size=(1200, 100), font_size=40, align = "
     
     return image
 
-def i2tensor(i) -> torch.Tensor:
+def pil2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
-    image = i.convert("RGB")
-    image = np.array(image).astype(np.float32) / 255.0
+    if i.mode not in ["RGB", "RGBA"]:
+        i = i.convert("RGBA")
+    image = np.array(i).astype(np.float32) / 255.0
     image = torch.from_numpy(image)[None,]
-    return image 
+    return image  # shape: [1, H, W, 3] hoặc [1, H, W, 4]
 
 def tensor2pil(tensor: torch.Tensor) -> Image.Image:
-    if tensor.ndim == 4:
-        tensor = tensor.squeeze(0)
-    if tensor.ndim == 3 and tensor.shape[-1] == 3:
+    if tensor.ndim == 3:
         np_image = (tensor.numpy() * 255).astype(np.uint8)
+    elif tensor.ndim == 4 and tensor.shape[0] == 1:
+        np_image = (tensor.squeeze(0).numpy() * 255).astype(np.uint8)
     else:
-        raise ValueError(
-            "Tensor phải có shape [H, W, C] hoặc [1, H, W, C] với C = 3 (RGB).")
+        raise ValueError("Tensor phải có shape [H, W, C] hoặc [1, H, W, C]")
     pil_image = Image.fromarray(np_image)
     return pil_image
 
@@ -218,7 +218,7 @@ class image_layout:
                 w = samples.shape[3]
                 h = samples.shape[2]
                 img_label = create_image_with_text(label, image_size=(w, round(50 * (h / 512))), font_size = font_size, align = align)
-                img_label = i2tensor(img_label)
+                img_label = pil2tensor(img_label)
                 list_img = [r, img_label]
                 list_img = [tensor.squeeze(0) for tensor in list_img]
                 img_layout = torch.cat(list_img, dim=0)
@@ -416,7 +416,7 @@ class hls_adj:
                 if kargs[f"{color}_hue"] !=0 or  kargs[f"{color}_saturation"] !=0 or  kargs[f"{color}_lightness"] !=0:
                     h, s, l = [kargs[f"{color}_hue"], kargs[f"{color}_saturation"], kargs[f"{color}_lightness"]]
                     pil_image = self.hls(pil_image, color, h, s, l)
-        r = i2tensor(pil_image)
+        r = pil2tensor(pil_image)
         return (r,)
 
 class FlipImage:
@@ -435,24 +435,14 @@ class FlipImage:
     FUNCTION = "flip_image" 
 
     def flip_image(self, image, flip_direction):
-        pil_image = self.tensor2pil(image)
+        pil_image = tensor2pil(image)
 
         if flip_direction == "horizontal":
             flipped_image = pil_image.transpose(Image.FLIP_LEFT_RIGHT)
         else:
             flipped_image = pil_image.transpose(Image.FLIP_TOP_BOTTOM)
-        flipped_tensor = self.pil2tensor(flipped_image)
+        flipped_tensor = pil2tensor(flipped_image)
         return (flipped_tensor,)
-
-    def tensor2pil(self, tensor):
-        if tensor.ndim == 4:
-            tensor = tensor.squeeze(0)
-        np_image = (tensor.numpy() * 255).astype(np.uint8)
-        return Image.fromarray(np_image)
-
-    def pil2tensor(self, pil_image):
-        np_image = np.array(pil_image).astype(np.float32) / 255.0
-        return torch.from_numpy(np_image).unsqueeze(0)
 
 class FillBackground:
     @classmethod
@@ -470,7 +460,7 @@ class FillBackground:
     FUNCTION = "fill_background" 
 
     def fill_background(self, image, background_color):
-        pil_image = self.tensor2pil(image)
+        pil_image = tensor2pil(image)
         try:
             bg_color = self.hex_to_rgb(background_color)
         except ValueError as e:
@@ -478,7 +468,7 @@ class FillBackground:
             bg_color = (255, 255, 255)
         filled_image = self.fill_transparent_background(pil_image, bg_color)
 
-        filled_tensor = self.pil2tensor(filled_image)
+        filled_tensor = pil2tensor(filled_image)
         return (filled_tensor,)
 
     def hex_to_rgb(self, hex_color):
@@ -504,16 +494,6 @@ class FillBackground:
             background.paste(pil_image)
 
         return background
-
-    def tensor2pil(self, tensor):
-        if tensor.ndim == 4:
-            tensor = tensor.squeeze(0)
-        np_image = (tensor.numpy() * 255).astype(np.uint8)
-        return Image.fromarray(np_image)
-
-    def pil2tensor(self, pil_image):
-        np_image = np.array(pil_image).astype(np.float32) / 255.0
-        return torch.from_numpy(np_image).unsqueeze(0)
 
 class ICLora_layout:
     @classmethod
@@ -663,23 +643,112 @@ class EmptyLatentRatio:
         latent = ALL_NODE["EmptyLatentImage"]().generate(w,h,1)[0]
         return (latent,)
 
+
 class RGBAtoRGB:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE",),   
-                }}
-    CATEGORY = "📂 SDVN/🏞️ Image"  
-    RETURN_TYPES = ("IMAGE",) 
-    RETURN_NAMES = ("image",) 
-    FUNCTION = "RGBAtoRGB" 
+                "image": ("IMAGE",),
+            }
+        }
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "RGBAtoRGB"
 
     def RGBAtoRGB(s, image):
         if image.shape[-1] == 4:
             image = image[..., :3]
         return (image,)
 
+
+class OverlayImages:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image1": ("IMAGE",),  # Hình đè lên
+                "image2": ("IMAGE",),  # Hình nền
+                "opacity": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🎨 Image Processing"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("output_image",)
+    FUNCTION = "overlay_images"
+
+    def overlay_images(self, image1, image2, opacity):
+        pil1 = tensor2pil(image1).convert("RGBA")
+        pil2 = tensor2pil(image2).convert("RGBA")
+
+        pil1 = pil1.resize(pil2.size, Image.BICUBIC)
+
+        # Nếu pil1 đã có alpha riêng, ta nhân alpha hiện tại với độ mờ đầu vào
+        r1, g1, b1, a1 = pil1.split()
+        a1 = a1.point(lambda x: int(x * opacity))
+        pil1 = Image.merge("RGBA", (r1, g1, b1, a1))
+
+        output = Image.alpha_composite(pil2, pil1)
+        return (pil2tensor(output),)
+
+class MaskToTransparentColor:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+                "color_hex": ("STRING", {"default": "#FF0000"}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🎨 Image Processing"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("rgba_image",)
+    FUNCTION = "convert"
+
+    def convert(self, mask, color_hex):
+        mask_tensor = mask[0]
+        mask_np = mask_tensor.squeeze().cpu().numpy()
+        h, w = mask_np.shape
+
+        color_rgb = self.hex_to_rgb(color_hex)
+
+        rgba = np.zeros((h, w, 4), dtype=np.uint8)
+        rgba[..., :3] = color_rgb
+        rgba[..., 3] = (mask_np * 255).astype(np.uint8)
+
+        image = Image.fromarray(rgba, mode="RGBA")
+        return (pil2tensor(image),)
+    
+    def hex_to_rgb(self, hex_color):
+        hex_color = hex_color.strip().lstrip('#')
+        if len(hex_color) != 6:
+            raise ValueError("HEX color must be in format '#RRGGBB'")
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+class OverlayMaskWithHexColor(OverlayImages, MaskToTransparentColor):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "base_image": ("IMAGE",),
+                "mask": ("MASK",),
+                "color_hex": ("STRING", {"default": "#FF0000"}),
+                "opacity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🎨 Image Processing"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "overlay_mask"
+
+    def overlay_mask(self, mask, base_image, color_hex, opacity):
+        colored_mask = self.convert(mask, color_hex)[0]
+        return self.overlay_images(colored_mask, base_image, opacity)
+    
 NODE_CLASS_MAPPINGS = {
     "SDVN Image Scraper": img_scraper,
     "SDVM Image List Repeat": img_list_repeat,
@@ -697,6 +766,9 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Crop By Ratio": CropByRatio,
     "SDVN RGBA to RGB": RGBAtoRGB,
     "SDVN Empty Latent Ratio": EmptyLatentRatio,
+    "SDVN Overlay Images": OverlayImages,
+    "SDVN Mask To Transparent Color": MaskToTransparentColor,
+    "SDVN Overlay Mask Color Image": OverlayMaskWithHexColor,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -716,4 +788,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Crop By Ratio": "✂️ Crop By Ratio",
     "SDVN RGBA to RGB": "🔄 RGBA to RGB",
     "SDVN Empty Latent Ratio": "⚡️ Empty Latent Ratio",
+    "SDVN Overlay Images": "🧅 Overlay Two Images",
+    "SDVN Mask To Transparent Color": "🎭 Mask → Transparent Color",
+    "SDVN Overlay Mask Color Image": "🧩 Overlay Mask Color on Image",
 }

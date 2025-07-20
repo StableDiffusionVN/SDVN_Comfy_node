@@ -16,21 +16,21 @@ yolo_model_list = ["face_yolov8n-seg2_60.pt", "face_yolov8m-seg_60.pt",
 
 base_url = "https://huggingface.co/StableDiffusionVN/yolo/resolve/main/"
 
-def i2tensor(i) -> torch.Tensor:
+def pil2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
-    image = i.convert("RGB")
-    image = np.array(image).astype(np.float32) / 255.0
+    if i.mode not in ["RGB", "RGBA"]:
+        i = i.convert("RGBA")
+    image = np.array(i).astype(np.float32) / 255.0
     image = torch.from_numpy(image)[None,]
-    return image
+    return image  # shape: [1, H, W, 3] hoặc [1, H, W, 4]
 
 def tensor2pil(tensor: torch.Tensor) -> Image.Image:
-    if tensor.ndim == 4:
-        tensor = tensor.squeeze(0)
-    if tensor.ndim == 3 and tensor.shape[-1] == 3:
+    if tensor.ndim == 3:
         np_image = (tensor.numpy() * 255).astype(np.uint8)
+    elif tensor.ndim == 4 and tensor.shape[0] == 1:
+        np_image = (tensor.squeeze(0).numpy() * 255).astype(np.uint8)
     else:
-        raise ValueError(
-            "Tensor phải có shape [H, W, C] hoặc [1, H, W, C] với C = 3 (RGB).")
+        raise ValueError("Tensor phải có shape [H, W, C] hoặc [1, H, W, C]")
     pil_image = Image.fromarray(np_image)
     return pil_image
 
@@ -95,7 +95,7 @@ class yoloseg:
         id_box = r.boxes.cls.int().tolist()
         num_objects = len(id_box)
         image = Image.fromarray(r.plot()[..., ::-1])
-        image = i2tensor(image)
+        image = pil2tensor(image)
         if len(id_box) > 0 and r.masks != None:
             mask = r.masks.data
             mask = torch.sum(mask, dim=0, keepdim=True)

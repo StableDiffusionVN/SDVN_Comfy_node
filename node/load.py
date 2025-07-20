@@ -46,12 +46,13 @@ def none2list(folderlist):
     return list
 
 
-def i2tensor(i) -> torch.Tensor:
+def pil2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
-    image = i.convert("RGB")
-    image = np.array(image).astype(np.float32) / 255.0
+    if i.mode not in ["RGB", "RGBA"]:
+        i = i.convert("RGBA")
+    image = np.array(i).astype(np.float32) / 255.0
     image = torch.from_numpy(image)[None,]
-    return image
+    return image  # shape: [1, H, W, 3] hoặc [1, H, W, 4]
 
 def insta_download(url,index):
     if "index=" in url:
@@ -201,7 +202,7 @@ class LoadImage:
             mask = 1. - torch.from_numpy(mask)
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
-        image = i2tensor(i)
+        image = pil2tensor(i)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image, mask.unsqueeze(0), image_path)
         if image_path != None:
@@ -279,7 +280,7 @@ class LoadImageFolder:
                 path = list_img[new_index]
             new_list.append(path)
             img = Image.open(path)
-            img = i2tensor(img)
+            img = pil2tensor(img)
             image.append(img)
         ui = {"images":[]}
         for i in image:
@@ -305,7 +306,7 @@ class LoadImageUrl:
             image = Image.open(requests.get(Url, stream=True).raw)
         else:
             image = Image.open(Url)
-        image = i2tensor(image)
+        image = pil2tensor(image)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image,)
         return results
@@ -493,7 +494,7 @@ class CheckpointLoaderDownload:
                     index += 1
         if index > 0:
             i = Image.open(i_cover)
-            i = i2tensor(i)
+            i = pil2tensor(i)
             ui = ALL_NODE["PreviewImage"]().save_images(i)["ui"]
             return {"ui":ui, "result":(results[0],results[1],results[2],path)}
         else:
@@ -553,7 +554,7 @@ class LoraLoader:
             results = ALL_NODE["LoraLoader"]().load_lora(model, clip, lora_name, strength_model, strength_clip)
         if index > 0:
             i = Image.open(i_cover)
-            i = i2tensor(i)
+            i = pil2tensor(i)
             ui = ALL_NODE["PreviewImage"]().save_images(i)["ui"]
             return {"ui":ui, "result":(results[0],results[1],path)}
         else:
@@ -1171,13 +1172,15 @@ class KontextReference:
                 break
             else:
                 width, height = img_size, img_size
+        image = ALL_NODE["image_layout"]().layout("row", "", "left", 40, image, image2, image3)[0]
         for img in img_list:
             if img is not None:
-                img = UpscaleImage().upscale("Maxsize", img_size, img_size, 1, "None", img)[0]
+                image = ALL_NODE["image_layout"]().layout("row", "", "left", 40, image, image2, image3)[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
+                break
             else:
                 latent = None
-            conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
+        conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
         return (conditioning,width,height,)
 
 class CheckpointDownload:
