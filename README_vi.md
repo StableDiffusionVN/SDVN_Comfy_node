@@ -197,6 +197,18 @@ Node sắp xếp layout ảnh thông minh với nhiều chế độ linh hoạt,
 
 ![](preview/image_layout.jpeg)
 ![](preview/image_layout2.jpeg)
+
+**⏬️ Image Scraper**
+
+- Tải ảnh từ website bằng gallery-dl.
+
+**✂️ Crop By Ratio | 🔄 RGBA to RGB | ⚡️ Empty Latent Ratio**
+
+- Các tiện ích cắt ảnh theo tỉ lệ, chuyển đổi màu và tạo latent rỗng.
+
+**🧅 Overlay Two Images | 🎭 Mask → Transparent Color | 🧩 Overlay Mask Color on Image**
+
+- Chồng ảnh và hiển thị mask với màu tùy chọn.
 ___
 
 ### Download
@@ -204,6 +216,7 @@ ___
 *Bộ node hỗ trợ tải ảnh và model về thư mục tương ứng và sử dụng trực tiếp trên ComfyUI*
 -  Hỗ trợ tải trực tiếp từ **civitai** và **huggingface** bằng địa chỉ model hoặc link tải model
 -  Ngoài ra, một số node cung cấp danh sách các model phổ biến để tải nhanh và tiện lợi hơn.
+-  Bổ sung các node tải IPAdapter, InstantID, DualCLIP, QuadrupleCLIP và nhiều loại model khác.
 ![Download Nodes](/preview/download_node.png)
 
 ___
@@ -364,6 +377,9 @@ Hỗ trợ sử dụng các model AI qua API
 
 **🎨 Gemini Flash 2 Image | 🎨 Google Imagen**
 
+- Hỗ trợ dịch và Dynamic prompt
+- Gemini Flash 2 Image cho phép sử dụng ảnh tham chiếu và tự động thay đổi kích thước theo giới hạn đặt trước
+
 ![](preview/gemini.jpeg)
 ![](preview/gemini_multi.jpeg)
 ![](preview/imagen.jpeg)
@@ -403,6 +419,14 @@ ___
 Các node giúp đơn giản hóa quá trình xây dựng workflow. Các node được thiết kế xoay quanh node `💡 Auto Generate` để tối ưu hóa quy trình.
 
 ![](preview/preset_node.png)
+
+**📋 Quick Menu**
+
+- Trả về tên checkpoint, các LoRA và chuỗi đơn giản trong một node duy nhất.
+
+**💿 Load Model**
+
+- Tải checkpoint cùng tối đa 5 LoRA từ thư viện có sẵn.
 
 **💡 Auto Generate**
 

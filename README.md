@@ -201,6 +201,18 @@ A node that intelligently arranges image layouts with various flexible modes, he
 
 ![](preview/image_layout.jpeg)
 ![](preview/image_layout2.jpeg)
+
+**⏬️ Image Scraper**
+
+- Download images from websites using gallery-dl.
+
+**✂️ Crop By Ratio | 🔄 RGBA to RGB | ⚡️ Empty Latent Ratio**
+
+- Utilities for cropping by aspect ratio, converting color mode, and creating blank latent images.
+
+**🧅 Overlay Two Images | 🎭 Mask → Transparent Color | 🧩 Overlay Mask Color on Image**
+
+- Blend images and visualize masks with custom colors.
 ___
 
 ### Download
@@ -208,6 +220,7 @@ ___
 *The set of nodes supports downloading photos of models to the corresponding folder and directly used on Comfyui*
 -  Supports direct download from **civitai** and **huggingface** with model address link and model download link
 -  Additionally, some nodes provide a list of popular models to make downloading them more convenient and faster.
+-  Includes download nodes for IPAdapter, InstantID, DualCLIP, QuadrupleCLIP and more.
  
 ![Download Nodes](/preview/download_node.png)
 
@@ -369,6 +382,9 @@ Support the use of AI models through API
 
 **🎨 Gemini Flash 2 Image | 🎨 Google Imagen**
 
+- Support translate and Dynamic prompt
+- Gemini Flash 2 Image accepts an optional reference image and resizes it to the desired maximum size
+
 ![](preview/gemini.jpeg)
 ![](preview/gemini_multi.jpeg)
 ![](preview/imagen.jpeg)
@@ -408,6 +424,14 @@ ___
 Nodes that help simplify the process of building workflows. Nodes designed around the `💡 Auto Generate` node to streamline workflows.
 
 ![](preview/preset_node.png)
+
+**📋 Quick Menu**
+
+- Output selected checkpoints, LoRAs and strings in one node.
+
+**💿 Load Model**
+
+- Load a checkpoint together with up to five LoRAs from saved libraries.
 
 **💡 Auto Generate**
 
