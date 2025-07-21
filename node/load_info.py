@@ -11,8 +11,8 @@ class img_info:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "img_path": ("STRING", {"forceInput": True}),
-                "info_type": (["name","img_type","img_format", "color_mode", "image_size", "dpi", "metadata", "exif_data"],)
+                "img_path": ("STRING", {"forceInput": True, "tooltip": "Đường dẫn tới ảnh."}),
+                "info_type": (["name","img_type","img_format", "color_mode", "image_size", "dpi", "metadata", "exif_data"], {"tooltip": "Loại thông tin cần đọc."}),
             }
         }
 
@@ -20,6 +20,8 @@ class img_info:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("info",)
+    OUTPUT_TOOLTIPS = ("Thông tin ảnh.",)
+    DESCRIPTION = "Đọc các thuộc tính của ảnh theo đường dẫn."
     FUNCTION = "read"
 
     def read(self, img_path, info_type):
@@ -58,8 +60,8 @@ class metadata_check:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "metadata": ("STRING",{"forceInput": True}),
-                "info_type": (["ComfyUI_Workflow_Json", "ComfyUI_Node_List", "Automatic_Info", "Automatic_Positive", "Automatic_Negative", "Automatic_Setting",],)
+                "metadata": ("STRING",{"forceInput": True, "tooltip": "Chuỗi metadata."}),
+                "info_type": (["name","img_type","img_format", "color_mode", "image_size", "dpi", "metadata", "exif_data"], {"tooltip": "Loại thông tin cần đọc."}),
             }
         }
 
@@ -67,6 +69,8 @@ class metadata_check:
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("info",)
+    OUTPUT_TOOLTIPS = ("Thông tin trích xuất.",)
+    DESCRIPTION = "Đọc dữ liệu metadata."
     FUNCTION = "read"
 
     def read(self, metadata, info_type):
@@ -205,8 +209,8 @@ class exif_check:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "exif": ("STRING",{"forceInput": True}),
-                "info_type": (list(exif_tags),)
+                "exif": ("STRING",{"forceInput": True, "tooltip": "Chuỗi dữ liệu EXIF"}),
+                "info_type": (list(exif_tags), {"tooltip": "Loại thông tin"})
             }
         }
 
@@ -299,8 +303,8 @@ class lora_info:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "lora_path": ("STRING",{"forceInput": True}),
-                "info_type": (["Full_Data","Tag", *list(list_data_check)],)
+                "lora_path": ("STRING",{"forceInput": True, "tooltip": "Đường dẫn LoRA"}),
+                "info_type": (["name","img_type","img_format", "color_mode", "image_size", "dpi", "metadata", "exif_data"], {"tooltip": "Loại thông tin cần đọc."}),
             }
         }
 
@@ -309,6 +313,8 @@ class lora_info:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("info",)
     FUNCTION = "read"
+    DESCRIPTION = "Đọc thông tin metadata của tệp LoRA."
+    OUTPUT_TOOLTIPS = ("Nội dung thông tin.",)
 
     def read(self, lora_path, info_type):
         data_dict = metadata_covert(lora_path)
@@ -354,13 +360,13 @@ class model_info_editor:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "model_path": ("STRING",{"forceInput": True}),
-                "Json_Embed": ("BOOLEAN", {"default": True},),
-                "Trigger_word": ("STRING",{"multiline": False}),
-                "Copyright": ("STRING",{"multiline": False}),
-                "Url": ("STRING",{"multiline": False}),
-                "Txt_save": ("BOOLEAN", {"default": True},),
-                "Txt_note": ("STRING",{"multiline": True}),
+                "model_path": ("STRING",{"forceInput": True, "tooltip": "Đường dẫn model"}),
+                "Json_Embed": ("BOOLEAN", {"default": True, "tooltip": "Ghi metadata"},),
+                "Trigger_word": ("STRING",{"multiline": False, "tooltip": "Từ kích hoạt"}),
+                "Copyright": ("STRING",{"multiline": False, "tooltip": "Bản quyền"}),
+                "Url": ("STRING",{"multiline": False, "tooltip": "Liên kết"}),
+                "Txt_save": ("BOOLEAN", {"default": True, "tooltip": "Lưu file TXT"},),
+                "Txt_note": ("STRING",{"multiline": True, "tooltip": "Nội dung ghi chú"}),
             },
             "optional": {
                 "image_cover": ("IMAGE",)

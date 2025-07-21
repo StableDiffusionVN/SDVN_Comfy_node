@@ -19,6 +19,8 @@ class ModelMergeBlocks:
     RETURN_TYPES = ("MODEL", "STRING")
     RETURN_NAMES = ("model", "mbw",)
     FUNCTION = "merge"
+    DESCRIPTION = "Gộp hai mô hình theo MBW (Model Block Weights)."
+    OUTPUT_TOOLTIPS = ("Mô hình đã gộp", "Thông số MBW đã dùng")
 
     CATEGORY = "📂 SDVN/🧬 Merge"
 

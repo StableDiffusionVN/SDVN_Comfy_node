@@ -100,17 +100,24 @@ class run_python_code:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "function": ("STRING", {"default": """
+                "function": (
+                    "STRING",
+                    {
+                        "default": """\
 def function(input):
-    output = input.strip()                               
-    return output                       
-                """, "multiline": True, })
+    output = input.strip()
+    return output
+                    """,
+                        "multiline": True,
+                        "tooltip": "Hàm Python cần thực thi",
+                    },
+                )
             },
             "optional": {
-                "input": (any,),
-                "input2": (any,),
-                "input3": (any,),
-            }
+                "input": (any, {"tooltip": "Tham số 1"}),
+                "input2": (any, {"tooltip": "Tham số 2"}),
+                "input3": (any, {"tooltip": "Tham số 3"}),
+            },
         }
 
     CATEGORY = "📂 SDVN/👨🏻‍💻 Dev"
@@ -118,6 +125,8 @@ def function(input):
     RETURN_TYPES = (any,)
     RETURN_NAMES = ("output",)
     FUNCTION = "python_function"
+    DESCRIPTION = "Chạy đoạn mã Python tùy chọn."
+    OUTPUT_TOOLTIPS = ("Kết quả thực thi.",)
 
     def python_function(self, function, input=None, input2=None, input3=None):
         check_list = [input, input2, input3]
@@ -187,8 +196,8 @@ class API_chatbot:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "chatbot": (list(model_list),),
-                "preset": (list(preset_prompt),),
+                "chatbot": (list(model_list), {"tooltip": "Chọn mô hình chatbot."}),
+                "preset": (list(preset_prompt), {"tooltip": "Chế độ hội thoại."}),
                 "APIkey": ("STRING", {"default": "", "multiline": False, "tooltip": """
 Get API Gemini: https://aistudio.google.com/app/apikey
 Get API OpenAI: https://platform.openai.com/settings/organization/api-keys
@@ -197,7 +206,7 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
                 "main_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": "Chatbot prompt"}),
                 "sub_prompt": ("STRING", {"default": "", "multiline": True, "tooltip": "Chatbot prompt"}),
-                "translate": (lang_list(),),
+                "translate": (lang_list(), {"tooltip": "Ngôn ngữ của phản hồi."}),
             },
             "optional": {
                 "image": ("IMAGE", {"tooltip": "The for gemini model"})
@@ -208,6 +217,8 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "api_chatbot"
+    DESCRIPTION = "Gọi API chatbot để trả lời bằng văn bản."
+    OUTPUT_TOOLTIPS = ("Phản hồi từ chatbot.",)
 
     def api_chatbot(self, chatbot, preset, APIkey, seed, main_prompt, sub_prompt, translate, image=None):
         if APIkey == "":
@@ -303,11 +314,11 @@ class API_DALLE:
         return {
             "required": {
                 "OpenAI_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "size": (['1024x1024', '1024x1792', '1792x1024'],{"default": '1024x1024'}),
+                "size": (['1024x1024', '1024x1792', '1792x1024'],{"default": '1024x1024', "tooltip": "Kích thước ảnh."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "quality": (["standard","hd"], {"default": "standard",}),
-                "translate": (lang_list(),),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys", "tooltip": "Nội dung mô tả ảnh"}),
+                "quality": (["standard","hd"], {"default": "standard", "tooltip": "Chất lượng ảnh"}),
+                "translate": (lang_list(), {"tooltip": "Dịch prompt sang ngôn ngữ"}),
             }
         }
 
@@ -315,6 +326,8 @@ class API_DALLE:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "api_dalle"
+    DESCRIPTION = "Tạo ảnh qua API DALL-E 3."
+    OUTPUT_TOOLTIPS = ("Ảnh kết quả.",)
 
     def api_dalle(self, OpenAI_API, size, seed, prompt, quality, translate):
         if OpenAI_API == "":
@@ -344,14 +357,14 @@ class API_DALLE_2:
         return {
             "required": {
                 "OpenAI_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "size": (['auto','256x256', '512x512', '1024x1024'],{"default": "1024x1024"}),
+                "size": (['auto','256x256', '512x512', '1024x1024'],{"default": "1024x1024", "tooltip": "Kích thước ảnh"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "n": ("INT", {"default": 1, "min": 1, "max": 4}),
-                "translate": (lang_list(),),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys", "tooltip": "Nội dung mô tả"}),
+                "n": ("INT", {"default": 1, "min": 1, "max": 4, "tooltip": "Số lượng ảnh"}),
+                "translate": (lang_list(), {"tooltip": "Dịch prompt"}),
             },
             "optional": {
-                "image": ("IMAGE",),
+                "image": ("IMAGE", {"tooltip": "Ảnh nguồn"}),
                 "mask": ("MASK",)
             }
         }
@@ -361,6 +374,8 @@ class API_DALLE_2:
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "api_dalle"
     OUTPUT_IS_LIST = (True,)
+    DESCRIPTION = "Tạo hoặc chỉnh sửa ảnh bằng API DALL-E 2."
+    OUTPUT_TOOLTIPS = ("Danh sách ảnh kết quả.",)
 
     def api_dalle(self, OpenAI_API, size, seed, prompt, n, translate, image = None, mask = None):
         if OpenAI_API == "":
@@ -403,13 +418,13 @@ class API_GPT_image:
         return {
             "required": {
                 "OpenAI_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "size": (["auto",'1024x1024', '1536x1024', '1024x1536'],{"default": "auto"}),
+                "size": (["auto",'1024x1024', '1536x1024', '1024x1536'],{"default": "auto", "tooltip": "Kích thước"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "quality": (["auto","low","medium","high"], {"default": "medium",}),
-                "background": (["opaque","transparent"], {"default": "opaque",}),
-                "n": ("INT", {"default": 1, "min": 1, "max": 4}),
-                "translate": (lang_list(),),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys", "tooltip": "Mô tả ảnh"}),
+                "quality": (["auto","low","medium","high"], {"default": "medium", "tooltip": "Chất lượng"}),
+                "background": (["opaque","transparent"], {"default": "opaque", "tooltip": "Nền ảnh"}),
+                "n": ("INT", {"default": 1, "min": 1, "max": 4, "tooltip": "Số ảnh"}),
+                "translate": (lang_list(), {"tooltip": "Dịch prompt"}),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -488,9 +503,9 @@ class Gemini_Flash2_Image:
         return {
             "required": {
                 "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
-                "max_size_input": ("INT", {"default":0,"min":0,"max":2048,"step":64}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt"}),
-                "translate": (lang_list(),{"default":"english"}),
+                "max_size_input": ("INT", {"default":0,"min":0,"max":2048,"step":64, "tooltip": "Giới hạn kích thước ảnh"}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
+                "translate": (lang_list(),{"default":"english", "tooltip": "Ngôn ngữ dịch"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
             },
             "optional": {
@@ -539,11 +554,11 @@ class API_Imagen:
         return {
             "required": {
                 "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
-                "aspect_ratio": (['1:1', '3:4', '4:3', '9:16', '16:9'],{"default": "1:1"}),
-                "person_gen": ("BOOLEAN", {"default": True},),
+                "aspect_ratio": (['1:1', '3:4', '4:3', '9:16', '16:9'],{"default": "1:1", "tooltip": "Tỷ lệ khung"}),
+                "person_gen": ("BOOLEAN", {"default": True, "tooltip": "Cho phép tạo ảnh người"},),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt"}),
-                "translate": (lang_list(),),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Mô tả ảnh"}),
+                "translate": (lang_list(), {"tooltip": "Ngôn ngữ dịch"}),
             }
         }
 
@@ -681,9 +696,9 @@ class joy_caption:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "image": ("IMAGE",),
-                "caption_type": (["Descriptive", "Descriptive (Informal)", "Training Prompt", "MidJourney", "Booru tag list", "Booru-like tag list", "Art Critic", "Product Listing", "Social Media Post"],),
-                "caption_length": (["any", "very short", "short", "medium-length", "long", "very long"] + [str(i) for i in range(20, 261, 10)],),
+                "image": ("IMAGE", {"tooltip": "Ảnh cần mô tả"}),
+                "caption_type": (["Descriptive", "Descriptive (Informal)", "Training Prompt", "MidJourney", "Booru tag list", "Booru-like tag list", "Art Critic", "Product Listing", "Social Media Post"], {"tooltip": "Kiểu chú thích"}),
+                "caption_length": (["any", "very short", "short", "medium-length", "long", "very long"] + [str(i) for i in range(20, 261, 10)], {"tooltip": "Độ dài"}),
                 "extra_options": ([
                     "None",
 					"If there is a person/character in the image you must refer to them as {name}.",
@@ -704,10 +719,10 @@ class joy_caption:
 					"Include whether the image is sfw, suggestive, or nsfw.",
 					"ONLY describe the most important elements of the image."
 				],),
-                "name_input": ("STRING",{"default":"","multiline": False}),
-                "custom_prompt": ("STRING",{"default":"","multiline": True}),
-                "translate": (lang_list(),),
-                "hf_token": ("STRING",{"default":"","multiline": False}),
+                "name_input": ("STRING",{"default":"","multiline": False, "tooltip": "Tên nhân vật"}),
+                "custom_prompt": ("STRING",{"default":"","multiline": True, "tooltip": "Prompt tùy chỉnh"}),
+                "translate": (lang_list(), {"tooltip": "Ngôn ngữ dịch"}),
+                "hf_token": ("STRING",{"default":"","multiline": False, "tooltip": "HuggingFace token"}),
             }
         }
 
