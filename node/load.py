@@ -170,9 +170,9 @@ class LoadImage:
 
         return {
             "required": {
-                "Load_url": ("BOOLEAN", {"default": True},),
-                "Url": ("STRING", {"default": "", "multiline": False},),
-                "image": (sorted(none2list(file_list)), {"image_upload": True, "default": "None", "tooltip": "The image to be loaded."}),
+                "Load_url": ("BOOLEAN", {"default": True, "tooltip": "Bật tắt chức năng load ảnh từ URL"},),
+                "Url": ("STRING", {"default": "", "multiline": False, "tooltip": "Tải ảnh từ Url bất kỳ, dò trực tiếp được Pinterest, Insta"},),
+                "image": (sorted(none2list(file_list)), {"image_upload": True, "default": "None", "tooltip": "Tải ảnh từ thư mục input, đọc cây thư mục, có thể upload ảnh từ máy tính của bạn."}),
             }
         }
 
@@ -180,6 +180,10 @@ class LoadImage:
 
     RETURN_TYPES = ("IMAGE", "MASK", "STRING",)
     RETURN_NAMES = ("image","mask", "img_path",)
+    OUTPUT_TOOLTIPS = (
+        "Ảnh được tải về từ Url hoặc thư mục input",
+        "Mask tạo từ kênh alpha của ảnh, phải chuột chọn Mask Editor để chỉnh sửa mask.",
+        "Đường dẫn tuyệt đối của ảnh, không hoạt động với ảnh Url",)
     FUNCTION = "load_image"
 
     def load_image(self, Load_url, Url, image):
@@ -231,10 +235,10 @@ class LoadImageFolder:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "folder_path": ("STRING", {"default": "", "multiline": False},),
+                "folder_path": ("STRING", {"default": "", "multiline": False, "tooltip": "Đường dẫn đến thư mục chứa ảnh."},),
                 "number": ("INT", {"default": 1, "min": -1 , "tooltip": "Chuyển sang -1 để load toàn bộ ảnh"}),
-                "random": ("BOOLEAN", {"default": True},),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+                "random": ("BOOLEAN", {"default": True, "tooltip": "Bật tắt chế độ chọn ảnh ngẫu nhiên."},),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho việc chọn ảnh."}),
                 #"auto_index": ("BOOLEAN", {"default": False, "label_on": "loop", "label_off": "off"},),
             }
         }
@@ -290,7 +294,7 @@ class LoadImageUrl:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-            "Url": ("STRING", {"default": "", "multiline": False},)
+            "Url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập đường dẫn Url của ảnh để tải về."},)
         }
         }
 
@@ -317,11 +321,11 @@ class LoadPinterest:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-            "url": ("STRING", {"default": "", "multiline": False},),
-            "range": ("STRING", {"default": "1-10", "multiline": False, "tooltip": "Chuyển sang -1 để tải toàn bộ"},),
-            "number": ("INT", {"default": 1, "min": -1 , "tooltip": "Chuyển sang -1 để load toàn bộ ảnh"}),
-            "random": ("BOOLEAN", {"default": False},),
-            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+            "url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập đường dẫn Pinterest hoặc từ khóa tìm kiếm."},),
+            "range": ("STRING", {"default": "1-10", "multiline": False, "tooltip": "Khoảng số lượng ảnh tải về, chuyển sang -1 để tải toàn bộ."},),
+            "number": ("INT", {"default": 1, "min": -1 , "tooltip": "Số lượng ảnh cần tải, chuyển sang -1 để tải toàn bộ ảnh."}),
+            "random": ("BOOLEAN", {"default": False, "tooltip": "Bật tắt chế độ chọn ảnh ngẫu nhiên."},),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho việc chọn ảnh."}),
         }
         }
     CATEGORY = "📂 SDVN"
@@ -384,24 +388,24 @@ class LoadImageUltimate:
                     file_list.append(file_path)
 
         return {"required": {
-            "mode": (["Input folder", "Custom folder", "Url", "Pintrest", "Insta"],),
+            "mode": (["Input folder", "Custom folder", "Url", "Pintrest", "Insta"], {"tooltip": "Chọn chế độ tải ảnh: từ thư mục input, thư mục tùy chỉnh, Url, Pinterest hoặc Instagram."}),
             #Input_folder
-            "image": (sorted(none2list(file_list)), {"image_upload": True, "default": "None", "tooltip": "The image to be loaded."}),
+            "image": (sorted(none2list(file_list)), {"image_upload": True, "default": "None", "tooltip": "Tải ảnh từ thư mục input, đọc cây thư mục, có thể upload ảnh từ máy tính của bạn."}),
             #Custom_folder
-            "folder_path": ("STRING", {"default": "", "multiline": False},),
-            "number_img": ("INT", {"default": 1, "min": -1 , "tooltip": "Chuyển sang -1 để load toàn bộ ảnh"}),
+            "folder_path": ("STRING", {"default": "", "multiline": False, "tooltip": "Đường dẫn đến thư mục chứa ảnh tuỳ chỉnh."}),
+            "number_img": ("INT", {"default": 1, "min": -1 , "tooltip": "Số lượng ảnh cần tải, chuyển sang -1 để load toàn bộ ảnh."}),
             #Url
-            "url": ("STRING", {"default": "", "multiline": False},),
+            "url": ("STRING", {"default": "", "multiline": False, "tooltip": "Tải ảnh từ Url bất kỳ, dò trực tiếp được Pinterest, Insta."}),
             #Pintrest
-            "pin_url": ("STRING", {"default": "", "multiline": False},),
-            "range": ("STRING", {"default": "1-10", "multiline": False, "tooltip": "Chuyển sang -1 để tải toàn bộ"},),
-            "number": ("INT", {"default": 1, "min": -1 , "tooltip": "Chuyển sang -1 để load toàn bộ ảnh"}),
-            "random": ("BOOLEAN", {"default": False},),
+            "pin_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập đường dẫn Pinterest hoặc từ khóa tìm kiếm."}),
+            "range": ("STRING", {"default": "1-10", "multiline": False, "tooltip": "Khoảng số lượng ảnh tải về, chuyển sang -1 để tải toàn bộ."}),
+            "number": ("INT", {"default": 1, "min": -1 , "tooltip": "Số lượng ảnh cần tải, chuyển sang -1 để load toàn bộ ảnh."}),
+            "random": ("BOOLEAN", {"default": False, "tooltip": "Bật tắt chế độ chọn ảnh ngẫu nhiên."}),
             #Insta
-            "insta_url": ("STRING", {"default": "", "multiline": False},),
-            "index": ("INT", {"default": 0}),
+            "insta_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập đường dẫn bài đăng Instagram."}),
+            "index": ("INT", {"default": 0, "tooltip": "Chỉ số ảnh trong bài đăng Instagram (nếu có nhiều ảnh)."}),
             #seed
-            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho việc chọn ảnh."}),
         }
         }
     
@@ -457,17 +461,17 @@ class CheckpointLoaderDownload:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "Download": ("BOOLEAN", {"default": True},),
-                "Download_url": ("STRING", {"default": "", "multiline": False},),
-                "Ckpt_url_name": ("STRING", {"default": "model.safetensors", "multiline": False},),
-                "Ckpt_name": (none2list(s.checkpointlist), {"tooltip": "The name of the checkpoint (model) to load."})
+                "Download": ("BOOLEAN", {"default": True, "tooltip": "Bật lên để tải checkpoint từ URL về máy."},),
+                "Download_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập URL để tải checkpoint (mô hình) về máy."},),
+                "Ckpt_url_name": ("STRING", {"default": "model.safetensors", "multiline": False, "tooltip": "Tên tệp checkpoint sẽ lưu trên máy."},),
+                "Ckpt_name": (none2list(s.checkpointlist), {"tooltip": "Chọn checkpoint (mô hình) để load vào pipeline."})
             }
         }
     RETURN_TYPES = ("MODEL", "CLIP", "VAE", "STRING")
     RETURN_NAMES = ("model", "clip", "vae", "ckpt_path")
-    OUTPUT_TOOLTIPS = ("The model used for denoising latents.",
-                       "The CLIP model used for encoding text prompts.",
-                       "The VAE model used for encoding and decoding images to and from latent space.")
+    OUTPUT_TOOLTIPS = ("Mô hình dùng để khử nhiễu latents.",
+                       "Mô hình CLIP dùng để mã hóa prompt văn bản.",
+                       "Mô hình VAE dùng để mã hóa/giải mã ảnh sang/từ latent.")
     FUNCTION = "load_checkpoint"
 
     CATEGORY = "📂 SDVN"
@@ -509,16 +513,16 @@ class LoraLoader:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "Download": ("BOOLEAN", {"default": True},),
-                "Download_url": ("STRING", {"default": "", "multiline": False},),
-                "Lora_url_name": ("STRING", {"default": "model.safetensors", "multiline": False},),
-                "lora_name": (none2list(s.lora_full_list), {"default": "None", "tooltip": "The name of the LoRA."}),
+                "Download": ("BOOLEAN", {"default": True, "tooltip": "Bật lên để tải LoRA từ URL về máy."},),
+                "Download_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập URL để tải LoRA về máy."},),
+                "Lora_url_name": ("STRING", {"default": "model.safetensors", "multiline": False, "tooltip": "Tên tệp LoRA sẽ lưu trên máy."},),
+                "lora_name": (none2list(s.lora_full_list), {"default": "None", "tooltip": "Chọn LoRA để load vào pipeline."}),
             },
             "optional": {
-                "model": ("MODEL", {"tooltip": "The diffusion model the LoRA will be applied to."}),
-                "clip": ("CLIP", {"default": None, "tooltip": "The CLIP model the LoRA will be applied to."}),
-                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the diffusion model. This value can be negative."}),
-                "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the CLIP model. This value can be negative."}),
+                "model": ("MODEL", {"tooltip": "Mô hình diffusion sẽ áp dụng LoRA."}),
+                "clip": ("CLIP", {"default": None, "tooltip": "Mô hình CLIP sẽ áp dụng LoRA."}),
+                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "Độ mạnh tác động lên diffusion model. Có thể giá trị âm."}),
+                "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "Độ mạnh tác động lên CLIP model. Có thể giá trị âm."}),
             }
         }
 
@@ -564,18 +568,18 @@ class CLIPTextEncode:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "positive": ("STRING", {"multiline": True}),
-                "negative": ("STRING", {"multiline": True}),
-                "style": (none2list(style_list()[0]),{"default": "None"}),
-                "translate": (lang_list(),),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-                "clip": ("CLIP", {"tooltip": "The CLIP model used for encoding the text."})
+                "positive": ("STRING", {"multiline": True, "tooltip": "Prompt tích cực mô tả nội dung bạn muốn sinh ra."}),
+                "negative": ("STRING", {"multiline": True, "tooltip": "Prompt tiêu cực để loại trừ nội dung không mong muốn."}),
+                "style": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu có sẵn để thêm vào prompt."}),
+                "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
+                "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."})
             }
         }
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "STRING")
     RETURN_NAMES = ("positive", "negative", "prompt")
     OUTPUT_TOOLTIPS = (
-        "A conditioning containing the embedded text used to guide the diffusion model.",)
+        "Điều kiện chứa văn bản đã mã hóa để hướng dẫn mô hình sinh ảnh.",)
     FUNCTION = "encode"
 
     CATEGORY = "📂 SDVN"
@@ -605,16 +609,16 @@ class StyleLoad:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "positive": ("STRING", {"multiline": True}),
-                "negative": ("STRING", {"multiline": True}),
-                "style": (none2list(style_list()[0]),{"default": "None"}),
-                "style2": (none2list(style_list()[0]),{"default": "None"}),
-                "style3": (none2list(style_list()[0]),{"default": "None"}),
-                "style4": (none2list(style_list()[0]),{"default": "None"}),
-                "style5": (none2list(style_list()[0]),{"default": "None"}),
-                "style6": (none2list(style_list()[0]),{"default": "None"}),
-                "translate": (lang_list(),),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+                "positive": ("STRING", {"multiline": True, "tooltip": "Prompt tích cực mô tả nội dung bạn muốn sinh ra."}),
+                "negative": ("STRING", {"multiline": True, "tooltip": "Prompt tiêu cực để loại trừ nội dung không mong muốn."}),
+                "style": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu 1."}),
+                "style2": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu 2."}),
+                "style3": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu 3."}),
+                "style4": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu 4."}),
+                "style5": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu 5."}),
+                "style6": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu 6."}),
+                "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
             }
         }
     RETURN_TYPES = ("STRING", "STRING",)
@@ -673,34 +677,34 @@ class Easy_KSampler:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "model": ("MODEL", {"tooltip": "The model used for denoising the input latent."}),
-                "positive": ("CONDITIONING", {"tooltip": "The conditioning describing the attributes you want to include in the image."}),
+                "model": ("MODEL", {"tooltip": "Mô hình dùng để khử nhiễu latent đầu vào."}),
+                "positive": ("CONDITIONING", {"tooltip": "Điều kiện mô tả các thuộc tính bạn muốn có trong ảnh."}),
                 "ModelType": (["None","Auto",*list(ModelType_list)],),
                 "StepsType": (none2list(list(StepsType_list)),),
-                "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling."}),
-                "steps": ("INT", {"default": 20, "min": 1, "max": 10000, "tooltip": "The number of steps used in the denoising process."}),
-                "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01, "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. Higher values result in images more closely matching the prompt however too high values will negatively impact quality."}),
-                "sampler_name": (comfy.samplers.KSampler.SAMPLERS, {"tooltip": "The algorithm used when sampling, this can affect the quality, speed, and style of the generated output."}),
-                "scheduler": (comfy.samplers.KSampler.SCHEDULERS, {"tooltip": "The scheduler controls how noise is gradually removed to form the image."}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed used for creating the noise."}),
-                "Tiled": ("BOOLEAN", {"default": False},),
+                "denoise": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Mức độ khử nhiễu, giá trị thấp giữ lại cấu trúc ảnh gốc (dùng cho image2image)."}),
+                "steps": ("INT", {"default": 20, "min": 1, "max": 10000, "tooltip": "Số bước khử nhiễu."}),
+                "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01, "tooltip": "Tham số CFG cân bằng giữa sáng tạo và độ bám sát prompt. Giá trị cao sẽ bám prompt hơn nhưng quá cao có thể giảm chất lượng ảnh."}),
+                "sampler_name": (comfy.samplers.KSampler.SAMPLERS, {"tooltip": "Thuật toán lấy mẫu, ảnh hưởng tới chất lượng, tốc độ và phong cách ảnh sinh ra."}),
+                "scheduler": (comfy.samplers.KSampler.SCHEDULERS, {"tooltip": "Bộ lập lịch kiểm soát cách loại bỏ nhiễu để tạo ảnh."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên tạo nhiễu."}),
+                "Tiled": ("BOOLEAN", {"default": False, "tooltip": "Bật chế độ sinh ảnh lát ghép (tiled diffusion)."},),
             },
             "optional": {
-                "negative": ("CONDITIONING", {"tooltip": "The conditioning describing the attributes you want to exclude from the image."}),
-                "latent_image": ("LATENT", {"tooltip": "The latent image to denoise."}),
-                "vae": ("VAE", {"tooltip": "The VAE model used for decoding the latent."}),
-                "tile_width": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 64, }),
-                "tile_height": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 64, }),
-                "FluxGuidance":  ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1}),
+                "negative": ("CONDITIONING", {"tooltip": "Điều kiện mô tả thuộc tính bạn muốn loại trừ khỏi ảnh."}),
+                "latent_image": ("LATENT", {"tooltip": "Latent image cần khử nhiễu."}),
+                "vae": ("VAE", {"tooltip": "Mô hình VAE dùng để giải mã latent thành ảnh."}),
+                "tile_width": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 64, "tooltip": "Chiều rộng tile khi dùng chế độ tiled diffusion."}),
+                "tile_height": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 64, "tooltip": "Chiều cao tile khi dùng chế độ tiled diffusion."}),
+                "FluxGuidance":  ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1, "tooltip": "Tham số điều chỉnh FluxGuidance (nếu dùng model Flux)."}),
             }
         }
 
     RETURN_TYPES = ("LATENT", "IMAGE",)
-    OUTPUT_TOOLTIPS = ("The denoised latent.",)
+    OUTPUT_TOOLTIPS = ("Latent đã được khử nhiễu.",)
     FUNCTION = "sample"
 
     CATEGORY = "📂 SDVN"
-    DESCRIPTION = "Uses the provided model, positive and negative conditioning to denoise the latent image."
+    DESCRIPTION = "Sử dụng mô hình, điều kiện positive/negative để khử nhiễu latent sinh ảnh."
     
     def sample(self, model, positive, ModelType, StepsType, sampler_name, scheduler, seed, Tiled=False, tile_width=None, tile_height=None, steps=20, cfg=7, denoise=1.0, negative=None, latent_image=None, vae=None, FluxGuidance = 3.5):
         if ModelType == "Auto":
@@ -754,12 +758,12 @@ class UpscaleImage:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-            "mode": (["Maxsize", "Resize", "Scale"], ),
-            "model_name": (none2list(s.list_full_upscale_model), {"default": "None", }),
-            "scale": ("FLOAT", {"default": 1, "min": 0, "max": 10, "step": 0.01, }),
-            "width": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, }),
-            "height": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, }),
-            "image": ("IMAGE",),
+            "mode": (["Maxsize", "Resize", "Scale"], {"tooltip": "Chọn chế độ phóng to: Maxsize (giới hạn dài nhất), Resize (đặt kích thước), Scale (phóng theo tỉ lệ)."}),
+            "model_name": (none2list(s.list_full_upscale_model), {"default": "None", "tooltip": "Chọn model phóng to (nếu có)."}),
+            "scale": ("FLOAT", {"default": 1, "min": 0, "max": 10, "step": 0.01, "tooltip": "Tỉ lệ phóng to ảnh (chỉ dùng khi chọn chế độ Scale)."}),
+            "width": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều rộng ảnh đầu ra."}),
+            "height": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều cao ảnh đầu ra."}),
+            "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cần phóng to."}),
         }}
 
     RETURN_TYPES = ("IMAGE",)
@@ -813,13 +817,13 @@ class UpscaleLatentImage:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-            "mode": (["Maxsize", "Resize", "Scale"], ),
-            "model_name": (none2list(s.list_full_upscale_model), {"default": "None", }),
-            "scale": ("FLOAT", {"default": 2, "min": 0, "max": 10, "step": 0.01, }),
-            "width": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, }),
-            "height": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, }),
-            "latent": ("LATENT",),
-            "vae": ("VAE",),
+            "mode": (["Maxsize", "Resize", "Scale"], {"tooltip": "Chọn chế độ phóng to: Maxsize (giới hạn dài nhất), Resize (đặt kích thước), Scale (phóng theo tỉ lệ)."}),
+            "model_name": (none2list(s.list_full_upscale_model), {"default": "None", "tooltip": "Chọn model phóng to (nếu có)."}),
+            "scale": ("FLOAT", {"default": 2, "min": 0, "max": 10, "step": 0.01, "tooltip": "Tỉ lệ phóng to ảnh (chỉ dùng khi chọn chế độ Scale)."}),
+            "width": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều rộng ảnh đầu ra."}),
+            "height": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều cao ảnh đầu ra."}),
+            "latent": ("LATENT", {"tooltip": "Latent cần phóng to."}),
+            "vae": ("VAE", {"tooltip": "Mô hình VAE dùng để giải mã latent."}),
         }}
 
     RETURN_TYPES = ("LATENT", "VAE",)
@@ -861,20 +865,20 @@ class AutoControlNetApply:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-                             "image": ("IMAGE", ),
-                             "control_net": (none2list(s.list_full_controlnet_model),),
-                             "preprocessor": (preprocessor_list(),),
-                             "union_type": (["None","auto"] + list(UNION_CONTROLNET_TYPES.keys()),),
-                             "resolution": ("INT", {"default": 512, "min": 512, "max": 2048, "step": 1}),
-                             "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
-                             "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
-                             "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001})
+                             "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
+                             "control_net": (none2list(s.list_full_controlnet_model),{"tooltip": "Chọn model ControlNet."}),
+                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet."}),
+                             "union_type": (["None","auto"] + list(UNION_CONTROLNET_TYPES.keys()),{"tooltip": "Kiểu hợp nhất ControlNet (nếu có)."}),
+                             "resolution": ("INT", {"default": 512, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                             "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
+                             "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước đầu sử dụng ControlNet."}),
+                             "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước cuối sử dụng ControlNet."})
                              },
                 "optional": {
-                            "positive": ("CONDITIONING", ),
-                            "negative": ("CONDITIONING", ),
-                            "vae": ("VAE", ),
-                            "mask": ("MASK", ),
+                            "positive": ("CONDITIONING", {"tooltip": "Điều kiện positive (nếu có)."}),
+                            "negative": ("CONDITIONING", {"tooltip": "Điều kiện negative (nếu có)."}),
+                            "vae": ("VAE", {"tooltip": "Mô hình VAE (nếu cần)."}),
+                            "mask": ("MASK", {"tooltip": "Mask dùng cho ControlNet inpaint (nếu có)."}),
                              }
                 }
 
@@ -1196,14 +1200,14 @@ class CheckpointDownload:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "Download_url": ("STRING", {"default": "", "multiline": False},),
-                "Ckpt_url_name": ("STRING", {"default": "model.safetensors", "multiline": False},),
+                "Download_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập URL để tải checkpoint về máy."},),
+                "Ckpt_url_name": ("STRING", {"default": "model.safetensors", "multiline": False, "tooltip": "Tên tệp checkpoint sẽ lưu trên máy."},),
             }
         }
     RETURN_TYPES = ("MODEL", "CLIP", "VAE")
-    OUTPUT_TOOLTIPS = ("The model used for denoising latents.",
-                       "The CLIP model used for encoding text prompts.",
-                       "The VAE model used for encoding and decoding images to and from latent space.")
+    OUTPUT_TOOLTIPS = ("Mô hình dùng để khử nhiễu latents.",
+                       "Mô hình CLIP dùng để mã hóa prompt văn bản.",
+                       "Mô hình VAE dùng để mã hóa/giải mã ảnh sang/từ latent.")
     FUNCTION = "checkpoint_download"
 
     CATEGORY = "📂 SDVN/📥 Download"
@@ -1237,22 +1241,22 @@ class LoraDownload:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "model": ("MODEL", {"tooltip": "The diffusion model the LoRA will be applied to."}),
-                "clip": ("CLIP", {"default": None, "tooltip": "The CLIP model the LoRA will be applied to."}),
-                "Download_url": ("STRING", {"default": "", "multiline": False},),
-                "Lora_url_name": ("STRING", {"default": "model.safetensors", "multiline": False},),
-                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the diffusion model. This value can be negative."}),
-                "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the CLIP model. This value can be negative."}),
+                "model": ("MODEL", {"tooltip": "Mô hình diffusion sẽ áp dụng LoRA."}),
+                "clip": ("CLIP", {"default": None, "tooltip": "Mô hình CLIP sẽ áp dụng LoRA."}),
+                "Download_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập URL để tải LoRA về máy."},),
+                "Lora_url_name": ("STRING", {"default": "model.safetensors", "multiline": False, "tooltip": "Tên tệp LoRA sẽ lưu trên máy."},),
+                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "Độ mạnh tác động lên diffusion model. Có thể giá trị âm."}),
+                "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "Độ mạnh tác động lên CLIP model. Có thể giá trị âm."}),
             },
         }
 
     RETURN_TYPES = ("MODEL", "CLIP")
-    OUTPUT_TOOLTIPS = ("The modified diffusion model.",
-                       "The modified CLIP model.")
+    OUTPUT_TOOLTIPS = ("Mô hình diffusion đã áp dụng LoRA.",
+                       "Mô hình CLIP đã áp dụng LoRA.")
     FUNCTION = "load_lora"
 
     CATEGORY = "📂 SDVN/📥 Download"
-    DESCRIPTION = "LoRAs are used to modify diffusion and CLIP models, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together."
+    DESCRIPTION = "LoRA dùng để điều chỉnh mô hình diffusion và CLIP, thay đổi cách khử nhiễu latent, ví dụ áp dụng style. Có thể kết hợp nhiều node LoRA."
 
     def load_lora(self, model, clip, Download_url, Lora_url_name, strength_model, strength_clip):
         download_model(Download_url, Lora_url_name, "loras")
