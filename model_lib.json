@@ -52,6 +52,8 @@
     "Flux_dev_v1.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_dev_v1.safetensors",
     "Flux_kontext_dev_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_Kontext_dev_fp8.safetensors",
     "Flux_dev_v1-fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_dev_v1-fp8.safetensors",
+    "Flux_dev_v1-fp8-turbo.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Checkpoint/Flux_dev_v1-fp8-turbo.safetensors",
+    "Flux_kontext_dev_v1-fp8-turbo.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Checkpoint/Flux_kontext_dev_v1-fp8-turbo.safetensors",
     "Flux_dev_v1-nf4.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_dev_v1-nf4.safetensors",
     "Flux_schnell_v1-fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_schnell_v1-fp8.safetensors",
     "Flux_dev_Q4KS.gguf": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Unet/flux1-dev-Q4_K_S.gguf",
