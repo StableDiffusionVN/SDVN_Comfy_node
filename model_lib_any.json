@@ -98,5 +98,7 @@
     "wan2.1_flf2v_720p_14B_fp8_e4m3fn.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_flf2v_720p_14B_fp8_e4m3fn.safetensors","UNET/Diffusion", "fp8_e4m3fn"],
     "wan2.1_fun_control_1.3B_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_fun_control_1.3B_bf16.safetensors","UNET/Diffusion", "default"],
     "wan2.1_fun_inp_1.3B_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_fun_inp_1.3B_bf16.safetensors","UNET/Diffusion", "default"],
-    "wan2.1_vace_1.3B_preview_fp16.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_vace_1.3B_preview_fp16.safetensors","UNET/Diffusion", "default"]
+    "wan2.1_vace_1.3B_preview_fp16.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_vace_1.3B_preview_fp16.safetensors","UNET/Diffusion", "default"],
+    "wan2.1_vace_14B_fp16.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_vace_14B_fp16.safetensors","UNET/Diffusion", "default"],
+    "wan2.1_vace_1.3B_fp16.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_vace_1.3B_fp16.safetensors","UNET/Diffusion", "default"]
 }
