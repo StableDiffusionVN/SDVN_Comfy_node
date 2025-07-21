@@ -54,10 +54,10 @@ class yoloseg:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "image": ("IMAGE",),
-                "model_name": (s.model_list, {"default": "face_yolov8n-seg2_60.pt"}),
-                "score": ("FLOAT", {"default": 0.6, "min": 0.01, "max": 1.0, "step": 0.01},),
-                "id": ("STRING", {"default": ""}),
+                "image": ("IMAGE", {"tooltip": "Ảnh đầu vào"}),
+                "model_name": (s.model_list, {"default": "face_yolov8n-seg2_60.pt", "tooltip": "Tên mô hình YOLO"}),
+                "score": ("FLOAT", {"default": 0.6, "min": 0.01, "max": 1.0, "step": 0.01, "tooltip": "Ngưỡng điểm"},),
+                "id": ("STRING", {"default": "", "tooltip": "Lọc ID đối tượng"}),
             },
         }
     
@@ -65,6 +65,13 @@ class yoloseg:
     FUNCTION = "yoloseg"
     RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT")
     RETURN_NAMES = ("image", "mask", "all_id", "num_objects")
+    DESCRIPTION = "Tạo mask bằng mô hình YOLO." 
+    OUTPUT_TOOLTIPS = (
+        "Ảnh với vùng phát hiện",
+        "Mask vùng phát hiện",
+        "Danh sách ID đối tượng",
+        "Số lượng đối tượng",
+    )
 
     def yoloseg(s, image, model_name, score, id):
         from ultralytics import YOLO
@@ -117,15 +124,17 @@ class MaskRegions:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "mask": ("MASK",), 
+                "mask": ("MASK", {"tooltip": "Mask cần tách"}), 
             }
         }
 
     CATEGORY = "📂 SDVN/🎭 Mask"
     RETURN_TYPES = ("MASK",)
-    RETURN_NAMES = ("layer_mask",)  
+    RETURN_NAMES = ("layer_mask",)
     OUTPUT_IS_LIST = (True,)
     FUNCTION = "separate_regions"
+    DESCRIPTION = "Tách mask thành từng vùng riêng biệt."
+    OUTPUT_TOOLTIPS = ("Danh sách mask vùng.",)
 
     @staticmethod
     def get_top_left_coords(tensor):
@@ -172,7 +181,7 @@ class inpaint_crop:
                 "extend": ("FLOAT", {"default": 1.2, "min": 0, "max": 100}),
             },
             "optional": {
-                "mask": ("MASK",),
+                "mask": ("MASK", {"tooltip": "Mask đầu vào"}),
             }
         }
 

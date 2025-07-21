@@ -475,7 +475,7 @@ class CheckpointLoaderDownload:
     FUNCTION = "load_checkpoint"
 
     CATEGORY = "📂 SDVN"
-    DESCRIPTION = "Loads a diffusion model checkpoint, diffusion models are used to denoise latents."
+    DESCRIPTION = "Tải checkpoint mô hình diffusion, dùng để khử nhiễu latent."
 
     def load_checkpoint(self, Download, Download_url, Ckpt_url_name, Ckpt_name):
         if not Download or Download_url == '':
@@ -583,7 +583,7 @@ class CLIPTextEncode:
     FUNCTION = "encode"
 
     CATEGORY = "📂 SDVN"
-    DESCRIPTION = "Encodes a text prompt using a CLIP model into an embedding that can be used to guide the diffusion model towards generating specific images."
+    DESCRIPTION = "Mã hóa prompt văn bản bằng CLIP để hướng dẫn mô hình diffusion sinh ảnh."
 
     def encode(self, clip, positive, negative, style, translate, seed):
         if style != "None":
@@ -626,7 +626,7 @@ class StyleLoad:
     FUNCTION = "loadstyle"
 
     CATEGORY = "📂 SDVN"
-    DESCRIPTION = "Encodes a text prompt using a CLIP model into an embedding that can be used to guide the diffusion model towards generating specific images."
+    DESCRIPTION = "Tải style và ghép vào prompt, mã hóa bằng CLIP để hướng dẫn diffusion sinh ảnh."
 
     def loadstyle(self, positive, negative, translate, seed, **kargs):
         print(kargs)

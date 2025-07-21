@@ -41,6 +41,19 @@ class quick_menu:
     RETURN_TYPES = (any, any, any, any, any, any, any, any, any, any)
     RETURN_NAMES = ("checkpoint name", "lora name", "lora name 2", "lora name 3", "lora name 4", "lora name 5", "simple string", "simple string 2", "string", "string 2")
     FUNCTION = "quick_menu"
+    DESCRIPTION = "Tạo menu nhanh để chọn checkpoint và LoRA."
+    OUTPUT_TOOLTIPS = (
+        "Tên checkpoint",
+        "Tên LoRA 1",
+        "Tên LoRA 2",
+        "Tên LoRA 3",
+        "Tên LoRA 4",
+        "Tên LoRA 5",
+        "Chuỗi ngắn",
+        "Chuỗi ngắn 2",
+        "Chuỗi dài",
+        "Chuỗi dài 2",
+    )
 
     def quick_menu(s, **kargs):
         r_list = [kargs[i] for i in kargs]

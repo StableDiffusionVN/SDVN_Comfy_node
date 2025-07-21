@@ -77,6 +77,8 @@ class img_list_repeat:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "list_img"
+    DESCRIPTION = "Ghép các ảnh đầu vào thành một danh sách."
+    OUTPUT_TOOLTIPS = ("Danh sách ảnh kết quả.",)
 
     def list_img(s, image1 = None, image2 = None, image3 = None, image4 = None, image5 = None, image6 = None, image7 = None, image8 = None, image9 = None, image10 = None):
         r = []
@@ -103,6 +105,8 @@ class img_repeat:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "list_img"
+    DESCRIPTION = "Lặp lại danh sách ảnh nhiều lần."
+    OUTPUT_TOOLTIPS = ("Danh sách ảnh sau khi lặp.",)
 
     def list_img(s, repeat, image):
         r = []
@@ -125,6 +129,8 @@ class load_img_from_list:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "load_from_list"
+    DESCRIPTION = "Lấy một ảnh từ danh sách theo chỉ số."
+    OUTPUT_TOOLTIPS = ("Ảnh được chọn.",)
 
     def load_from_list(s, index, image):
         return (image[index[0]],)

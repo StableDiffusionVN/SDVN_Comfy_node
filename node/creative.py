@@ -246,12 +246,17 @@ class Seed:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, }),
-                "random": ("BOOLEAN", {"default": False, "label_on": "random", "label_off": "fixed"},),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff,
+                                    "tooltip": "Giá trị seed ban đầu."}),
+                "random": ("BOOLEAN", {"default": False, "label_on": "random",
+                                        "label_off": "fixed",
+                                        "tooltip": "Bật để tạo seed ngẫu nhiên."},),
             }}
     CATEGORY = "📂 SDVN/💡 Creative"
     RETURN_TYPES = ("INT",)
     RETURN_NAMES = ("seed",)
+    OUTPUT_TOOLTIPS = ("Seed kết quả.",)
+    DESCRIPTION = "Sinh seed ngẫu nhiên hoặc cố định."
     FUNCTION = "seed"
 
     def seed(s, seed, random):
@@ -266,13 +271,16 @@ class Switch:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "true": (any,),
-                "false": (any,),
-                "target":  ("BOOLEAN", {"default": True},),
+                "true": (any, {"tooltip": "Giá trị khi điều kiện True."}),
+                "false": (any, {"tooltip": "Giá trị khi điều kiện False."}),
+                "target":  ("BOOLEAN", {"default": True,
+                                         "tooltip": "Điều kiện lựa chọn."},),
             }}
     CATEGORY = "📂 SDVN/💡 Creative"
     RETURN_TYPES = (any,)
     RETURN_NAMES = ("output",)
+    OUTPUT_TOOLTIPS = ("Kết quả lựa chọn.",)
+    DESCRIPTION = "Chọn giữa hai giá trị dựa trên biến Boolean."
     FUNCTION = "switch"
 
     def switch(s, true, false, target):
