@@ -1187,7 +1187,7 @@ class KontextReference:
             first_img = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img_list[0])[0]
             first_img_latent = ALL_NODE["VAEEncode"]().encode(vae, first_img)[0]
             if len(img_list) > 1:
-                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], img_list)[0]
+                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
             else:
                 latent = first_img_latent
