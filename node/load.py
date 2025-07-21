@@ -866,9 +866,9 @@ class AutoControlNetApply:
     def INPUT_TYPES(s):
         return {"required": {
                              "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
-                             "control_net": (none2list(s.list_full_controlnet_model),{"tooltip": "Chọn model ControlNet."}),
-                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet."}),
-                             "union_type": (["None","auto"] + list(UNION_CONTROLNET_TYPES.keys()),{"tooltip": "Kiểu hợp nhất ControlNet (nếu có)."}),
+                             "control_net": (none2list(s.list_full_controlnet_model),{"tooltip": "Chọn model ControlNet, một số model có trong danh sách tải xuống tự động."}),
+                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
+                             "union_type": (["None","auto"] + list(UNION_CONTROLNET_TYPES.keys()),{"tooltip": "Kiểu hợp nhất ControlNet (Áp dụng cho Controlnet Union)."}),
                              "resolution": ("INT", {"default": 512, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                              "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
                              "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước đầu sử dụng ControlNet."}),
@@ -877,13 +877,17 @@ class AutoControlNetApply:
                 "optional": {
                             "positive": ("CONDITIONING", {"tooltip": "Điều kiện positive (nếu có)."}),
                             "negative": ("CONDITIONING", {"tooltip": "Điều kiện negative (nếu có)."}),
-                            "vae": ("VAE", {"tooltip": "Mô hình VAE (nếu cần)."}),
-                            "mask": ("MASK", {"tooltip": "Mask dùng cho ControlNet inpaint (nếu có)."}),
+                            "vae": ("VAE", {"tooltip": "Mô hình VAE (nếu cần), cần có cho Flux và SD3"}),
+                            "mask": ("MASK", {"tooltip": "Mask dùng cho ControlNet inpaint (Áp dụng cho Controlnet Inpainting AliMama)."}),
                              }
                 }
 
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "IMAGE", "PARAMETER")
     RETURN_NAMES = ("positive", "negative", "image", "parameter")
+    OUTPUT_TOOLTIPS = ("Điều kiện positive đã áp dụng ControlNet.",
+                       "Điều kiện negative đã áp dụng ControlNet.",
+                       "Ảnh đầu ra sau khi áp dụng ControlNet preprocessor",
+                       "Tham số đầu vào đã sử dụng cho ControlNet, sử dụng với node Auto Generate")
     FUNCTION = "apply_controlnet"
 
     CATEGORY = "📂 SDVN"
