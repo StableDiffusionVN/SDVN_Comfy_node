@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update Kontext Support, Autogenerate, tooltips, and more."
-version = "1.11.1"   
+description = "Update Wan2.2 models, add new Wan2.1 models, and add new lora models for ComfyUI"
+version = "1.11.2"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 
@@ -12,4 +12,4 @@ Repository = "https://github.com/StableDiffusionVN/SDVN_Comfy_node"
 [tool.comfy]
 PublisherId = "sdvn-comfy-node"
 DisplayName = "SDVN_Comfy_node"
-Icon = "https://github.com/StableDiffusionVN/SDVN_Comfy_node/blob/main/preview/sdvn-logo.png"
+Icon = "https://github.com/StableDiffusionVN/SDVN_Comfy_node/blob/main/preview/sdvn-logo.png?raw=true"

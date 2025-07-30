@@ -21,5 +21,8 @@
     "lightx2v_I2V_14B_480p_cfg_step_distill_rank128_bf16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank128_bf16.safetensors",
     "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors",
     "Wan21_CausVid_bidirect2_T2V_1_3B_lora_rank32.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan21_CausVid_bidirect2_T2V_1_3B_lora_rank32.safetensors",
-    "Wan21_CausVid_14B_T2V_lora_rank32.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan21_CausVid_14B_T2V_lora_rank32.safetensors"
+    "Wan21_CausVid_14B_T2V_lora_rank32.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan21_CausVid_14B_T2V_lora_rank32.safetensors",
+    "Wan2_1_EchoShot_1_3B_lora_rank_128_fp16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/EchoShot/Wan2_1_EchoShot_1_3B_lora_rank_128_fp16.safetensors",
+    "FastWan_T2V_14B_480p_lora_rank_128_bf16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/FastWan/FastWan_T2V_14B_480p_lora_rank_128_bf16.safetensors",
+    "FastWan_T2V_14B_480p_lora_rank_64_bf16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/FastWan/FastWan_T2V_14B_480p_lora_rank_64_bf16.safetensors"
 }
