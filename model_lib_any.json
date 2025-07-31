@@ -11,6 +11,8 @@
     "siglip2_so400m_patch16_512.safetensors": ["https://huggingface.co/ostris/ComfyUI-Advanced-Vision/blob/main/clip_vision/siglip2_so400m_patch16_512.safetensors","CLIPVision"],
     "flux_vae.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Vae/flux_vae.safetensors","VAE"],
     "clip_vision_h.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/clip_vision/clip_vision_h.safetensors","CLIPVision"],
+    "flux1-krea-dev.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-krea-dev.safetensors", "UNET/Diffusion", "default"],
+    "flux1-dev.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-dev.safetensors", "UNET/Diffusion", "default"],
     "wan2.1_i2v_720p_14B_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_fp8_scaled.safetensors","UNET/Diffusion", "default"],
     "wan2.1_t2v_14B_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_t2v_14B_fp8_scaled.safetensors","UNET/Diffusion", "default"],
     "Wan2.1-Fun-Control-14B_fp8_e5m2.safetensors": ["https://huggingface.co/Kijai/WanVideo_comfy/blob/main/Wan2.1-Fun-Control-14B_fp8_e5m2.safetensors","UNET/Diffusion", "default"],
