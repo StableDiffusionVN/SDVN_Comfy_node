@@ -11,6 +11,8 @@
     "siglip2_so400m_patch16_512.safetensors": ["https://huggingface.co/ostris/ComfyUI-Advanced-Vision/blob/main/clip_vision/siglip2_so400m_patch16_512.safetensors","CLIPVision"],
     "flux_vae.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Vae/flux_vae.safetensors","VAE"],
     "VAE84.vae.pt": ["https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/main/vae-ft-mse-840000-ema-pruned.ckpt","VAE"],
+    "Anime-fp16.vae.pt": ["https://huggingface.co/phamhungd/GuoZovya/blob/main/Anime-fp16.vae.pt","VAE"],
+    "Waifu-anime.vae.pt": ["https://huggingface.co/phamhungd/GuoZovya/blob/main/Waifu-anime.vae.ptt","VAE"],
     "clip_vision_h.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/clip_vision/clip_vision_h.safetensors","CLIPVision"],
     "flux1-krea-dev.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-krea-dev.safetensors", "UNET/Diffusion", "default"],
     "flux1-krea-dev_fp8.pt": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-krea-dev_fp8.pt", "UNET/Diffusion", "fp8_e4m3fn"],
