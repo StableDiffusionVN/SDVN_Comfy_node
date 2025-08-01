@@ -51,6 +51,8 @@
     "ManmaruMix-v2.safetensors": "https://civitai.com/api/download/models/116017",
     "Flux_dev_v1.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_dev_v1.safetensors",
     "Flux_Krea_dev_v1.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_Krea_dev_v1.safetensors",
+    "Flux_Krea_dev_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Checkpoint/Flux_Krea_dev_fp8.safetensors",
+    "Flux_Krea_dev_fp8_turbo": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Checkpoint/Flux_Krea_dev_fp8_turbo.safetensors",
     "Flux_kontext_dev_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_Kontext_dev_fp8.safetensors",
     "Flux_dev_v1-fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/resolve/main/Checkpoint/Flux_dev_v1-fp8.safetensors",
     "Flux_dev_v1-fp8-turbo.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Checkpoint/Flux_dev_v1-fp8-turbo.safetensors",
