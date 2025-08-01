@@ -191,7 +191,7 @@ class auto_generate:
     }
     def auto_generate(s, model, clip, vae, Prompt, Negative, Active_prompt, Image_size, Steps, Denoise, Inpaint_model, Random_prompt, AdvSetting, cfg, sampler_name, scheduler, FluxGuidance, Upscale_model, seed, Auto_hires = False, Kontext_model = False, image = None, mask = None, parameter = None):
         if AdvSetting == False:
-            Auto_hires == True 
+            Auto_hires = True 
         type_model = check_type_model(model)
         type_model = "None" if type_model not in s.model_para else type_model
         print(f"Type model : {type_model}")
