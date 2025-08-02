@@ -25,5 +25,7 @@
     "Wan2_1_EchoShot_1_3B_lora_rank_128_fp16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/EchoShot/Wan2_1_EchoShot_1_3B_lora_rank_128_fp16.safetensors",
     "FastWan_T2V_14B_480p_lora_rank_128_bf16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/FastWan/FastWan_T2V_14B_480p_lora_rank_128_bf16.safetensors",
     "FastWan_T2V_14B_480p_lora_rank_64_bf16.safetensors": "https://huggingface.co/Kijai/WanVideo_comfy/blob/main/FastWan/FastWan_T2V_14B_480p_lora_rank_64_bf16.safetensors",
-    "Flux_Krea_lora_128.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_128.safetensors"
+    "Krea_lora_128.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_128.safetensors",
+    "Krea_lora_256.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_256.safetensors",
+    "Krea_lora_32.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_32.safetensors"
 }

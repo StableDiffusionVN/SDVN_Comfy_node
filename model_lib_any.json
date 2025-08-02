@@ -17,6 +17,8 @@
     "flux1-krea-dev.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-krea-dev.safetensors", "UNET/Diffusion", "default"],
     "flux1-krea-dev_fp8.pt": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-krea-dev_fp8.pt", "UNET/Diffusion", "fp8_e4m3fn"],
     "flux1-dev.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/flux1-dev.safetensors", "UNET/Diffusion", "default"],
+    "flux1-dev-fp8.safetensors": ["https://huggingface.co/Kijai/flux-fp8/blob/main/flux1-dev-fp8-e4m3fn.safetensors", "UNET/Diffusion", "default"],
+    "flux_dev_turbo_krea_mix_diffusion_fp8.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux/blob/main/Unet/Flux_dev_turbo_krea_mix_diffusion_fp8.safetensors", "UNET/Diffusion", "default"],
     "wan2.1_i2v_720p_14B_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_fp8_scaled.safetensors","UNET/Diffusion", "default"],
     "wan2.1_t2v_14B_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/blob/main/split_files/diffusion_models/wan2.1_t2v_14B_fp8_scaled.safetensors","UNET/Diffusion", "default"],
     "Wan2.1-Fun-Control-14B_fp8_e5m2.safetensors": ["https://huggingface.co/Kijai/WanVideo_comfy/blob/main/Wan2.1-Fun-Control-14B_fp8_e5m2.safetensors","UNET/Diffusion", "default"],
