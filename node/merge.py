@@ -1,6 +1,8 @@
 import os,ast
 import folder_paths
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
+import torch
+from safetensors.torch import save_file, load_file
 
 def none2list(folderlist):
     list = ["None"]
@@ -189,14 +191,27 @@ class ModelMerge:
             else:
                 if Option == "Merge Sum [ A * (1 - M) + B * M ]":
                     model_C, clip_C = model_A, clip_A
-                model_sub_BC = ALL_NODE["ModelMergeSubtract"]().merge(model_B,model_C,Multiplier_M)[0]
-                clip_sub_BC = ALL_NODE["CLIPMergeSubtract"]().merge(clip_B,clip_C,Multiplier_M)[0]
-                model_merge = ALL_NODE["ModelMergeAdd"]().merge(model_A, model_sub_BC)[0]
-                if MBW != None:
-                    model_merge = ModelMergeBlocks().merge(model_merge, model_A, **ast.literal_eval(MBW))[0]
-                clip_merge = ALL_NODE["CLIPMergeAdd"]().merge(clip_A, clip_sub_BC)[0]
+                if model_A is not None or model_B is not None or model_C is not None:
+                    model_sub_BC = ALL_NODE["ModelMergeSubtract"]().merge(model_B,model_C,Multiplier_M)[0]
+                    model_merge = ALL_NODE["ModelMergeAdd"]().merge(model_A, model_sub_BC)[0]
+                    if MBW != None:
+                        model_merge = ModelMergeBlocks().merge(model_merge, model_A, **ast.literal_eval(MBW))[0]
+                else:
+                    model_merge = None
+                if clip_A is not None or clip_B is not None or clip_C is not None:
+                    clip_sub_BC = ALL_NODE["CLIPMergeSubtract"]().merge(clip_B,clip_C,Multiplier_M)[0]
+                    clip_merge = ALL_NODE["CLIPMergeAdd"]().merge(clip_A, clip_sub_BC)[0]
+                else:
+                    clip_merge = None
             if Save:
-                ALL_NODE["CheckpointSave"]().save(model_merge, clip_merge, vae, f"checkpoints/{Save_name}")
+                if model_merge is not None and clip_merge is not None:
+                    ALL_NODE["CheckpointSave"]().save(model_merge, clip_merge, vae, f"checkpoints/{Save_name}")
+                elif model_merge is not None:
+                    ALL_NODE["ModelSave"]().save(model_merge, f"diffusion_models/{Save_name}")
+                elif clip_merge is not None:
+                    ALL_NODE["CLIPSave"]().save(clip_merge,f"clip/{Save_name}")
+                elif vae is not None:
+                    ALL_NODE["VAESave"]().save(vae, f"vae/{Save_name}")
             return (model_merge, clip_merge, vae)
         else:
             if model_A != None and model_B != None:
@@ -213,16 +228,60 @@ class ModelMerge:
                 ALL_NODE["LoraSave"]().save(f"loras/{Save_name}", Lora_rank,"standard", True, model_sub_AB, clip_sub_AB)
             return {model_A, clip_A, vae}
 
+class ModelExport:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "Option":(["Unet_to_fp8.pt","Lora_remove_clip","Checkpoint_to_model"],{}),
+                "Input_path":("STRING", {"default": ""},),
+                "Output_path":("STRING", {"default": ""},),
+            },}
+
+    OUTPUT_NODE = True
+    RETURN_TYPES = ()
+    FUNCTION = "export"   
+    CATEGORY = "📂 SDVN/🧬 Merge"
+    def export(s, Option, Input_path, Output_path):
+        state = load_file(Input_path)
+        if Option == "Unet_to_fp8.pt":
+            state = s.unet_fp8(state)
+        elif Option == "Lora_remove_clip":
+            state = s.lora_model(state)
+        elif Option == "Checkpoint_to_model":
+            state = s.checkpoint_model(state)
+        save_file(state, Output_path) if Option != "Unet_to_fp8.pt" else torch.save(state, Output_path)
+        print(f"✅ Exported {Option} to {Output_path}")
+        return {}
+    def unet_fp8(s, state):
+        fp8_dtype = torch.float8_e4m3fn
+        for k, v in state.items():
+            state[k] = v.to(device='cuda', dtype=fp8_dtype)
+        return state
+    def lora_model(s, state):
+        diffusion_state_dict = {
+            k:v for k, v in state.items() if k.startswith("lora_unet")
+        }
+        return diffusion_state_dict
+    def checkpoint_model(s, state):
+        diffusion_state_dict = {
+            k.replace("model.diffusion_model.", ""): v
+            for k, v in state.items() if k.startswith("model.diffusion_model.")
+        }
+        return diffusion_state_dict
+     
 NODE_CLASS_MAPPINGS = {
     "SDVN Merge SD1": ModelMergeSD1,
     "SDVN Merge SDXL": ModelMergeSDXL,
     "SDVN Merge Flux": ModelMergeFlux1,
     "SDVN Model Merge": ModelMerge,
+    "SDVN Model Export": ModelExport,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Merge SD1": "🧬 Merge SD1",
     "SDVN Merge SDXL": "🧬 Merge SDXL",
     "SDVN Merge Flux": "🧬 Merge Flux",
-     "SDVN Model Merge": "🧬 Model Merge",
+    "SDVN Model Merge": "🧬 Model Merge",
+    "SDVN Model Export": "🧬 Model Export",
 }
