@@ -654,6 +654,7 @@ ModelType_list = {
     "HiDream-Fast": [1.0, "lcm", "normal"],
     "WAN21": [6.0,"uni_pc", "simple"],
     "HunyuanVideo": [1.0, "euler", "simple"],
+    "QwenImage": [2.5, "euler", "simple"],
 }
 
 StepsType_list = {
@@ -665,6 +666,7 @@ StepsType_list = {
     "Flux dev turbo (hyper 8steps)": 8,
     "Flux schnell": 4,
     "HiDream-Fast": 16,
+    "QwenImage": 50,
 }
 
 def check_type_model(m):
@@ -709,7 +711,7 @@ class Easy_KSampler:
     def sample(self, model, positive, ModelType, StepsType, sampler_name, scheduler, seed, Tiled=False, tile_width=None, tile_height=None, steps=20, cfg=7, denoise=1.0, negative=None, latent_image=None, vae=None, FluxGuidance = 3.5):
         if ModelType == "Auto":
             ModelType = check_type_model(model)
-        ModelType == 'None' if ModelType not in ModelType_list else ModelType
+        ModelType = 'None' if ModelType not in ModelType_list else ModelType
         if ModelType != 'None':
             cfg, sampler_name, scheduler = ModelType_list[ModelType]
         StepsType_list["Denoise"] = steps
@@ -1353,7 +1355,7 @@ class CLIPDownload:
         return {"required": { 
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
-                    "type": (["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream"],)
+                    "type": (["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream", "chroma", "ace", "omnigen2", "qwen_image"],)
                              }}
     RETURN_TYPES = ("CLIP",)
     FUNCTION = "download"
