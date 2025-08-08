@@ -1,6 +1,6 @@
 #If MacOs - Please install aria2 manually via brew
 aria2;sys_platform != 'darwin'
-openai >= 1.76.0
+openai >= 1.99.3
 gallery-dl
 instaloader
 googletrans-py

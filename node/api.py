@@ -159,25 +159,11 @@ def function(input):
         return ([*output],)
 
 model_list = {
-    "Gemini | 2.5 Flash (Img support)": "gemini-2.5-flash",
-    "Gemini | 2.5 Pro (Img support)": "gemini-2.5-pro",
-    "Gemini | 2.0 Flash (Img support)" : "gemini-2.0-flash",
-    "Gemini | 2.0 Flash Lite (Img support)": "gemini-2.0-flash-lite",
-    "OpenAI | GPT o4-mini (Img support)": "o4-mini",
-    "OpenAI | GPT 4-o mini (Img support)": "gpt-4o-mini",
-    "OpenAI | GPT o3 (Img support)": "o3",
-    "OpenAI | GPT o1 (Img support)": "o1",
-    "OpenAI | GPT o1-pro (Img support)": "o1-pro",
-    "OpenAI | GPT 4-o (Img support)": "gpt-4o",
-    "OpenAI | GPT 4.1 (Img support)": "gpt-4.1",
-    "OpenAI | GPT o1-mini": "o1-mini",
-    "OpenAI | GPT o3-mini": "o3-mini",
-    "OpenAI | GPT 3.5 Turbo": "gpt-3.5-turbo-0125",
+    "Gemini | 2.5 Flash": "gemini-2.5-flash",
+    "Gemini | 2.5 Flash Lite": "gemini-2.5-flash-lite",
+    "Gemini | 2.5 Pro": "gemini-2.5-pro",
+    "OpenAI | GPT 5": "gpt-5",
     "Deepseek | R1": "deepseek-chat",
-    "HuggingFace | DeepSeek R1 32B": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
-    "HuggingFace | DeepSeek R1 1.5B": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-    "HuggingFace | Meta Llama-3.2": "meta-llama/Llama-3.2-3B-Instruct",
-    "HuggingFace | Qwen 2.5-72B": "Qwen/Qwen2.5-72B-Instruct"
 }
 
 preset_prompt = {
@@ -274,26 +260,20 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
                 answer += chunk.choices[0].delta.content
         if "OpenAI" in chatbot:
             answer = ""
-            client = OpenAI(
-                api_key=APIkey)
+            client = OpenAI(api_key=APIkey)
             if image != None:
                 image = encode_image(image)
-                prompt = [{"type": "text", "text": prompt, }, {
-                    "type": "image_url", "image_url": {"url":  f"data:image/jpeg;base64,{image}"}, },]
+                prompt = [{"type": "input_text", "text": prompt, },
+                          {"type": "input_image", "image_url": f"data:image/jpeg;base64,{image}"},]
             messages = [
                 {"role": "user", "content": prompt}
             ]
             messages = preset_prompt[preset] + messages
-            stream = client.chat.completions.create(
+            response = client.responses.create(
                 model=model_name,
-                messages=messages,
-                stream=True
+                input=messages
             )
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    answer += chunk.choices[0].delta.content
-            if image != None:
-                answer = answer.split('return True')[-1]
+            answer = response.output_text
         if "Deepseek" in chatbot:
             client = OpenAI(api_key=APIkey, base_url="https://api.deepseek.com")
             response = client.chat.completions.create(
