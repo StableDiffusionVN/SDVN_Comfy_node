@@ -163,6 +163,8 @@ model_list = {
     "Gemini | 2.5 Flash Lite": "gemini-2.5-flash-lite",
     "Gemini | 2.5 Pro": "gemini-2.5-pro",
     "OpenAI | GPT 5": "gpt-5",
+    "OpenAI | GPT 5-mini": "gpt-5-mini",
+    "OpenAI | GPT 5-nano": "gpt-5-nano",
     "Deepseek | R1": "deepseek-chat",
 }
 
