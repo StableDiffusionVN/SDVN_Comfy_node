@@ -655,6 +655,7 @@ ModelType_list = {
     "WAN21": [6.0,"uni_pc", "simple"],
     "HunyuanVideo": [1.0, "euler", "simple"],
     "QwenImage": [2.5, "euler", "simple"],
+    "QwenImage Lightning": [1, "euler", "simple"],
 }
 
 StepsType_list = {
