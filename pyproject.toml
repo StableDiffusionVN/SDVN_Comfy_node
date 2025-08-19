@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update Support Qwen Models for ComfyUI"
-version = "1.12.2"   
+description = "Update Support Qwen Models for ComfyUI - SDVN Qwen Reference"
+version = "1.12.3"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 
