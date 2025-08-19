@@ -74,5 +74,6 @@
     "RealMythXL_v7.safetensors": "https://huggingface.co/StableDiffusionVN/SDXL/resolve/main/Checkpoint/RealMythXL_v7.safetensors",
     "Illustrious-XL.safetensors": "https://civitai.com/api/download/models/889818",
     "PonyDiffusionV6XL.safetensors":"https://huggingface.co/LyliaEngine/Pony_Diffusion_V6_XL/blob/main/ponyDiffusionV6XL_v6StartWithThisOne.safetensors",
-    "Qwen_Image_fp8.safetensors":"https://huggingface.co/StableDiffusionVN/QwenImage/resolve/main/Checkpoint/Qwen_Image_fp8.safetensors"
+    "Qwen_Image_fp8.safetensors":"https://huggingface.co/StableDiffusionVN/QwenImage/resolve/main/Checkpoint/Qwen_Image_fp8.safetensors",
+    "Qwen_Image_Edit_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/resolve/main/Checkpoint/Qwen_Image_Edit_fp8.safetensors"
 }

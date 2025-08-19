@@ -573,9 +573,13 @@ class CLIPTextEncode:
                 "style": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu có sẵn để thêm vào prompt."}),
                 "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
-                "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."})
-            }
-        }
+                "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
+
+            },
+            "optional": {
+                "vae": ("VAE", {"tooltip": "Chỉ dùng trong trường hợp Qwen Image Edit"}),
+                "image": ("VAE", {"tooltip": "Chỉ dùng trong trường hợp Qwen Image Edit"})
+        }}
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "STRING")
     RETURN_NAMES = ("positive", "negative", "prompt")
     OUTPUT_TOOLTIPS = (
@@ -585,7 +589,7 @@ class CLIPTextEncode:
     CATEGORY = "📂 SDVN"
     DESCRIPTION = "Mã hóa prompt văn bản bằng CLIP để hướng dẫn mô hình diffusion sinh ảnh."
 
-    def encode(self, clip, positive, negative, style, translate, seed):
+    def encode(self, clip, positive, negative, style, translate, seed, vae = None, image = None):
         if style != "None":
             positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
             negative = f"{negative}, {style_list()[1][style_list()[0].index(style)][2]}" if len(style_list()[1][style_list()[0].index(style)]) > 2 else ""
@@ -600,9 +604,14 @@ Positive: {positive}
 
 Negative: {negative}
         """
-        token_p = clip.tokenize(positive)
-        token_n = clip.tokenize(negative)
-        return (clip.encode_from_tokens_scheduled(token_p), clip.encode_from_tokens_scheduled(token_n), prompt)
+        if vae is not None and image is not None:
+            positive = ALL_NODE["TextEncodeQwenImageEdit"]().encode(clip, positive, vae, image)[0]
+            negative = ALL_NODE["TextEncodeQwenImageEdit"]().encode(clip, negative, vae, image)[0]
+            return (positive, negative, prompt)
+        else:
+            token_p = clip.tokenize(positive)
+            token_n = clip.tokenize(negative)
+            return (clip.encode_from_tokens_scheduled(token_p), clip.encode_from_tokens_scheduled(token_n), prompt)
 
 class StyleLoad:
     @classmethod
