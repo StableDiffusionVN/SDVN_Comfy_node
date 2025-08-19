@@ -578,7 +578,7 @@ class CLIPTextEncode:
             },
             "optional": {
                 "vae": ("VAE", {"tooltip": "Chỉ dùng trong trường hợp Qwen Image Edit"}),
-                "image": ("VAE", {"tooltip": "Chỉ dùng trong trường hợp Qwen Image Edit"})
+                "image": ("IMAGE", {"tooltip": "Chỉ dùng trong trường hợp Qwen Image Edit"})
         }}
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "STRING")
     RETURN_NAMES = ("positive", "negative", "prompt")
