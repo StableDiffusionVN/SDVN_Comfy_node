@@ -141,14 +141,14 @@ def token(link):
     return token
 
 def download_model(url, name, type):
-    url = url.replace("&", "\&").split("?")[0]
+    url = url.split("?")[0]
     url = check_link(url)
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
     if not os.path.isfile(path_model):
         command = ['aria2c', '-c', '-x', '16', '-s', '16', '-k', '1M', f'{url}{token(url)}', '-d', folder_path, '-o', name]
         subprocess.run(command, check=True, text=True, capture_output=True)
-    
+
 class LoadImage:
     @classmethod
     def INPUT_TYPES(s):
