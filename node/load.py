@@ -576,6 +576,9 @@ class CLIPTextEncode:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
                 "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
 
+            },
+            "optional": {
+                "image": ("IMAGE", {"tooltip": "Ảnh đầu vào để mã hóa, nếu có."}),
             }
         }
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "STRING")
@@ -587,7 +590,7 @@ class CLIPTextEncode:
     CATEGORY = "📂 SDVN"
     DESCRIPTION = "Mã hóa prompt văn bản bằng CLIP để hướng dẫn mô hình diffusion sinh ảnh."
 
-    def encode(self, clip, positive, negative, style, translate, seed):
+    def encode(self, clip, positive, negative, style, translate, seed, image = None):
         if style != "None":
             positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
             negative = f"{negative}, {style_list()[1][style_list()[0].index(style)][2]}" if len(style_list()[1][style_list()[0].index(style)]) > 2 else ""
@@ -1203,18 +1206,19 @@ class KontextReference:
         else:
             return (conditioning, img_size, img_size, None)
 
-class QwenReference:
+class QwenEditTextEncoder:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
+                    "prompt": ("STRING", {"multiline": True, "tooltip": "Prompt mô tả nội dung bạn muốn sinh ra."}),
                     "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
-                    "conditioning": ("CONDITIONING", ),
-                    "vae": ("VAE", ),
+                    "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
+                    "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
+                    "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
                              },
                 "optional": {
-                     "image": ("IMAGE",),
-                     "image2": ("IMAGE",),
-                     "image3": ("IMAGE",),
+                    "image": ("IMAGE", {"tooltip": "Ảnh đầu vào để mã hóa, nếu có."}),
+                    "vae": ("VAE", ),
                      "mask": ("MASK",),
                 },
                              }
@@ -1224,42 +1228,48 @@ class QwenReference:
     FUNCTION = "append"
 
     CATEGORY = "📂 SDVN"
+
     def qwen_size(self, image):
         width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = 0)
         s = math.sqrt(1024*1024 / (width*height))
         width = round(width*s)
         height = round(height*s)
         image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
-        image = image.movedim(1, -1)
         return (image, width, height)
     
-    def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
+    def append(s, prompt, img_size, translate, seed, clip, image=None, vae=None, mask=None):
+        if "DPRandomGenerator" in ALL_NODE:
+            cls = ALL_NODE["DPRandomGenerator"]
+            prompt = cls().get_prompt(prompt, seed, 'No')[0]
+        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
-        img_list = []
-        for img in [image, image2, image3]:
-            if img is not None:
-                img_list.append(img)
-        if len(img_list) > 0:
+
+        ref_latent = None
+        if image is None:
+            images = []
+
+        if image is not None:
             if img_size == 0:
-                first_img, width, height = s.qwen_size(img_list[0])
+                image, width, height = s.qwen_size(image)
             else:
-                width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = img_list[0], latent = None, maxsize = img_size)
-                first_img = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img_list[0])[0]
-            if len(img_list) > 1:
-                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
-            first_img_latent = ALL_NODE["VAEEncode"]().encode(vae, first_img)[0]
-            if len(img_list) > 1:
-                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
-                img = s.qwen_size(img)[0]
-                latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
-            else:
-                latent = first_img_latent
-            conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": [latent["samples"]]}, append=True)
+                width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = img_size)
+                image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
+            
+            images = [image[:, :, :, :3]]
+            image_latent = ALL_NODE["VAEEncode"]().encode(vae, image)[0]
+            latent = image_latent
+
+            ref_latent = latent["samples"]
+
+            tokens = clip.tokenize(prompt, images=images)
+            conditioning = clip.encode_from_tokens_scheduled(tokens)
+            if latent is not None:
+                conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": [ref_latent]}, append=True)
             if mask is not None:
-                first_img_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_img_latent, mask)[0]
-            return (conditioning,width,height,first_img_latent)
+                latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(latent, mask)[0]
+            return (conditioning,width,height,latent)
         else:
             return (conditioning, img_size, img_size, None)
         
@@ -1600,7 +1610,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN CLIP Download":CLIPDownload,
     "SDVN StyleModel Download":StyleModelDownload,
     "SDVN Apply Kontext Reference": KontextReference,
-    "SDVN Qwen Reference": QwenReference,
+    "SDVN QwenEdit TextEncoder": QwenEditTextEncoder,
     "SDVN IPAdapterModel Download": IPAdapterModelDownload,
     "SDVN InstantIDModel Download": InstantIDModelDownload,
     "SDVN AnyDownload List": AnyDownloadList,
@@ -1623,7 +1633,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Inpaint": "👨‍🎨 Inpaint",
     "SDVN Apply Style Model": "🌈 Apply Style Model",
     "SDVN Apply Kontext Reference": "🌈 Apply Kontext Reference",
-    "SDVN Qwen Reference": "🌈 Apply Qwen Reference",
+    "SDVN QwenEdit TextEncoder": "🔡 QwenEdit TextEncoder",
     "SDVN Styles":"🗂️ Prompt Styles",
     "SDVN Upscale Image": "↗️ Upscale Image",
     "SDVN UPscale Latent": "↗️ Upscale Latent",
