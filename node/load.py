@@ -1224,13 +1224,13 @@ class QwenReference:
     FUNCTION = "append"
 
     CATEGORY = "📂 SDVN"
-    
     def qwen_size(self, image):
         width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = 0)
         s = math.sqrt(1024*1024 / (width*height))
-        width = int(width*s)
-        height = int(height*s)
+        width = round(width*s)
+        height = round(height*s)
         image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
+        image = image.movedim(1, -1)
         return (image, width, height)
     
     def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
@@ -1242,13 +1242,17 @@ class QwenReference:
             if img is not None:
                 img_list.append(img)
         if len(img_list) > 0:
-            width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = img_list[0], latent = None, maxsize = img_size)
-            first_img = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img_list[0])[0]
+            if img_size == 0:
+                first_img, width, height = s.qwen_size(img_list[0])
+            else:
+                width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = img_list[0], latent = None, maxsize = img_size)
+                first_img = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img_list[0])[0]
             if len(img_list) > 1:
                 img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
             first_img_latent = ALL_NODE["VAEEncode"]().encode(vae, first_img)[0]
             if len(img_list) > 1:
                 img = ALL_NODE["SDVN Image Layout"]().layout(["row"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
+                img = s.qwen_size(img)[0]
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
             else:
                 latent = first_img_latent
