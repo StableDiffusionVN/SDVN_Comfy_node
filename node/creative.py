@@ -63,6 +63,8 @@ class Random_Prompt:
     OUTPUT_IS_LIST = (True,)
 
     def get_prompt(self, prompt, max_prompts, seed):
+        if prompt == "":
+            return ([""],)
         generator = CombinatorialPromptGenerator(wildcard_manager=wm)
         list_prompt = generator.generate(prompt, max_prompts=1000)
         print(f"Max prompt: {len(list_prompt)}")

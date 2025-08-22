@@ -576,9 +576,6 @@ class CLIPTextEncode:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
                 "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
 
-            },
-            "optional": {
-                "image": ("IMAGE", {"tooltip": "Ảnh đầu vào để mã hóa, nếu có."}),
             }
         }
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "STRING")
@@ -590,13 +587,14 @@ class CLIPTextEncode:
     CATEGORY = "📂 SDVN"
     DESCRIPTION = "Mã hóa prompt văn bản bằng CLIP để hướng dẫn mô hình diffusion sinh ảnh."
 
-    def encode(self, clip, positive, negative, style, translate, seed, image = None):
+    def encode(self, clip, positive, negative, style, translate, seed):
         if style != "None":
             positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
             negative = f"{negative}, {style_list()[1][style_list()[0].index(style)][2]}" if len(style_list()[1][style_list()[0].index(style)]) > 2 else ""
 
         positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
         negative = ALL_NODE["SDVN Random Prompt"]().get_prompt(negative, 1, seed)[0][0]
+        
         positive = ALL_NODE["SDVN Translate"]().ggtranslate(positive,translate)[0]
         negative = ALL_NODE["SDVN Translate"]().ggtranslate(negative,translate)[0]
         prompt =f"""
