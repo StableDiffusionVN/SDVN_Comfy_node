@@ -10,3 +10,4 @@ google-genai
 PyYAML
 pandas
 ultralytics>=8.3.107
+dynamicprompts

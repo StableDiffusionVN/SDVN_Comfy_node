@@ -6,6 +6,15 @@ import nodes
 import pandas as pd
 import random as rd
 
+from pathlib import Path
+from dynamicprompts.wildcards.wildcard_manager import WildcardManager
+from dynamicprompts.generators import CombinatorialPromptGenerator
+
+wildcards_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),"wildcards")
+if not os.path.exists(wildcards_folder):
+    os.makedirs(wildcards_folder)
+wm = WildcardManager(Path(wildcards_folder))
+
 def check_mask(mask_tensor):
     if not isinstance(mask_tensor, torch.Tensor):
         return False
@@ -37,7 +46,43 @@ class AnyType(str):
 
 any = AnyType("*")
 
+class Random_Prompt:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "prompt": ("STRING", {"default": "Syntax - https://github.com/adieyal/sd-dynamic-prompts/blob/main/docs/SYNTAX.md", "multiline": True, }),
+            "max_prompts": ("INT", {"default": 1, "min": 0, "max": 1000, "tooltip": "Sô lượng prompt tối đa tạo ra, 0 sẽ tạo tối đa"}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Giá trị seed ban đầu."}),
+        }
+        }
 
+    CATEGORY = "📂 SDVN/💡 Creative"
+
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "get_prompt"
+    OUTPUT_IS_LIST = (True,)
+
+    def get_prompt(self, prompt, max_prompts, seed):
+        generator = CombinatorialPromptGenerator(wildcard_manager=wm)
+        list_prompt = generator.generate(prompt, max_prompts=1000)
+        print(f"Max prompt: {len(list_prompt)}")
+        if max_prompts == 0:    
+            return (list_prompt,)
+        elif max_prompts == 1:
+            index = seed % len(list_prompt) if seed > 0 else 0
+            return ([list_prompt[index]],)
+        else:
+            index = seed % len(list_prompt) if seed > 0 else 0
+            max_index = index + max_prompts
+            if max_prompts >= len(list_prompt):
+                return (list_prompt,)
+            elif max_index >= len(list_prompt):
+                list_1 = list_prompt[index:]
+                list2 = list_prompt[:max_prompts - (len(list_prompt) - index)]
+                return (list_1 + list2,)
+            else:
+                return (list_prompt[index:max_index],)
+            
 class Easy_IPA_weight:
     @classmethod
     def INPUT_TYPES(s):
@@ -126,9 +171,7 @@ class AnyInput:
         for i in in_list:
             if in_list[i] !=None and i in input:
                 input = input.replace(i,str(in_list[i]))
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            input = cls().get_prompt(input, seed, 'No')[0]
+        input = Random_Prompt().get_prompt(input, 1, seed)[0][0]
         input = GGTranslate().ggtranslate(input,translate)[0]
         true_values = ["true",  "1", "yes", "y", "on"]
         if output_list == "None":
@@ -932,6 +975,7 @@ class slider1:
         return (num,)
 
 NODE_CLASS_MAPPINGS = {
+    "SDVN Random Prompt": Random_Prompt,
     "SDVN Easy IPAdapter weight": Easy_IPA_weight,
     "SDVN Any Input Type": AnyInput,
     "SDVN Simple Any Input": SimpleAnyInput,
@@ -961,6 +1005,7 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "SDVN Random Prompt": "🎲 Random Prompt",
     "SDVN Easy IPAdapter weight": "📊 IPAdapter weight",
     "SDVN Any Input Type": "🔡 Any Input Type",
     "SDVN Image Size": "📐 Image Size",

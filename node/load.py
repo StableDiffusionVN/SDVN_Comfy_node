@@ -594,10 +594,9 @@ class CLIPTextEncode:
         if style != "None":
             positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
             negative = f"{negative}, {style_list()[1][style_list()[0].index(style)][2]}" if len(style_list()[1][style_list()[0].index(style)]) > 2 else ""
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            positive = cls().get_prompt(positive, seed, 'No')[0]
-            negative = cls().get_prompt(negative, seed, 'No')[0]
+
+        positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
+        negative = ALL_NODE["SDVN Random Prompt"]().get_prompt(negative, 1, seed)[0][0]
         positive = ALL_NODE["SDVN Translate"]().ggtranslate(positive,translate)[0]
         negative = ALL_NODE["SDVN Translate"]().ggtranslate(negative,translate)[0]
         prompt =f"""
@@ -639,10 +638,9 @@ class StyleLoad:
             if kargs[i] != "None":
                 positive = f"{positive}, {style_list()[1][style_list()[0].index(kargs[i])][1]}"
                 negative = f"{negative}, {style_list()[1][style_list()[0].index(kargs[i])][2]}" if len(style_list()[1][style_list()[0].index(kargs[i])]) > 2 else ""
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            positive = cls().get_prompt(positive, seed, 'No')[0]
-            negative = cls().get_prompt(negative, seed, 'No')[0]
+
+        positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
+        negative = ALL_NODE["SDVN Random Prompt"]().get_prompt(negative, 1, seed)[0][0]
         positive = ALL_NODE["SDVN Translate"]().ggtranslate(positive,translate)[0]
         negative = ALL_NODE["SDVN Translate"]().ggtranslate(negative,translate)[0]
         return (positive,negative,)
@@ -1238,9 +1236,7 @@ class QwenEditTextEncoder:
         return (image, width, height)
     
     def append(s, prompt, img_size, translate, seed, clip, image=None, vae=None, mask=None):
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            prompt = cls().get_prompt(prompt, seed, 'No')[0]
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:

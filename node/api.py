@@ -221,10 +221,8 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
                 if "Deepseek" in chatbot:
                     APIkey =  api_list["Deepseek"]
 
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            main_prompt = cls().get_prompt(main_prompt, seed, 'No')[0]
-            sub_prompt = cls().get_prompt(sub_prompt, seed, 'No')[0]
+        main_prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(main_prompt, 1, seed)[0][0]
+        sub_prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(sub_prompt, 1, seed)[0][0]
         main_prompt = ALL_NODE["SDVN Translate"]().ggtranslate(main_prompt,translate)[0]
         sub_prompt = ALL_NODE["SDVN Translate"]().ggtranslate(sub_prompt,translate)[0]
         prompt = f"{main_prompt}.{sub_prompt}"
@@ -315,9 +313,7 @@ class API_DALLE:
         if OpenAI_API == "":
             api_list = api_check()
             OpenAI_API =  api_list["OpenAI"]
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            prompt = cls().get_prompt(prompt, seed, 'No')[0]
+        prompt =ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
 
         client = OpenAI(
@@ -363,9 +359,8 @@ class API_DALLE_2:
         if OpenAI_API == "":
             api_list = api_check()
             OpenAI_API =  api_list["OpenAI"]
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            prompt = cls().get_prompt(prompt, seed, 'No')[0]
+            
+        ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
 
         client = OpenAI(
@@ -434,8 +429,8 @@ class API_GPT_image:
         if OpenAI_API == "":
             api_list = api_check()
             OpenAI_API =  api_list["OpenAI"]
-        if "DPRandomGenerator" in ALL_NODE:
-            prompt = ALL_NODE["DPRandomGenerator"]().get_prompt(prompt, seed, 'No')[0]
+
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
             
         client = OpenAI(
@@ -506,9 +501,8 @@ class Gemini_Flash2_Image:
         if Gemini_API == "":
             api_list = api_check()
             Gemini_API =  api_list["Gemini"]
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            prompt = cls().get_prompt(prompt, seed, 'No')[0]
+
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
         client = genai.Client(api_key=Gemini_API)
         if image != None:
@@ -553,10 +547,10 @@ class API_Imagen:
         if Gemini_API == "":
             api_list = api_check()
             Gemini_API =  api_list["Gemini"]
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            prompt = cls().get_prompt(prompt, seed, 'No')[0]
+
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
+
         client = genai.Client(api_key=Gemini_API)
         response = client.models.generate_images(
             model='imagen-3.0-generate-002',
@@ -598,10 +592,9 @@ class ic_light_v2:
 
     def ic_light_v2(s, image, mode, bg_source, prompt, translate, n_prompt, hf_token, image_size, steps, seed):
 
-        if "DPRandomGenerator" in ALL_NODE:
-            cls = ALL_NODE["DPRandomGenerator"]
-            prompt = cls().get_prompt(prompt, seed, 'No')[0]
-            n_prompt = cls().get_prompt(n_prompt, seed, 'No')[0]
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
+        n_prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(n_prompt, 1, seed)[0][0]
+
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
         n_prompt = ALL_NODE["SDVN Translate"]().ggtranslate(n_prompt,translate)[0]
         if hf_token == "":

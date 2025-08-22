@@ -53,7 +53,7 @@ ___
 
 - **Đối với tất cả các node có chức năng tải về:** Hỗ trợ tải trực tiếp từ **civitai** và **huggingface** bằng liên kết địa chỉ model hoặc liên kết tải model.
 - **Đối với tất cả các node tải ảnh bằng URL:** Tự động tải ảnh về từ đường dẫn hình ảnh. Có thể tự động tìm ảnh chất lượng cao nhất với link [Pinterest](https://www.pinterest.com/). Xem thêm [danh sách hỗ trợ](https://github.com/mikf/gallery-dl/blob/master/docs/supportedsites.md)
-- **Đối với tất cả các node nhập văn bản:** Hỗ trợ **Google Dịch** và [**chức năng Dynamic Prompt**](https://github.com/adieyal/sd-dynamic-prompts/blob/main/docs/SYNTAX.md) (Yêu cầu cài đặt node [Dynamicprompts](https://github.com/adieyal/comfyui-dynamicprompts))
+- **Đối với tất cả các node nhập văn bản:** Hỗ trợ **Google Dịch** và [**chức năng Dynamic Prompt**](https://github.com/adieyal/sd-dynamic-prompts/blob/main/docs/SYNTAX.md) (Wildcards folder: /ComfyUI/wildcards)
 ___
 ### BaseNode
 *Bộ node thông minh thay thế các tác vụ cơ bản, giúp người dùng xây dựng quy trình thông minh và nhanh hơn*

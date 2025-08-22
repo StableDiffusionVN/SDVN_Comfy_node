@@ -55,7 +55,7 @@ ___
 
 - **For all nodes with download:** Supports direct download from **civitai** and **huggingface** with model address link and model download link
 - **For all dodes load photos with the URL:** Automatically download photos to the url of the image. Can automatically search for the highest quality image with the [Pinterest link](https://www.pinterest.com/) . See also the [support list](https://github.com/mikf/gallery-dl/blob/master/docs/supportedsites.md)
-- **For all nodes capable of entering the text:** Support **Google Translate** and [**Dynamic Prompt function**](https://github.com/adieyal/sd-dynamic-prompts/blob/main/docs/SYNTAX.md) (Request installed node [Dynamicprompts](https://github.com/adieyal/comfyui-dynamicprompts))
+- **For all nodes capable of entering the text:** Support **Google Translate** and [**Dynamic Prompt function**](https://github.com/adieyal/sd-dynamic-prompts/blob/main/docs/SYNTAX.md) ((Wildcards folder: /ComfyUI/wildcards))
 ___
 ### BaseNode
 *A collection of smart nodes that replace basic tasks, helping users build processes smarter and faster*
