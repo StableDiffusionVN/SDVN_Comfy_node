@@ -1432,6 +1432,22 @@ class CLIPDownload:
         download_model(Download_url, Url_name, "text_encoders")
         return ALL_NODE["CLIPLoader"]().load_clip(Url_name,type)
 
+class ModelPatchDownload:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { 
+                    "Download_url": ("STRING", {"default": "", "multiline": False},),
+                    "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
+                             }}
+    RETURN_TYPES = ("CLIP",)
+    FUNCTION = "download"
+
+    CATEGORY = "📂 SDVN/📥 Download"
+
+    def download(self, Download_url, Url_name):
+        download_model(Download_url, Url_name, "model_patches")
+        return ALL_NODE["ModelPatchLoader"]().load_model_patch(Url_name)
+    
 class StyleModelDownload:
     @classmethod
     def INPUT_TYPES(s):
@@ -1575,6 +1591,8 @@ class AnyDownloadList:
             r = ALL_NODE["SDVN InstantIDModel Download"]().download(download_link, model_name)[0]
         if Type == "StyleModel":
             r = ALL_NODE["SDVN StyleModel Download"]().download(download_link, model_name)[0]
+        if Type == "ModelPatch":
+            r = ALL_NODE["SDVN ModelPatch Download"]().download(download_link, model_name)[0]
         return  (r,)
 
 NODE_CLASS_MAPPINGS = {
@@ -1610,6 +1628,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN AnyDownload List": AnyDownloadList,
     "SDVN DualCLIP Download": DualClipDownload,
     "SDVN QuadrupleCLIP Download": QuadrupleCLIPDownload,
+    "SDVN ModelPatch Download": ModelPatchDownload,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
@@ -1646,4 +1665,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN AnyDownload List": "📥  AnyDownload List",
     "SDVN DualCLIP Download": "📥  DualCLIP Download",
     "SDVN QuadrupleCLIP Download": "📥  QuadrupleCLIP Download",
+    "SDVN ModelPatch Download": "📥  ModelPatch Download",
 }
