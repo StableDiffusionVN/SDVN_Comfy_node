@@ -28,7 +28,9 @@
     "Krea_lora_128.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_128.safetensors",
     "Krea_lora_256.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_256.safetensors",
     "Krea_lora_32.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/Krea_lora_32.safetensors",
-    "Qwen-Image-Lightning-8steps-V1.1.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Lightning-8steps-V1.1.safetensors",
+    "Qwen-Image-Lightning-8steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Lightning-8steps-V1.1.safetensors",
     "Qwen-Image-Lightning-4steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Lightning-4steps-V1.0-bf16.safetensors",
-    "Qwen-Image_Union_diffsynth_lora.safetensors": "https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/loras/qwen_image_union_diffsynth_lora.safetensors"
+    "Qwen-Image_Union_diffsynth_lora.safetensors": "https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/loras/qwen_image_union_diffsynth_lora.safetensors",
+    "Qwen-Image-Edit-Lightning-4steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-Lightning-4steps-V1.0.safetensors",
+    "Qwen-Image-Edit-Lightning-8steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-Lightning-8steps-V1.0.safetensors"
 }

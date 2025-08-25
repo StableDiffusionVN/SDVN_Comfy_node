@@ -926,7 +926,98 @@ class AutoControlNetApply:
         results["result"] = (p, n, image, para)
         return results
 
-class Inpaint:
+class DiffsynthControlNetApply:
+    model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
+    with open(model_lib_path, 'r') as json_file:
+        modellist = json.load(json_file)
+    list_model_patches_model = []
+    for key, value in modellist.items():
+        if value[1] == "ModelPatch":
+            list_model_patches_model.append(key)
+    list_full_model_patches_model = list(set(folder_paths.get_filename_list("model_patches") + list_model_patches_model))
+    list_full_model_patches_model.sort()
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                            "model": ("MODEL", {"tooltip": "Mô hình diffusion"}),
+                            "vae": ("VAE", {"tooltip": "Mô hình VAE"}),
+                            "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
+                            "model_patch": (none2list(s.list_full_model_patches_model),{"tooltip": "Chọn model ControlNet, một số model có trong danh sách tải xuống tự động."}),
+                            "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
+                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                            "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
+                             },
+                "optional": {
+                            "mask": ("MASK", {"tooltip": "Mask dùng cho ControlNet inpaint"}),
+                             }
+                }
+
+    RETURN_TYPES = ("MODEL", "LATENT",)
+    RETURN_NAMES = ("model", "latent",)
+    FUNCTION = "apply_controlnet"
+
+    CATEGORY = "📂 SDVN"
+
+    def apply_controlnet(self, model, vae, image, model_patch, preprocessor, resolution, strength, mask = None):
+        if preprocessor == "InvertImage":
+            image = ALL_NODE["ImageInvert"]().invert(image)[0]
+        elif preprocessor != "None":
+            if "AIO_Preprocessor" in ALL_NODE:
+                r = ALL_NODE["AIO_Preprocessor"]().execute(preprocessor, image, resolution)
+                if "result" in r:
+                    image = r["result"][0]
+                else:
+                    image = r[0]
+            else:
+                print(
+                    "You have not installed it yet Controlnet Aux (https://github.com/Fannovel16/comfyui_controlnet_aux)")
+        image = UpscaleImage().upscale("Maxsize", resolution, resolution, 1, "None", image)[0]
+        model_patch = ALL_NODE["SDVN AnyDownload List"]().any_download_list(model_patch)[0]
+        model = ALL_NODE["QwenImageDiffsynthControlnet"]().diffsynth_controlnet( model, model_patch, vae, image, strength, mask)[0]
+        latent = ALL_NODE["VAEEncode"]().encode(vae, image)[0]
+        results = ALL_NODE["PreviewImage"]().save_images(image)
+        results["result"] = (model, latent)
+        return results
+
+class DiffsynthUnionLoraApply:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                            "conditioning": ("CONDITIONING", {"tooltip": "Câu lệnh để chạy reference image"}),
+                            "vae": ("VAE", {"tooltip": "Mô hình VAE"}),
+                            "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
+                            "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
+                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                             },
+                }
+
+    RETURN_TYPES = ("CONDITIONING", "LATENT",)
+    RETURN_NAMES = ("conditioning", "latent",)
+    FUNCTION = "apply_controlnet"
+
+    CATEGORY = "📂 SDVN"
+
+    def apply_controlnet(self, conditioning, vae, image, preprocessor, resolution):
+        if preprocessor == "InvertImage":
+            image = ALL_NODE["ImageInvert"]().invert(image)[0]
+        elif preprocessor != "None":
+            if "AIO_Preprocessor" in ALL_NODE:
+                r = ALL_NODE["AIO_Preprocessor"]().execute(preprocessor, image, resolution)
+                if "result" in r:
+                    image = r["result"][0]
+                else:
+                    image = r[0]
+            else:
+                print(
+                    "You have not installed it yet Controlnet Aux (https://github.com/Fannovel16/comfyui_controlnet_aux)")
+        image = UpscaleImage().upscale("Maxsize", resolution, resolution, 1, "None", image)[0]
+        latent = ALL_NODE["VAEEncode"]().encode(vae, image)[0]
+        conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
+        results = ALL_NODE["PreviewImage"]().save_images(image)
+        results["result"] = (conditioning, latent)
+        return results
+    
+class Inpaint:    
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {"SetLatentNoiseMask":("BOOLEAN",),
@@ -1605,6 +1696,8 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Load Image Ultimate": LoadImageUltimate,
     "SDVN CLIP Text Encode": CLIPTextEncode,
     "SDVN Controlnet Apply": AutoControlNetApply,
+    "SDVN DiffsynthControlNet Apply": DiffsynthControlNetApply,
+    "SDVN DiffsynthUnionLora Apply": DiffsynthUnionLoraApply,
     "SDVN Inpaint": Inpaint,
     "SDVN Apply Style Model": ApplyStyleModel,
     "SDVN KSampler": Easy_KSampler,
@@ -1643,6 +1736,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN CLIP Text Encode": "🔡 CLIP Text Encode",
     "SDVN KSampler": "⌛️ KSampler",
     "SDVN Controlnet Apply": "🎚️ Controlnet Apply",
+    "SDVN DiffsynthControlNet Apply": "🎚️ DiffsynthControlNet Apply",
+    "SDVN DiffsynthUnionLora Apply": "🎚️ DiffsynthUnionLora Apply",
     "SDVN Inpaint": "👨‍🎨 Inpaint",
     "SDVN Apply Style Model": "🌈 Apply Style Model",
     "SDVN Apply Kontext Reference": "🌈 Apply Kontext Reference",
