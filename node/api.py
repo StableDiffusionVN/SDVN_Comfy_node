@@ -480,6 +480,7 @@ class Gemini_Flash2_Image:
         return {
             "required": {
                 "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
+                "model": (["Gemini Flash 2 Image","Gemini Flash 2.5 Image"],{"default": "Gemini Flash 2.5 Image"}),
                 "max_size_input": ("INT", {"default":0,"min":0,"max":2048,"step":64, "tooltip": "Giới hạn kích thước ảnh"}),
                 "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
                 "translate": (lang_list(),{"default":"english", "tooltip": "Ngôn ngữ dịch"}),
@@ -495,7 +496,11 @@ class Gemini_Flash2_Image:
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "api_imagen"
 
-    def api_imagen(self, Gemini_API, max_size_input, seed, prompt, translate, image = None):
+    def api_imagen(self, Gemini_API, model, max_size_input, prompt, translate, seed, image = None):
+        model_name = {
+            "Gemini Flash 2 Image": "gemini-2.0-flash-exp-image-generation",
+            "Gemini Flash 2.5 Image": "gemini-2.5-flash-image-preview",
+        }
         Gemini_API, max_size_input, seed, prompt, translate = [Gemini_API[0], max_size_input[0], seed[0], prompt[0], translate[0]]
   
         if Gemini_API == "":
@@ -510,7 +515,7 @@ class Gemini_Flash2_Image:
                 list_img = [ALL_NODE["SDVN Upscale Image"]().upscale("Maxsize", max_size_input, max_size_input, 1, "None", i)[0] for i in image]
             list_img = [tensor2pil(i) for i in image]
         response = client.models.generate_content(
-            model="gemini-2.0-flash-exp-image-generation",
+            model=model_name[model[0]],
             contents=[prompt, *list_img] if image != None else prompt,
             config=types.GenerateContentConfig(
             response_modalities=['Text', 'Image']
