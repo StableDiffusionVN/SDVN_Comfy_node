@@ -898,7 +898,11 @@ class AutoControlNetApply:
 
     def apply_controlnet(self, image, control_net, preprocessor, union_type, resolution, strength, start_percent, end_percent, mask = None, vae=None, positive = None, negative = None):
         para = {"controlnet": [image, control_net, preprocessor, union_type, resolution, strength, start_percent, end_percent, mask]}
-        if control_net == "None" or positive == None or negative == None:
+        if positive != None and negative == None:
+            negative = ALL_NODE["ConditioningZeroOut"]().zero_out(positive)[0]
+        if negative != None and positive == None:
+            positive = ALL_NODE["ConditioningZeroOut"]().zero_out(negative)[0]
+        if control_net == "None" or positive is None:
             return (positive, negative, image, para)
         if preprocessor == "InvertImage":
             image = ALL_NODE["ImageInvert"]().invert(image)[0]
