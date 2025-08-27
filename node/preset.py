@@ -20,90 +20,6 @@ def check_type_model(m):
     type_name = "SD 1.5" if type_name == "BaseModel" else type_name
     return type_name
     
-class quick_menu:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "Checkpoint":(["None",*folder_paths.get_filename_list("checkpoints")],),
-                "Lora":(["None",*folder_paths.get_filename_list("loras")],),
-                "Lora2":(["None",*folder_paths.get_filename_list("loras")],),
-                "Lora3":(["None",*folder_paths.get_filename_list("loras")],),
-                "Lora4":(["None",*folder_paths.get_filename_list("loras")],),
-                "Lora5":(["None",*folder_paths.get_filename_list("loras")],),
-                "SimpleString": ("STRING", {"default": "", "multiline": False},),
-                "SimpleString2": ("STRING", {"default": "", "multiline": False},),
-                "String": ("STRING", {"default": "", "multiline": True},),
-                "String2": ("STRING", {"default": "", "multiline": True},),
-            }}
-    
-    CATEGORY = "📂 SDVN/👨🏻‍💻 Dev"
-    RETURN_TYPES = (any, any, any, any, any, any, any, any, any, any)
-    RETURN_NAMES = ("checkpoint name", "lora name", "lora name 2", "lora name 3", "lora name 4", "lora name 5", "simple string", "simple string 2", "string", "string 2")
-    FUNCTION = "quick_menu"
-    DESCRIPTION = "Tạo menu nhanh để chọn checkpoint và LoRA."
-    OUTPUT_TOOLTIPS = (
-        "Tên checkpoint",
-        "Tên LoRA 1",
-        "Tên LoRA 2",
-        "Tên LoRA 3",
-        "Tên LoRA 4",
-        "Tên LoRA 5",
-        "Chuỗi ngắn",
-        "Chuỗi ngắn 2",
-        "Chuỗi dài",
-        "Chuỗi dài 2",
-    )
-
-    def quick_menu(s, **kargs):
-        r_list = [kargs[i] for i in kargs]
-        return tuple(r_list)
-
-def none2list(folderlist):
-    list = ["None"]
-    list += folderlist
-    return list
-
-class load_model:
-    model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
-    with open(model_lib_path, 'r') as json_file:
-        modellist = json.load(json_file)
-    checkpointlist = list(set(folder_paths.get_filename_list("checkpoints") + list(modellist)))
-    checkpointlist.sort()
-    lora_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"lora_lib.json")
-    with open(lora_lib_path, 'r') as json_file:
-        loralist = json.load(json_file)
-    lora_full_list = list(set(folder_paths.get_filename_list("loras") + list(loralist)))
-    lora_full_list.sort()
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "Checkpoint":(none2list(s.checkpointlist), {"tooltip": "The name of the checkpoint (model) to load."}),
-                "Lora": (none2list(s.lora_full_list), {"default": "None", "tooltip": "The name of the LoRA."}),
-                "Lora2": (none2list(s.lora_full_list), {"default": "None", "tooltip": "The name of the LoRA."}),
-                "Lora3": (none2list(s.lora_full_list), {"default": "None", "tooltip": "The name of the LoRA."}),
-                "Lora4": (none2list(s.lora_full_list), {"default": "None", "tooltip": "The name of the LoRA."}),
-                "Lora5": (none2list(s.lora_full_list), {"default": "None", "tooltip": "The name of the LoRA."}),
-                "Lora_Strength": ("STRING", {"default": "1,1,1,1,1", "multiline": False},),
-            }
-            }
-    CATEGORY = "📂 SDVN/✨ Preset"
-    RETURN_TYPES = ("MODEL", "CLIP", "VAE",)
-    RETURN_NAMES = ("model", "clip", "vae")
-    FUNCTION = "auto_generate"
-    def auto_generate(s, Checkpoint, Lora_Strength, **kargs):
-        model, clip, vae = ALL_NODE["SDVN Load Checkpoint"]().load_checkpoint(True, "", "", Checkpoint)[:3]
-        Lora_Strength = ALL_NODE["SDVN Simple Any Input"]().simple_any(Lora_Strength)[0]
-        for index in range(len(kargs)):
-            lora = kargs[list(kargs)[index]]
-            if lora != "None":
-                try:
-                    model, clip, _ = ALL_NODE["SDVN Load Lora"]().load_lora(False, "", "", lora, model, clip,  Lora_Strength[index] if index + 1 <= len(Lora_Strength) else Lora_Strength[-1], 1)["result"]
-                except:
-                    model, clip, _ = ALL_NODE["SDVN Load Lora"]().load_lora(False, "", "", lora, model, clip,  Lora_Strength[index] if index +1 <= len(Lora_Strength) else Lora_Strength[-1], 1)
-        return (model, clip, vae,)
-    
 class join_parameter:
     @classmethod
     def INPUT_TYPES(s):
@@ -306,15 +222,11 @@ class auto_generate:
         
                 
 NODE_CLASS_MAPPINGS = {
-    "SDVN Quick Menu": quick_menu,
     "SDVN Auto Generate": auto_generate,
     "SDVN Join Parameter": join_parameter,
-    "SDVN Load Model": load_model,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SDVN Quick Menu": "📋 Quick Menu",
     "SDVN Auto Generate": "💡 Auto Generate",
     "SDVN Join Parameter": "🔄 Join Parameter",
-    "SDVN Load Model": "💿 Load Model"
 }
