@@ -19,6 +19,11 @@ def check_type_model(m):
     type_name = m.model.__class__.__name__
     type_name = "SD 1.5" if type_name == "BaseModel" else type_name
     return type_name
+
+def none2list(folderlist):
+    list = ["None"]
+    list += folderlist
+    return list
     
 class join_parameter:
     @classmethod
