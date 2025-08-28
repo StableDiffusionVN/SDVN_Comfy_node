@@ -10,3 +10,6 @@ installed.txt
 my_styles.csv
 *.pem
 wildcards/WC
+config.json
+selections.json
+lig_ui_state.json

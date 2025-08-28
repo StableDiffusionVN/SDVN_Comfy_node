@@ -84,6 +84,7 @@ from .node.load_info import NODE_CLASS_MAPPINGS as load_info_node, NODE_DISPLAY_
 from .node.image import NODE_CLASS_MAPPINGS as image_node, NODE_DISPLAY_NAME_MAPPINGS as image_dis
 from .node.preset import NODE_CLASS_MAPPINGS as preset_node, NODE_DISPLAY_NAME_MAPPINGS as preset_dis
 from .node.mask import NODE_CLASS_MAPPINGS as mask_node, NODE_DISPLAY_NAME_MAPPINGS as mask_dis
+from .node.image_gallery import NODE_CLASS_MAPPINGS as image_gallery_node, NODE_DISPLAY_NAME_MAPPINGS as image_gallery_dis
 
 NODE_CLASS_MAPPINGS = {
     **load_node,
@@ -93,7 +94,8 @@ NODE_CLASS_MAPPINGS = {
     **load_info_node,
     **image_node,
     **preset_node,
-    **mask_node
+    **mask_node,
+    **image_gallery_node
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     **load_dis,
@@ -103,7 +105,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **load_info_dis,
     **image_dis,
     **preset_dis,
-    **mask_dis
+    **mask_dis,
+    **image_gallery_dis
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
