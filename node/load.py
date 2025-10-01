@@ -1328,7 +1328,7 @@ class QwenEditTextEncoder:
         image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
         return (image, width, height)
     
-    def append(s, prompt, img_size, translate, seed, clip, image=None, vae=None, mask=None):
+    def append(self, prompt, img_size, translate, seed, clip, image=None, vae=None, mask=None):
         prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
         prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
         if mask is not None:
@@ -1341,7 +1341,7 @@ class QwenEditTextEncoder:
 
         if image is not None:
             if img_size == 0:
-                image, width, height = s.qwen_size(image)
+                image, width, height = self.qwen_size(image)
             else:
                 width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = img_size)
                 image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
@@ -1352,16 +1352,94 @@ class QwenEditTextEncoder:
 
             ref_latent = latent["samples"]
 
-            tokens = clip.tokenize(prompt, images=images)
-            conditioning = clip.encode_from_tokens_scheduled(tokens)
-            if latent is not None:
-                conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": [ref_latent]}, append=True)
-            if mask is not None:
-                latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(latent, mask)[0]
+        tokens = clip.tokenize(prompt, images=images)
+        conditioning = clip.encode_from_tokens_scheduled(tokens)
+        if latent is not None:
+            conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": [ref_latent]}, append=True)
+        if mask is not None:
+            latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(latent, mask)[0]
             return (conditioning,width,height,latent)
         else:
             return (conditioning, img_size, img_size, None)
+
+class QwenEditTextEncoderPlus:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "prompt": ("STRING", {"multiline": True, "tooltip": "Prompt mô tả nội dung bạn muốn sinh ra."}),
+                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
+                    "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
+                    "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
+                    "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
+                             },
+                "optional": {
+                    "image1": ("IMAGE", {"tooltip": "Ảnh đầu vào để mã hóa, nếu có."}),
+                    "image2": ("IMAGE", {"tooltip": "Ảnh đầu vào để mã hóa, nếu có."}),
+                    "image3": ("IMAGE", {"tooltip": "Ảnh đầu vào để mã hóa, nếu có."}),
+                    "vae": ("VAE", ),
+                },
+                             }
+    
+    RETURN_TYPES = ("CONDITIONING", "INT", "INT", "LATENT")
+    RETURN_NAMES= ("conditioning", "width", "height", "latent")
+    FUNCTION = "append"
+
+    CATEGORY = "📂 SDVN"
+
+    def qwen_size(self, image):
+        width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = 0)
+        s = math.sqrt(1024*1024 / (width*height))
+        width = round(width*s/ 8.0) * 8
+        height = round(height*s/ 8.0) * 8
+        image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
+        return (image, width, height)
+    
+    def append(self, prompt, img_size, translate, seed, clip, image1=None, image2 = None, image3 = None, vae=None):
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
+        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
+
+        ref_latents = []
+        images = [image1, image2, image3]
+        images_vl = []
+        llama_template = "<|im_start|>system\nDescribe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate.<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
+        image_prompt = ""
+
+        for i, image in enumerate(images):
+            if image is not None:
+                samples = image.movedim(-1, 1)
+                total = int(384 * 384)
+
+                scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+                width = round(samples.shape[3] * scale_by)
+                height = round(samples.shape[2] * scale_by)
+
+                s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+                images_vl.append(s.movedim(1, -1))
+
+                if img_size == 0:
+                    image, width, height = self.qwen_size(image)
+                else:
+                    width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = image, latent = None, maxsize = img_size)
+                    image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=image)[0]
+            
+                images = [image[:, :, :, :3]]
+                image_latent = ALL_NODE["VAEEncode"]().encode(vae, image)[0]
+                latent = image_latent
+
+                ref_latents.append(latent["samples"])
+                
+                image_prompt += "Picture {}: <|vision_start|><|image_pad|><|vision_end|>".format(i + 1)
         
+        tokens = clip.tokenize(image_prompt + prompt, images=images_vl, llama_template=llama_template)
+        conditioning = clip.encode_from_tokens_scheduled(tokens)
+
+        if len(ref_latents) > 0:
+            conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
+            return (conditioning,width,height,latent)
+        
+        else:
+            return (conditioning, img_size, img_size, None)
+                
 class CheckpointDownload:
     @classmethod
     def INPUT_TYPES(s):
@@ -1720,6 +1798,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN StyleModel Download":StyleModelDownload,
     "SDVN Apply Kontext Reference": KontextReference,
     "SDVN QwenEdit TextEncoder": QwenEditTextEncoder,
+    "SDVN QwenEdit TextEncoder Plus": QwenEditTextEncoderPlus,
     "SDVN IPAdapterModel Download": IPAdapterModelDownload,
     "SDVN InstantIDModel Download": InstantIDModelDownload,
     "SDVN AnyDownload List": AnyDownloadList,
@@ -1746,6 +1825,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Apply Style Model": "🌈 Apply Style Model",
     "SDVN Apply Kontext Reference": "🌈 Apply Kontext Reference",
     "SDVN QwenEdit TextEncoder": "🔡 QwenEdit TextEncoder",
+    "SDVN QwenEdit TextEncoder Plus": "🔡 QwenEdit TextEncoder Plus",
     "SDVN Styles":"🗂️ Prompt Styles",
     "SDVN Upscale Image": "↗️ Upscale Image",
     "SDVN UPscale Latent": "↗️ Upscale Latent",
