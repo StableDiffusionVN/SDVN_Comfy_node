@@ -718,7 +718,7 @@ class Easy_KSampler:
             cfg, sampler_name, scheduler = ModelType_list[ModelType]
         StepsType_list["Denoise"] = steps
         if FluxGuidance != 3.5:
-            positive = ALL_NODE["FluxGuidance"]().append(positive,FluxGuidance)[0]
+            positive = ALL_NODE["FluxGuidance"]().execute(positive,FluxGuidance)[0]
         if negative == None:
             cls_zero_negative = ALL_NODE["ConditioningZeroOut"]
             negative = cls_zero_negative().zero_out(positive)[0]
@@ -1016,7 +1016,7 @@ class DiffsynthUnionLoraApply:
                     "You have not installed it yet Controlnet Aux (https://github.com/Fannovel16/comfyui_controlnet_aux)")
         image = UpscaleImage().upscale("Maxsize", resolution, resolution, 1, "None", image)[0]
         latent = ALL_NODE["VAEEncode"]().encode(vae, image)[0]
-        conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
+        conditioning = ALL_NODE["ReferenceLatent"]().execute(conditioning, latent)[0]
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (conditioning, latent)
         return results
@@ -1290,7 +1290,7 @@ class KontextReference:
                 latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
             else:
                 latent = first_img_latent
-            conditioning = ALL_NODE["ReferenceLatent"]().append(conditioning, latent)[0]
+            conditioning = ALL_NODE["ReferenceLatent"]().execute(conditioning, latent)[0]
             if mask is not None:
                 first_img_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_img_latent, mask)[0]
             return (conditioning,width,height,first_img_latent)
