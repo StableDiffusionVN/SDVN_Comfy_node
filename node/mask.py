@@ -111,7 +111,7 @@ class yoloseg:
             mask = FF.interpolate(mask.unsqueeze(0),
                 size=(image.shape[1], image.shape[2]), mode='bilinear', align_corners=False).squeeze(0)
             invert_mask = (1.0 - mask).to(image.device)
-            alpha_image = ALL_NODE["JoinImageWithAlpha"]().join_image_with_alpha(input, invert_mask)[0]
+            alpha_image = ALL_NODE["JoinImageWithAlpha"]().execute(input, invert_mask)[0]
             ui = ALL_NODE["PreviewImage"]().save_images(alpha_image)["ui"]
         else:
             mask = torch.zeros((1, 64, 64), dtype=torch.float32)
@@ -210,7 +210,7 @@ class inpaint_crop:
         mask_out = result[2]
         if mask is not None:
             invert_mask = 1.0 - mask_out
-            alpha_image = ALL_NODE["JoinImageWithAlpha"]().join_image_with_alpha(image, invert_mask)[0]
+            alpha_image = ALL_NODE["JoinImageWithAlpha"]().execute(image, invert_mask)[0]
             ui = ALL_NODE["PreviewImage"]().save_images(alpha_image)["ui"]
         else:
             ui = ALL_NODE["PreviewImage"]().save_images(image)["ui"]
