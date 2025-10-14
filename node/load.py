@@ -323,7 +323,7 @@ class LoadPinterest:
     def INPUT_TYPES(s):
         return {"required": {
             "url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập đường dẫn Pinterest hoặc từ khóa tìm kiếm."},),
-            "range": ("STRING", {"default": "1-10", "multiline": False, "tooltip": "Khoảng số lượng ảnh tải về, chuyển sang -1 để tải toàn bộ."},),
+            "range": ("STRING", {"default": "1-10", "multiline": False, "tooltip": "Khoảng số lượng ảnh tải về, chuyển sang -1 hoặc để trống để tải toàn bộ."},),
             "number": ("INT", {"default": 1, "min": -1 , "tooltip": "Số lượng ảnh cần tải, chuyển sang -1 để tải toàn bộ ảnh."}),
             "random": ("BOOLEAN", {"default": False, "tooltip": "Bật tắt chế độ chọn ảnh ngẫu nhiên."},),
             "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho việc chọn ảnh."}),
@@ -338,14 +338,14 @@ class LoadPinterest:
         input_folder = folder_paths.get_input_directory()
         id_folder = url.split("https://www.pinterest.com/")[-1] if "/search/pins/" not in url else "search/"+(url.split("https://www.pinterest.com/search/pins/?q=")[-1].replace("%20", "_"))
         save_folder = os.path.join(input_folder, "pintrest", id_folder, range)
-        if range != "":
+        if range != "" or range != "-1":
             command = ['gallery-dl', '--range', range, url, "-D", save_folder]
         else:
             command = ['gallery-dl', url, "-D", save_folder]
         try:
             subprocess.run(command, check=True, text=True, capture_output=True)
         except subprocess.CalledProcessError as e:
-            print("Có thể lượng ảnh ít hơn khoảng range, chuyển range về -1")
+            print("Có thể lượng ảnh ít hơn khoảng range, chuyển sang -1 hoặc để trống để tải toàn bộ.")
         return save_folder
     
     def load_image_url(s, url, range, number, random, seed):
