@@ -62,6 +62,8 @@ def insta_download(url,index):
     command = ['instaloader', '--slide', str(index), '--no-captions', '--no-metadata-json', '--dirname-pattern', path_folder, '--filename-pattern', id, '--', f'-{id}']
     subprocess.run(command, check=True,text=True, capture_output=True)
     path_img = os.path.join(path_folder, f"{id}_{index}.jpg")
+    if not os.path.exists(path_img):
+        path_img = path_img.split('_')[0] + '.jpg'
     return path_img
 
 def run_gallery_dl(url):
@@ -70,7 +72,7 @@ def run_gallery_dl(url):
             index = int(url.split('--')[1])
         except:
             index = 0
-        url = url.split('--')[0]
+        url = url.split('--')[0].strip()
     else:
         index = 0
     if 'http' not in url:
@@ -427,7 +429,7 @@ class LoadImageUltimate:
         if mode == "Pintrest":
             image = LoadPinterest().load_image_url(pin_url, range, number, random, seed)["result"][0]
         if mode == "Insta":
-            insta_url += "--{}".format(index)
+            insta_url += f"--{index}"
             image = LoadImageUrl().load_image_url(insta_url)["result"][0]
             image = [image]
         ui = {"images":[]}
