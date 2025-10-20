@@ -1360,9 +1360,10 @@ class QwenEditTextEncoder:
             conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": [ref_latent]}, append=True)
         if mask is not None:
             latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(latent, mask)[0]
+        if image is not None:
             return (conditioning,width,height,latent)
         else:
-            return (conditioning, img_size, img_size, None)
+            return (conditioning,None,None,None)
 
 class QwenEditTextEncoderPlus:
     @classmethod
@@ -1438,9 +1439,8 @@ class QwenEditTextEncoderPlus:
         if len(ref_latents) > 0:
             conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
             return (conditioning,width,height,latent)
-        
         else:
-            return (conditioning, img_size, img_size, None)
+            return (conditioning,None,None,None)
                 
 class CheckpointDownload:
     @classmethod
