@@ -875,7 +875,7 @@ class AutoControlNetApply:
                              "control_net": (none2list(s.list_full_controlnet_model),{"tooltip": "Chọn model ControlNet, một số model có trong danh sách tải xuống tự động."}),
                              "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
                              "union_type": (["None","auto"] + list(UNION_CONTROLNET_TYPES.keys()),{"tooltip": "Kiểu hợp nhất ControlNet (Áp dụng cho Controlnet Union)."}),
-                             "resolution": ("INT", {"default": 512, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                             "resolution": ("INT", {"default": 512, "min": 512, "max": 4096, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                              "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
                              "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước đầu sử dụng ControlNet."}),
                              "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước cuối sử dụng ControlNet."})
@@ -950,7 +950,7 @@ class DiffsynthControlNetApply:
                             "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
                             "model_patch": (none2list(s.list_full_model_patches_model),{"tooltip": "Chọn model ControlNet, một số model có trong danh sách tải xuống tự động."}),
                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
-                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                             "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
                              },
                 "optional": {
@@ -993,7 +993,7 @@ class DiffsynthUnionLoraApply:
                             "vae": ("VAE", {"tooltip": "Mô hình VAE"}),
                             "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
-                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                              },
                 }
 
