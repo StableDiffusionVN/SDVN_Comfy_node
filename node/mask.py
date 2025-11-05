@@ -169,6 +169,11 @@ class MaskRegions:
         regions = [r for r in regions if is_large_enough(r)]
         regions_sorted = sorted(regions, key=s.get_top_left_coords)
 
+        # Nếu không tìm thấy vùng nào, trả về một mask mặc định 64x64 toàn 0
+        if len(regions_sorted) == 0:
+            zero_mask = torch.zeros((1, 64, 64), dtype=torch.float32, device=mask.device)
+            return ([zero_mask],)
+
         return (regions_sorted,)
 
 class inpaint_crop:
