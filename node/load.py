@@ -413,11 +413,24 @@ class LoadImageUltimate:
         }
     
     CATEGORY = "📂 SDVN"
-    RETURN_TYPES = ("IMAGE",)
-    OUTPUT_IS_LIST = (True,)
+    RETURN_TYPES = ("IMAGE","MASK")
+    OUTPUT_IS_LIST = (True,False)
     FUNCTION = "load_image"
 
     def load_image(s, mode, image, folder_path, number_img, url, pin_url, range, number, random,  insta_url, index, seed):
+        if 'clipspace' in image:
+            m = True
+            image_path = folder_paths.get_annotated_filepath(image)
+            i = Image.open(image_path)
+            ii = ImageOps.exif_transpose(i)
+            if 'A' in ii.getbands():
+                mask = np.array(ii.getchannel('A')).astype(np.float32) / 255.0
+                mask = 1. - torch.from_numpy(mask)
+            else:
+                mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
+        else:
+            mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
+            m = False
         if mode == "Input folder":
             image = LoadImage().load_image(False, "", image)["result"][0]
             image = [image]
@@ -435,7 +448,10 @@ class LoadImageUltimate:
         ui = {"images":[]}
         for i in image:
             ui["images"].append(ALL_NODE["PreviewImage"]().save_images(i)["ui"]["images"][0])
-        return {"ui":ui, "result":(image,)}
+        if m:
+            return (image, mask.unsqueeze(0))
+        else:
+            return {"ui":ui, "result":(image, mask.unsqueeze(0))}   
     
     @classmethod
     def IS_CHANGED(self, mode, image, folder_path, number_img, url, pin_url, range, number, random,  insta_url, index, seed):

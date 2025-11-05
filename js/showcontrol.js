@@ -51,7 +51,7 @@ function addShowControl(nodeType, nodeData) {
             "SDVN Load Image Ultimate": {
                 controller: "mode",
                 targets: (v) => ({
-                    image: v === "Input folder",
+                    // image: v === "Input folder",
                     folder_path: v === "Custom folder",
                     number_img: v === "Custom folder",
                     url: v === "Url",
