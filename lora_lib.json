@@ -1,4 +1,9 @@
 {   
+    "[SDVN]_yuu_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_yuu_onlyface_mix_nn.safetensors",
+    "[SDVN]_arin_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_arin_nn_1536.safetensors",
+    "[SDVN]_hane_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_haneface_nn.safetensors",
+    "[SDVN]_oy_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_oyface_nn.safetensors",
+
     "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors",
     "Flux_Turbo_8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Flux_Turbo_8steps.safetensors",
     "Hyper-SD15-8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Hyper-SD15-8steps.safetensors",

@@ -142,13 +142,34 @@ def token(link):
         token = ""
     return token
 
+def get_hf_token():
+    token = os.getenv("HUGGINGFACE_TOKEN") or os.getenv("HF_TOKEN")
+    if token:
+        return token.strip() or None
+    api_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "API_key.json")
+    if os.path.exists(api_file):
+        try:
+            with open(api_file, "r", encoding="utf-8") as f:
+                api_data = json.load(f)
+            token = api_data.get("HuggingFace", "").strip()
+            if token == "https://huggingface.co/settings/tokens":
+                return None
+            return token or None
+        except (OSError, json.JSONDecodeError):
+            return None
+    return None
+
 def download_model(url, name, type):
     url = url.split("?")[0]
     url = check_link(url)
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
     if not os.path.isfile(path_model):
-        command = ['aria2c', '-c', '-x', '16', '-s', '16', '-k', '1M', f'{url}{token(url)}', '-d', folder_path, '-o', name]
+        command = ['aria2c', '-c', '-x', '16', '-s', '16', '-k', '1M']
+        hf_token = get_hf_token() if "huggingface.co" in url else None
+        if hf_token:
+            command.append(f'--header=Authorization: Bearer {hf_token}')
+        command += [f'{url}{token(url)}', '-d', folder_path, '-o', name]
         subprocess.run(command, check=True, text=True, capture_output=True)
 
 class LoadImage:
@@ -468,7 +489,11 @@ class LoadImageUltimate:
 class CheckpointLoaderDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
     with open(model_lib_path, 'r') as json_file:
-        modellist = json.load(json_file)
+        _modellist = json.load(json_file)
+    if get_hf_token() is None:
+        modellist = {name: url for name, url in _modellist.items() if "[SDVN]" not in name}
+    else:
+        modellist = _modellist
     checkpointlist = list(set(folder_paths.get_filename_list("checkpoints") + list(modellist)))
     checkpointlist.sort()
     @classmethod
@@ -520,7 +545,11 @@ class CheckpointLoaderDownload:
 class LoraLoader:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"lora_lib.json")
     with open(model_lib_path, 'r') as json_file:
-        loralist = json.load(json_file)
+        _loralist = json.load(json_file)
+    if get_hf_token() is None:
+        loralist = {name: url for name, url in _loralist.items() if "[SDVN]" not in name}
+    else:
+        loralist = _loralist
     lora_full_list = list(set(folder_paths.get_filename_list("loras") + list(loralist)))
     lora_full_list.sort()
     @classmethod
