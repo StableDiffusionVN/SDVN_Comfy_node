@@ -129,6 +129,8 @@ def function(input):
     OUTPUT_TOOLTIPS = ("Kết quả thực thi.",)
 
     def python_function(self, function, input=None, input2=None, input3=None):
+        highlight_msg = "Bạn đang sử dụng workflow độc quyền được thiết kế bởi Phạm Hưng, truy cập hungdiffusion.com để ủng hộ tác giả và nhận những hỗ trợ tốt nhất"
+        print(f"\033[43m\033[30m {highlight_msg} \033[0m")
         check_list = [input, input2, input3]
         b = 3
         new_list = []
