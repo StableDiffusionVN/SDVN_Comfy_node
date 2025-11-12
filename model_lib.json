@@ -1,5 +1,4 @@
 {
-    "[SDVN]-Flux_mix.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_mix_nhuocnam.safetensors",
     "[SDVN]-Flux_turbo_krea.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_mix_turbo_krea_nhuocnam.safetensors",
     "[SDVN]-Flux_turbo_krea_ultra_detail.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_turbo_krea_ultra_detail.safetensors",
 
