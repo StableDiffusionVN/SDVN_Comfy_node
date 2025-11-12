@@ -3,6 +3,7 @@
     "[SDVN]-Flux_turbo_krea.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_mix_turbo_krea_nhuocnam.safetensors",
     "[SDVN]-Flux_turbo_krea_ultra_detail.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_turbo_krea_ultra_detail.safetensors",
 
+    "SDVN_Flux_2k_Realistic_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/SDVN_Flux_2k_Realistic/blob/main/Checkpoint/SDVN_Flux_2k_Realistic_fp8.safetensors",
     "SDVN1-Real.safetensors": "https://civitai.com/api/download/models/109869",
     "SDVN2-RealRPG.safetensors": "https://civitai.com/api/download/models/110396",
     "SDVN3-RealArt-plus.safetensors": "https://civitai.com/api/download/models/110538",
