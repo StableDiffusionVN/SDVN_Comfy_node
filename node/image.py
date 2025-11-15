@@ -1,5 +1,5 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
-import torch, numpy as np
+import torch, numpy as np, copy
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
 import platform, math, folder_paths, os, subprocess, cv2
 import torchvision.transforms.functional as F
@@ -754,6 +754,46 @@ class OverlayMaskWithHexColor(OverlayImages, MaskToTransparentColor):
     def overlay_mask(self, mask, base_image, color_hex, opacity):
         colored_mask = self.convert(mask, color_hex)[0]
         return self.overlay_images(colored_mask, base_image, opacity)
+
+class SaveImageCompare:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"tooltip": "Ảnh đầu tiên sẽ được lưu ra thư mục output."}),
+                "filename_prefix": ("STRING", {"default": "SDVN", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."}),
+            },
+            "optional": {
+                "compare_image": ("IMAGE", {"tooltip": "Ảnh thứ hai (không lưu) để tạo khung so sánh."}),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+            },
+        }
+
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ()
+    FUNCTION = "save_and_compare"
+    OUTPUT_NODE = True
+    DESCRIPTION = "Lưu ảnh đầu tiên và (nếu có) tạo khung so sánh với ảnh thứ hai."
+
+    def save_and_compare(self, image, filename_prefix="SDVN", compare_image=None, prompt=None, extra_pnginfo=None):
+        save_node = ALL_NODE["SaveImage"]()
+        save_result = save_node.save_images(image, filename_prefix, prompt, extra_pnginfo) or {"ui": {}}
+
+        if compare_image is not None:
+            comparer = ALL_NODE["PreviewImage"]()
+            preview = comparer.save_images(compare_image, f"{filename_prefix}_compare", prompt, extra_pnginfo) or {"ui": {}}
+            original_images = copy.deepcopy(save_result.get("ui", {}).get("images", []) or [])
+            compare_images = copy.deepcopy(preview.get("ui", {}).get("images", []) or [])
+
+            save_result.setdefault("ui", {})
+            save_result["ui"]["images"] = copy.deepcopy(original_images)
+            save_result["ui"]["a_images"] = original_images
+            save_result["ui"]["b_images"] = compare_images
+
+        return save_result
     
 NODE_CLASS_MAPPINGS = {
     "SDVN Image Scraper": img_scraper,
@@ -775,6 +815,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Overlay Images": OverlayImages,
     "SDVN Mask To Transparent Color": MaskToTransparentColor,
     "SDVN Overlay Mask Color Image": OverlayMaskWithHexColor,
+    "SDVN Save Image": SaveImageCompare,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -797,4 +838,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Overlay Images": "🧅 Overlay Two Images",
     "SDVN Mask To Transparent Color": "🎭 Mask → Transparent Color",
     "SDVN Overlay Mask Color Image": "🧩 Overlay Mask",
+    "SDVN Save Image": "💾 Save Image + Compare",
 }
