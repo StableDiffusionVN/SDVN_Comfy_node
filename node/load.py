@@ -541,6 +541,30 @@ class CheckpointLoaderDownload:
             return {"ui":ui, "result":(results[0],results[1],results[2],path)}
         else:
             return (results[0],results[1],results[2],path)
+
+class CheckpointLoaderDownloadFilter(CheckpointLoaderDownload):
+    @classmethod
+    def INPUT_TYPES(cls):
+        base = super().INPUT_TYPES()
+        required = dict(base.get("required", {}))
+        optional = dict(base.get("optional", {}))
+        ordered = {}
+        for key in ["Download", "Download_url", "Ckpt_url_name"]:
+            if key in required:
+                ordered[key] = required[key]
+        ordered["fill"] = ("STRING", {"default": "", "multiline": False, "tooltip": "Lọc nhanh danh sách checkpoint theo chuỗi nhập."},)
+        ordered["Ckpt_name"] = required.get("Ckpt_name", (none2list(cls.checkpointlist), {"tooltip": "Chọn checkpoint (mô hình) để load vào pipeline."}))
+        return {"required": ordered, "optional": optional}
+
+    RETURN_TYPES = CheckpointLoaderDownload.RETURN_TYPES
+    RETURN_NAMES = CheckpointLoaderDownload.RETURN_NAMES
+    OUTPUT_TOOLTIPS = CheckpointLoaderDownload.OUTPUT_TOOLTIPS
+    FUNCTION = "load_checkpoint_filter"
+    CATEGORY = CheckpointLoaderDownload.CATEGORY
+    DESCRIPTION = CheckpointLoaderDownload.DESCRIPTION
+
+    def load_checkpoint_filter(self, Download, Download_url, Ckpt_url_name, fill="", Ckpt_name="None"):
+        return super().load_checkpoint(Download, Download_url, Ckpt_url_name, Ckpt_name)
         
 class LoraLoader:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"lora_lib.json")
@@ -550,8 +574,15 @@ class LoraLoader:
         loralist = {name: url for name, url in _loralist.items() if "[SDVN]" not in name}
     else:
         loralist = _loralist
-    lora_full_list = list(set(folder_paths.get_filename_list("loras") + list(loralist)))
-    lora_full_list.sort()
+
+    @classmethod
+    def available_loras(cls):
+        """Union of local LoRAs and remote presets."""
+        local = folder_paths.get_filename_list("loras")
+        merged = set(local)
+        merged.update(list(cls.loralist))
+        return sorted(merged)
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -559,7 +590,7 @@ class LoraLoader:
                 "Download": ("BOOLEAN", {"default": True, "tooltip": "Bật lên để tải LoRA từ URL về máy."},),
                 "Download_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập URL để tải LoRA về máy."},),
                 "Lora_url_name": ("STRING", {"default": "model.safetensors", "multiline": False, "tooltip": "Tên tệp LoRA sẽ lưu trên máy."},),
-                "lora_name": (none2list(s.lora_full_list), {"default": "None", "tooltip": "Chọn LoRA để load vào pipeline."}),
+                "lora_name": (none2list(s.available_loras()), {"default": "None", "tooltip": "Chọn LoRA để load vào pipeline."}),
             },
             "optional": {
                 "model": ("MODEL", {"tooltip": "Mô hình diffusion sẽ áp dụng LoRA."}),
@@ -574,7 +605,7 @@ class LoraLoader:
     FUNCTION = "load_lora"
     CATEGORY = "📂 SDVN"
 
-    def load_lora(self, Download, Download_url, Lora_url_name, lora_name, model = None, clip = None, strength_model=1, strength_clip=1):
+    def load_lora(self, Download, Download_url, Lora_url_name, lora_name="None", model = None, clip = None, strength_model=1, strength_clip=1):
         strength_clip = 0 if clip == None else strength_clip
         if not Download or Download_url == '':
             if lora_name == "None":
@@ -605,6 +636,31 @@ class LoraLoader:
             return {"ui":ui, "result":(results[0],results[1],path)}
         else:
             return (results[0],results[1],path)
+
+class LoraLoaderFilter(LoraLoader):
+    @classmethod
+    def INPUT_TYPES(cls):
+        base = super().INPUT_TYPES()
+        required = dict(base.get("required", {}))
+        optional = dict(base.get("optional", {}))
+        ordered = {}
+        for key in ["Download", "Download_url", "Lora_url_name"]:
+            if key in required:
+                ordered[key] = required[key]
+        ordered["fill"] = ("STRING", {"default": "", "multiline": False, "tooltip": "Lọc nhanh danh sách LoRA theo chuỗi nhập."},)
+        ordered["lora_name"] = required.get("lora_name", (none2list(cls.available_loras()), {"default": "None"}))
+        return {
+            "required": ordered,
+            "optional": optional,
+        }
+
+    RETURN_TYPES = LoraLoader.RETURN_TYPES
+    RETURN_NAMES = LoraLoader.RETURN_NAMES
+    FUNCTION = "load_lora_filter"
+    CATEGORY = LoraLoader.CATEGORY
+
+    def load_lora_filter(self, Download, Download_url, Lora_url_name, fill="", lora_name="None", model=None, clip=None, strength_model=1, strength_clip=1):
+        return super().load_lora(Download, Download_url, Lora_url_name, lora_name, model, clip, strength_model, strength_clip)
 
 class CLIPTextEncode:
     @classmethod
@@ -1812,7 +1868,9 @@ class AnyDownloadList:
 
 NODE_CLASS_MAPPINGS = {
     "SDVN Load Checkpoint": CheckpointLoaderDownload,
+    "SDVN Load Checkpoint Filter": CheckpointLoaderDownloadFilter,
     "SDVN Load Lora": LoraLoader,
+    "SDVN Load Lora Filter": LoraLoaderFilter,
     "SDVN Load Image": LoadImage,
     "SDVN Load Image Folder": LoadImageFolder,
     "SDVN Load Image Url": LoadImageUrl,
@@ -1852,7 +1910,9 @@ NODE_CLASS_MAPPINGS = {
 # A dictionary that contains the friendly/humanly readable titles for the nodes
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Load Checkpoint": "📀 Load Checkpoint",
+    "SDVN Load Checkpoint Filter": "📀 Load Checkpoint Filter",
     "SDVN Load Lora": "🎨 Load Lora",
+    "SDVN Load Lora Filter": "🎨 Load Lora Filter",
     "SDVN Load Image": "🏞️ Load Image",
     "SDVN Load Image Folder": "🏞️ Load Image Folder",
     "SDVN Load Image Url": "📥 Load Image Url",
