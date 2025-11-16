@@ -64,13 +64,19 @@ function setupLoraFilter(node) {
 	state.optionsArray = detachWidgetOptions(loraWidget, baseValues);
 
 	const applyFilter = () => {
-		const search = (filterWidget.inputEl?.value ?? filterWidget.value ?? "")
+		const raw = (filterWidget.inputEl?.value ?? filterWidget.value ?? "")
 			.toString()
-			.trim()
 			.toLowerCase();
+		const tokens = raw
+			.split(",")
+			.map((t) => t.trim())
+			.filter(Boolean);
 		const source = state.allValues?.length ? state.allValues : ["None"];
-		const filtered = search
-			? source.filter((value) => value.toLowerCase().includes(search))
+		const filtered = tokens.length
+			? source.filter((value) => {
+					const v = value.toLowerCase();
+					return tokens.some((token) => v.includes(token));
+			  })
 			: source.slice();
 		const fallback = source.includes("None") ? ["None"] : source.slice(0, 1);
 		const values = filtered.length ? filtered : (fallback.length ? fallback : ["None"]);
