@@ -47,12 +47,13 @@ function addShowControl(nodeType, nodeData) {
                     Auto_hires: v === true,
                     Kontext_model: v === true,
                 })
-            },
-            "SDVN Load Image Ultimate": {
-                controller: "mode",
-                targets: (v) => ({
-                    // image: v === "Input folder",
-                    folder_path: v === "Custom folder",
+			},
+			"SDVN Load Image Ultimate": {
+				controller: "mode",
+				keepSize: true,
+				targets: (v) => ({
+					// image: v === "Input folder",
+					folder_path: v === "Custom folder",
                     number_img: v === "Custom folder",
                     url: v === "Url",
                     pin_url: v === "Pintrest",
@@ -88,16 +89,20 @@ function addShowControl(nodeType, nodeData) {
             get() {
                 return this._value;
             },
-            set(val) {
-                this._value = val;
-                const visibility = config.targets(val);
-                for (const [name, visible] of Object.entries(visibility)) {
-                    const widget = node.widgets?.find(w => w.name === name);
-                    if (widget) widget.hidden = !visible;
-                }
-                node.setSize([node.size[0], node.computeSize()[1]]);
-            }
-        });
+			set(val) {
+				this._value = val;
+				const visibility = config.targets(val);
+				for (const [name, visible] of Object.entries(visibility)) {
+					const widget = node.widgets?.find(w => w.name === name);
+					if (widget) widget.hidden = !visible;
+				}
+				if (!config.keepSize) {
+					node.setSize([node.size[0], node.computeSize()[1]]);
+				} else {
+					node.setDirtyCanvas(true, true);
+				}
+			}
+		});
 
         controller.value = controller._value;
     });
