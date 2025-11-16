@@ -1,5 +1,5 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
-import torch, numpy as np, copy
+import torch, numpy as np, copy, datetime
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
 import platform, math, folder_paths, os, subprocess, cv2
 import torchvision.transforms.functional as F
@@ -761,7 +761,7 @@ class SaveImageCompare:
         return {
             "required": {
                 "image": ("IMAGE", {"tooltip": "Ảnh đầu tiên sẽ được lưu ra thư mục output."}),
-                "filename_prefix": ("STRING", {"default": "SDVN", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."}),
+                "filename_prefix": ("STRING", {"default": "SDVN", "tooltip": "Tiền tố tên file, hỗ trợ cú pháp %dd (ngày), %mm (tháng), %yy (năm), %w (chiều rộng), %h (chiều cao), %maxsize (kích thước lớn nhất)."}),
             },
             "optional": {
                 "compare_image": ("IMAGE", {"tooltip": "Ảnh thứ hai (không lưu) để tạo khung so sánh."}),
@@ -778,7 +778,38 @@ class SaveImageCompare:
     OUTPUT_NODE = True
     DESCRIPTION = "Lưu ảnh đầu tiên và (nếu có) tạo khung so sánh với ảnh thứ hai."
 
+    def _format_prefix(self, prefix, image):
+        if not isinstance(prefix, str) or "%" not in prefix:
+            return prefix
+        sample = None
+        if isinstance(image, torch.Tensor):
+            if image.ndim == 4:
+                sample = image[0]
+            elif image.ndim == 3:
+                sample = image
+        if sample is not None and sample.ndim >= 2:
+            height = int(sample.shape[0])
+            width = int(sample.shape[1]) if sample.ndim >= 2 else 0
+        else:
+            width = 0
+            height = 0
+        maxsize = max(width, height)
+        replacements = {
+            "%dd": lambda: str(datetime.datetime.now().day).zfill(2),
+            "%mm": lambda: str(datetime.datetime.now().month).zfill(2),
+            "%yy": lambda: str(datetime.datetime.now().year),
+            "%w": lambda: str(width),
+            "%h": lambda: str(height),
+            "%maxsize": lambda: str(maxsize),
+        }
+        result = prefix
+        for token, fn in replacements.items():
+            if token in result:
+                result = result.replace(token, fn())
+        return result
+
     def save_and_compare(self, image, filename_prefix="SDVN", compare_image=None, prompt=None, extra_pnginfo=None):
+        filename_prefix = self._format_prefix(filename_prefix, image)
         save_node = ALL_NODE["SaveImage"]()
         save_result = save_node.save_images(image, filename_prefix, prompt, extra_pnginfo) or {"ui": {}}
 
