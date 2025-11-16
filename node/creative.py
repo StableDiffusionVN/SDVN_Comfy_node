@@ -793,12 +793,27 @@ class filter_list:
         return (input,)
     
 class menu_option:
-    menu_list = ["Option_1","Option_2","Option_3","Option_4","Option_5","Option_6","Option_7","Option_8"]
+    @classmethod
+    def _parse_entries(cls, Setting):
+        default_names = ["Option_1","Option_2","Option_3","Option_4","Option_5","Option_6","Option_7","Option_8"]
+        lines = [line.strip() for line in Setting.strip().splitlines() if line.strip()]
+        entries = []
+        for idx, line in enumerate(lines):
+            if ":" in line:
+                name, value = line.split(":", 1)
+            else:
+                name, value = line, line
+            name = name.strip() or (default_names[idx] if idx < len(default_names) else f"Option_{idx+1}")
+            entries.append((name, value.strip()))
+        if not entries:
+            entries = [(default_names[0], "")]
+        return entries
+
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "Menu": (s.menu_list,{"default":"Option_1"}),
+                "Menu": (["Option_1","Option_2","Option_3","Option_4","Option_5","Option_6","Option_7","Option_8"],{"default":"Option_1"}),
                 "Setting": ("STRING", {"multiline": True,"default": """
 Option_1:parameter1
 Option_2:parameter2
@@ -814,15 +829,20 @@ Option_4:parameter4
     # INPUT_IS_LIST = True
     OUTPUT_IS_LIST = (True,)
     FUNCTION = "menu_option"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, Menu, Setting):
+        return True
     
     def menu_option(s, Menu, Setting):
-        Setting = Setting.strip().splitlines()
-        index = s.menu_list.index(Menu)
-        try:
-            p = Setting[index].split(':')[-1]
-        except:
-            p = Setting[0]
-        p = SimpleAnyInput().simple_any(p)[0]
+        entries = s._parse_entries(Setting)
+        labels = [entry[0] for entry in entries]
+        values = [entry[1] for entry in entries]
+        if Menu not in labels:
+            target = values[0]
+        else:
+            target = values[labels.index(Menu)]
+        p = SimpleAnyInput().simple_any(target)[0]
         
         return (p,)
 
