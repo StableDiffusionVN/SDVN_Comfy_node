@@ -1,11 +1,14 @@
-import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, csv, random as rd
-import folder_paths, comfy.utils
+import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, csv, random as rd, urllib.parse, shutil
+import folder_paths, comfy.utils, server
 from PIL import Image, ImageOps
 from googletrans import LANGUAGES
+from aiohttp import web
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 import node_helpers
+
+prompt_server = server.PromptServer.instance
 
 class AnyType(str):
     """A special class that is always equal in not equal comparisons. Credit to pythongosssss"""
@@ -101,6 +104,138 @@ def run_gallery_dl(url):
         print('Cannot find image link')
         result = 'https://raw.githubusercontent.com/StableDiffusionVN/SDVN_Comfy_node/refs/heads/main/preview/eror.jpg'
     return result
+
+def _sdvn_cache_preview_file(resolved_path):
+    temp_root = os.path.abspath(folder_paths.get_temp_directory())
+    preview_dir = os.path.join(temp_root, "sdvn_url_preview")
+    os.makedirs(preview_dir, exist_ok=True)
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+
+    if resolved_path.startswith("http"):
+        parsed = urllib.parse.urlparse(resolved_path)
+        ext = os.path.splitext(parsed.path)[1].lower()
+        if ext not in allowed_exts:
+            ext = ".png"
+        filename = hashlib.sha1(resolved_path.encode("utf-8")).hexdigest() + ext
+        dest_path = os.path.join(preview_dir, filename)
+        if not os.path.exists(dest_path):
+            resp = requests.get(resolved_path, timeout=30)
+            resp.raise_for_status()
+            with open(dest_path, "wb") as f:
+                f.write(resp.content)
+        rel_path = os.path.relpath(dest_path, temp_root).replace("\\", "/")
+        subfolder = os.path.dirname(rel_path).replace("\\", "/")
+        if subfolder in ("", "."):
+            subfolder = ""
+        return dest_path, {
+            "filename": os.path.basename(dest_path),
+            "subfolder": subfolder,
+            "type": "temp",
+        }
+
+    abs_path = os.path.abspath(resolved_path)
+    if abs_path.startswith(input_dir):
+        rel_path = os.path.relpath(abs_path, temp_root).replace("\\", "/")
+        subfolder = os.path.dirname(rel_path).replace("\\", "/")
+        if subfolder in ("", "."):
+            subfolder = ""
+        return abs_path, {
+            "filename": os.path.basename(abs_path),
+            "subfolder": subfolder,
+            "type": "temp",
+        }
+    ext = os.path.splitext(abs_path)[1].lower()
+    if ext not in allowed_exts:
+        ext = ".png"
+    filename = hashlib.sha1(abs_path.encode("utf-8")).hexdigest() + ext
+    dest_path = os.path.join(preview_dir, filename)
+    if not os.path.exists(dest_path):
+        shutil.copy2(abs_path, dest_path)
+    rel_path = os.path.relpath(dest_path, temp_root).replace("\\", "/")
+    subfolder = os.path.dirname(rel_path).replace("\\", "/")
+    if subfolder in ("", "."):
+        subfolder = ""
+    return dest_path, {
+        "filename": os.path.basename(dest_path),
+        "subfolder": subfolder,
+        "type": "temp",
+    }
+
+def _sdvn_prepare_preview_payload(resolved_path):
+    preview_url = None
+    width = None
+    height = None
+    is_remote = False
+    preview_info = None
+    cached_abs_path = None
+
+    if resolved_path:
+        try:
+            cached_abs_path, preview_info = _sdvn_cache_preview_file(resolved_path)
+        except Exception as err:
+            print(f"SDVN preview cache error: {err}")
+
+        if cached_abs_path and os.path.exists(cached_abs_path):
+            preview_url = f"/sdvn/load_image_preview/file?path={urllib.parse.quote(cached_abs_path)}"
+            try:
+                with Image.open(cached_abs_path) as img:
+                    width, height = img.size
+            except Exception:
+                width = None
+                height = None
+        elif resolved_path.startswith("http"):
+            preview_url = resolved_path
+            is_remote = True
+    return {
+        "preview_url": preview_url,
+        "width": width,
+        "height": height,
+        "is_remote": is_remote,
+        "resolved_path": resolved_path,
+        "preview_info": preview_info,
+    }
+
+@prompt_server.routes.post("/sdvn/load_image_preview")
+async def sdvn_load_image_preview(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Payload không hợp lệ."}, status=400)
+    raw_url = (data.get("url") or "").strip()
+    if raw_url == "":
+        return web.json_response({"status": "error", "message": "Vui lòng nhập URL hợp lệ."}, status=400)
+    try:
+        resolved_path = run_gallery_dl(raw_url)
+    except Exception as err:
+        return web.json_response({"status": "error", "message": f"Không thể xử lý URL: {err}"}, status=500)
+    preview_payload = _sdvn_prepare_preview_payload(resolved_path)
+    preview_url = preview_payload.get("preview_url")
+    if not preview_url:
+        return web.json_response({"status": "error", "message": "Không thể tạo preview cho URL đã nhập."}, status=500)
+    response = {
+        "status": "ok",
+        "resolved": preview_payload.get("resolved_path", resolved_path),
+        "preview_url": preview_url,
+        "width": preview_payload.get("width"),
+        "height": preview_payload.get("height"),
+        "is_remote": preview_payload.get("is_remote", False),
+        "preview_info": preview_payload.get("preview_info"),
+    }
+    return web.json_response(response)
+
+@prompt_server.routes.get("/sdvn/load_image_preview/file")
+async def sdvn_load_image_preview_file(request):
+    rel_path = request.query.get("path", "")
+    if not rel_path:
+        return web.Response(status=400)
+    decoded_path = urllib.parse.unquote(rel_path)
+    abs_path = os.path.abspath(decoded_path)
+    if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+        return web.Response(status=404)
+    try:
+        return web.FileResponse(abs_path)
+    except Exception:
+        return web.Response(status=500)
 
 def civit_downlink(link):
     command = ['wget', link, '-O', 'model.html']
