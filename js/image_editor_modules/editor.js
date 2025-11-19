@@ -194,7 +194,10 @@ export class ImageEditor {
 
                 <div class="apix-footer">
                     <button class="apix-btn apix-btn-secondary" id="action-close">Cancel</button>
-                    <button class="apix-btn apix-btn-primary" id="action-save">Save Image</button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="apix-btn apix-btn-secondary" id="action-download">Download</button>
+                        <button class="apix-btn apix-btn-primary" id="action-save">Save Image</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -379,6 +382,7 @@ export class ImageEditor {
         // Main Actions
         this.overlay.querySelector("#action-close").onclick = () => this.close();
         this.overlay.querySelector("#action-save").onclick = () => this.save();
+        this.overlay.querySelector("#action-download").onclick = () => this.download();
         this.overlay.querySelector("#action-reset").onclick = () => this.reset();
         this.overlay.querySelector("#action-undo").onclick = () => this.undo();
         this.overlay.querySelector("#action-redo").onclick = () => this.redo();
@@ -1157,8 +1161,7 @@ export class ImageEditor {
         }
     }
 
-    // --- Save ---
-    async save() {
+    async renderEditedBlob() {
         // 1. Create a high-res canvas
         const canvas = document.createElement("canvas");
         canvas.width = this.currentImage.width;
@@ -1207,12 +1210,64 @@ export class ImageEditor {
             this.applyPixelEffectsRegion(ctx, 0, 0, canvas.width, canvas.height);
         }
 
-        canvas.toBlob(async (blob) => {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error("Unable to export edited image."));
+                    }
+                },
+                "image/png",
+                0.95
+            );
+        });
+    }
+
+    // --- Save ---
+    async save() {
+        try {
+            const blob = await this.renderEditedBlob();
             if (this.saveCallback) {
                 await this.saveCallback(blob);
-                this.close();
             }
-        }, "image/png");
+            this.close();
+        } catch (err) {
+            console.error("[SDVN.ImageEditor] Failed to save image", err);
+        }
+    }
+
+    async download() {
+        try {
+            const blob = await this.renderEditedBlob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = this.buildDownloadFilename();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+        } catch (err) {
+            console.error("[SDVN.ImageEditor] Failed to download image", err);
+        }
+    }
+
+    buildDownloadFilename() {
+        const fallback = "sdvn_image.png";
+        if (!this.imageSrc) return fallback;
+        try {
+            const url = new URL(this.imageSrc, window.location.origin);
+            const paramName = url.searchParams.get("filename");
+            const pathName = url.pathname.split("/").pop();
+            const base = (paramName || pathName || "sdvn_image").replace(/\.[^.]+$/, "");
+            return `${base || "sdvn_image"}_edited.png`;
+        } catch {
+            const sanitized = this.imageSrc.split("/").pop()?.split("?")[0] ?? "sdvn_image";
+            const base = sanitized.replace(/\.[^.]+$/, "");
+            return `${base || "sdvn_image"}_edited.png`;
+        }
     }
 
     close() {
