@@ -116,12 +116,43 @@ function drawImage(ctx, img, area, clipX) {
 }
 
 function hasOverlayImages(state) {
-	return !!(state.images?.[1]?.img && state.images[1].img.naturalWidth && state.images[1].img.naturalHeight);
+	const overlay = resolveStateImage(state.images?.[1]);
+	return !!(overlay && overlay.naturalWidth && overlay.naturalHeight);
+}
+
+function resolveStateImage(entry) {
+	if (!entry) return null;
+	if (entry instanceof Image) return entry;
+	if (entry.img instanceof Image) return entry.img;
+	if (entry.image instanceof Image) return entry.image;
+	return null;
+}
+
+function getNodePreviewImage(node) {
+	const imgs = node?.imgs;
+	if (!Array.isArray(imgs) || imgs.length === 0) return null;
+	const order = [];
+	if (Number.isFinite(node?.imageIndex)) order.push(node.imageIndex);
+	if (Number.isFinite(node?.overIndex)) order.push(node.overIndex);
+	order.push(0, imgs.length - 1);
+	let entry = null;
+	for (const idx of order) {
+		if (!Number.isFinite(idx)) continue;
+		if (idx < 0 || idx >= imgs.length) continue;
+		entry = imgs[idx];
+		if (entry) break;
+	}
+	entry = entry ?? imgs[0];
+	if (!entry) return null;
+	if (entry instanceof Image) return entry;
+	if (entry.img instanceof Image) return entry.img;
+	if (entry.image instanceof Image) return entry.image;
+	return null;
 }
 
 function drawCompare(ctx) {
 	const state = ensureState(this);
-	const base = state.images?.[0]?.img;
+	const base = getNodePreviewImage(this) ?? resolveStateImage(state.images?.[0]);
 	if (!base || !base.naturalWidth || !base.naturalHeight) return;
 
 	const area = getDrawArea(this);
@@ -134,7 +165,7 @@ function drawCompare(ctx) {
 
 	const baseRect = drawImage(ctx, base, area);
 	let lineX = null;
-	const overlay = state.images?.[1]?.img;
+	const overlay = resolveStateImage(state.images?.[1]);
 	const hasOverlay = state.isPointerOver && hasOverlayImages(state);
 	if (hasOverlay && overlay) {
 		const pointerX = state.pointerX ?? this.size[0] / 2;
