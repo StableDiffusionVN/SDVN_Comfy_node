@@ -59,10 +59,9 @@ export function registerImageEditorExtension(app, api) {
                                             app.graph.setDirtyCanvas(true);
                                         }
                                         await refreshComboLists(app);
-                                        alert("Image saved to input folder: " + data.name);
+                                        console.info("[SDVN.ImageEditor] Image saved to input folder:", data?.name || editorName);
                                     } catch (e) {
-                                        console.error("Upload failed", e);
-                                        alert("Upload failed");
+                                        console.error("[SDVN.ImageEditor] Upload failed", e);
                                     }
                                 });
                             }
@@ -76,7 +75,7 @@ export function registerImageEditorExtension(app, api) {
                             callback: () => {
                                 const parsed = parseImageWidgetValue(imageWidget.value);
                                 if (!parsed.filename) {
-                                    alert("Image not available for editing.");
+                                    console.warn("[SDVN.ImageEditor] Image not available for editing.");
                                     return;
                                 }
                                 const src = api.apiURL(
@@ -119,8 +118,7 @@ export function registerImageEditorExtension(app, api) {
                                         app.graph.setDirtyCanvas(true, true);
                                         await refreshComboLists(app);
                                     } catch (e) {
-                                        console.error("Upload failed", e);
-                                        alert("Upload failed");
+                                        console.error("[SDVN.ImageEditor] Upload failed", e);
                                     }
                                 });
                             },
