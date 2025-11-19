@@ -85,7 +85,7 @@ function centerDialog(dialog) {
 	dialog.style.margin = "0";
 }
 
-function openSettingDialog(node, state, title = "Menu Option Extra Setting") {
+function openSettingDialog(node, state, title = "Menu Option Extra Settings") {
 	const settingWidget = state.settingWidget;
 	if (!settingWidget || !app?.canvas?.createDialog) return;
 
@@ -114,10 +114,10 @@ function openSettingDialog(node, state, title = "Menu Option Extra Setting") {
 				padding: 10px 12px;
 				resize: vertical;
 			"></textarea>
-			<div style="font-size: 11px; margin-top: 6px; opacity: 0.75;">Ctrl + Enter để lưu • Esc để đóng</div>
+			<div style="font-size: 11px; margin-top: 6px; opacity: 0.75;">Ctrl + Enter to save • Esc to close</div>
 			<div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
-				<button class="comfy-btn comfy-btn-secondary sdvn-setting-cancel">Hủy</button>
-				<button class="comfy-btn comfy-btn-primary sdvn-setting-save">Lưu</button>
+				<button class="comfy-btn comfy-btn-secondary sdvn-setting-cancel">Cancel</button>
+				<button class="comfy-btn comfy-btn-primary sdvn-setting-save">Save</button>
 			</div>
 		</div>
 	`
@@ -184,12 +184,12 @@ function openSettingDialog(node, state, title = "Menu Option Extra Setting") {
 
 function ensureSettingButton(node, state) {
 	if (!node?.addWidget || state.settingButton) return;
-	const button = node.addWidget("button", "⚙ Setting", null, () => openSettingDialog(node, state, "Menu Option Extra Setting"), {
+	const button = node.addWidget("button", "⚙ Settings", null, () => openSettingDialog(node, state, "Menu Option Extra Settings"), {
 		serialize: false,
 	});
 	if (button) {
 		button.__sdvnSettingTrigger = true;
-		button.tooltip = "Mở Setting";
+		button.tooltip = "Open settings";
 		state.settingButton = button;
 	}
 }

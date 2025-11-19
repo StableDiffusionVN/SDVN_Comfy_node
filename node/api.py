@@ -1,12 +1,26 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from google import genai
 from openai import OpenAI
-import io, base64, torch, numpy as np, re, os, json
+import io, base64, torch, numpy as np, re, os, json, ast, inspect, textwrap
+from typing import Callable, Any
 from googletrans import LANGUAGES
 from PIL import Image, ImageOps
 from gradio_client import Client, handle_file
 from google.genai import types
 from io import BytesIO
+
+DEFAULT_FUNCTION_TEMPLATE = textwrap.dedent("""\
+def function(input_value, extra_value=None):
+    "Example helper that trims text and optionally appends extra info."
+    if input_value is None:
+        return "No input provided"
+
+    result = str(input_value).strip()
+    if extra_value:
+        result = f"{result} | extra: {extra_value}"
+    return result
+""").strip()
+
 
 def pil2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
@@ -96,6 +110,64 @@ def encode_image(image_tensor):
 
 
 class run_python_code:
+    @staticmethod
+    def _load_function(function_source: str) -> Callable[..., Any]:
+        code = textwrap.dedent(function_source or "").strip()
+        if not code:
+            raise RuntimeError("Không có mã Python để thực thi. Hãy mở Setting và nhập hàm.")
+
+        try:
+            module_ast = ast.parse(code, mode="exec")
+        except SyntaxError as exc:
+            raise RuntimeError(f"Mã Python không hợp lệ: {exc}") from exc
+
+        target_name = None
+        for node in module_ast.body:
+            if isinstance(node, ast.FunctionDef):
+                target_name = node.name
+                if node.name == "function":
+                    break
+        if target_name is None:
+            raise RuntimeError("Không tìm thấy hàm nào trong đoạn mã. Tạo ít nhất một hàm với từ khóa def.")
+
+        compiled = compile(module_ast, filename="<SDVN Run Python Code>", mode="exec")
+        local_context: dict[str, Any] = {}
+        exec(compiled, {}, local_context)
+        func = local_context.get(target_name)
+        if not callable(func):
+            raise RuntimeError(f"Đối tượng '{target_name}' không phải là hàm callable.")
+        return func
+
+    @staticmethod
+    def _invoke_function(func: Callable[..., Any], *raw_inputs: Any) -> Any:
+        provided = [value for value in raw_inputs if value is not None]
+        if not provided:
+            return func()
+
+        if len(provided) == 1:
+            only_value = provided[0]
+            if isinstance(only_value, dict):
+                try:
+                    return func(**only_value)
+                except TypeError:
+                    pass
+            if isinstance(only_value, (list, tuple)):
+                try:
+                    return func(*only_value)
+                except TypeError:
+                    pass
+
+        try:
+            return func(*provided)
+        except TypeError as exc:
+            try:
+                signature = inspect.signature(func)
+            except (ValueError, TypeError):  # pragma: no cover - fallback when signature is unavailable
+                signature = "không xác định"
+            raise RuntimeError(
+                f"Không thể gọi hàm '{func.__name__}' với {len(provided)} tham số. Signature mong đợi: {signature}"
+            ) from exc
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -103,11 +175,7 @@ class run_python_code:
                 "function": (
                     "STRING",
                     {
-                        "default": """\
-def function(input):
-    output = input.strip()
-    return output
-                    """,
+                        "default": DEFAULT_FUNCTION_TEMPLATE,
                         "multiline": True,
                         "tooltip": "Hàm Python cần thực thi",
                     },
@@ -131,31 +199,12 @@ def function(input):
     def python_function(self, function, input=None, input2=None, input3=None):
         highlight_msg = "Bạn đang sử dụng workflow độc quyền được thiết kế bởi Phạm Hưng, truy cập hungdiffusion.com để ủng hộ tác giả và nhận những hỗ trợ tốt nhất"
         print(f"\033[43m\033[30m {highlight_msg} \033[0m")
-        check_list = [input, input2, input3]
-        b = 3
-        new_list = []
-        for i in check_list:
-            if i == None:
-                b -= 1
-            else:
-                new_list += [i]
+        try:
+            user_function = self._load_function(function)
+            output = self._invoke_function(user_function, input, input2, input3)
+        except Exception as exc:
+            raise RuntimeError(f"Run Python Code error: {exc}") from exc
 
-        pattern = r"def.*?return[^\n]*"
-        match = re.search(pattern, function, re.DOTALL)
-        function = match.group(0) if match else ""
-        pattern = r"def\s+(\w+)\s*\("
-        matches = re.findall(pattern, function)[0]
-        local_context = {}
-        exec(function, {}, local_context)
-        function = local_context[matches]
-        if b == 3:
-            output = function(new_list[0], new_list[1], new_list[2])
-        elif b == 2:
-            output = function(new_list[0], new_list[1])
-        elif b == 1:
-            output = function(new_list[0])
-        elif b == 0:
-            output = function()
         if not isinstance(output, list):
             output = [output]
         return ([*output],)

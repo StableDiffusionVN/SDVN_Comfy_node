@@ -1,6 +1,6 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from googletrans import Translator, LANGUAGES
-import torch, os, re
+import torch, os, re, json
 import folder_paths
 import nodes
 import pandas as pd
@@ -747,7 +747,7 @@ class filter_list:
         return {
             "required": {
                 "start": ("INT", {"default":0,"min":0}),
-                "end": ("INT", {"default":0,"min":0}),
+                "end": ("INT", {"default":-1,"min":-1}),
                 "input": (any,),
             },
             "optional": {
@@ -765,12 +765,11 @@ class filter_list:
     def filter_list(s, start, end, input, boolean = None):
         start = start[0]
         end = end[0]
-        if start != 0:
-            end = len(input) if end == 0 else end
+        end = len(input) if end == -1 else end
         if end != 0 and start <= end:
             n_input = []
             for i in range(len(input)):
-                if i in range(start-1,end):
+                if i in range(start,end):
                     if boolean != None:
                         try:
                             b = boolean[i]
@@ -781,16 +780,9 @@ class filter_list:
                     if b == True:
                         n_input.append(input[i])
             input = [*n_input]
-        if boolean != None:
-            n_input = []
-            for i in range(len(input)):
-                try:
-                    if boolean[i]:
-                        n_input.append(input[i])
-                except:
-                    None
-            input = [*n_input]
-        return (input,)
+            return (input,)
+        else:
+            return ([input[start]],)
     
 class menu_option:
     @classmethod
@@ -1054,6 +1046,74 @@ class slider1:
     def slider100(self, num):
         return (num,)
 
+
+class int_slider_custom:
+    DEFAULT_CONFIG = {"min": 0, "max": 100, "step": 1}
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        config_str = json.dumps(cls.DEFAULT_CONFIG)
+        return {
+            "required": {
+                "num": ("INT", {
+                    "default": cls.DEFAULT_CONFIG["min"],
+                    "min": cls.DEFAULT_CONFIG["min"],
+                    "max": cls.DEFAULT_CONFIG["max"],
+                    "step": cls.DEFAULT_CONFIG["step"],
+                    "display": "slider",
+                }),
+            },
+            "optional": {
+                "settings": ("STRING", {
+                    "default": config_str,
+                    "multiline": False,
+                    "tooltip": "Slider configuration used by popup (JSON).",
+                })
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💡 Creative"
+    RETURN_TYPES = ("INT",)
+    RETURN_NAMES = ("int",)
+    FUNCTION = "return_value"
+
+    def return_value(self, num, settings=""):
+        return (num,)
+
+
+class float_slider_custom:
+    DEFAULT_CONFIG = {"min": 0.0, "max": 1.0, "step": 0.01}
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        config_str = json.dumps(cls.DEFAULT_CONFIG)
+        return {
+            "required": {
+                "num": ("FLOAT", {
+                    "default": cls.DEFAULT_CONFIG["min"],
+                    "min": cls.DEFAULT_CONFIG["min"],
+                    "max": cls.DEFAULT_CONFIG["max"],
+                    "step": cls.DEFAULT_CONFIG["step"],
+                    "display": "slider",
+                }),
+            },
+            "optional": {
+                "settings": ("STRING", {
+                    "default": config_str,
+                    "multiline": False,
+                    "tooltip": "Slider configuration used by popup (JSON).",
+                })
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💡 Creative"
+    RETURN_TYPES = ("FLOAT",)
+    RETURN_NAMES = ("float",)
+    FUNCTION = "return_value"
+
+    def return_value(self, num, settings=""):
+        return (num,)
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Random Prompt": Random_Prompt,
     "SDVN Easy IPAdapter weight": Easy_IPA_weight,
@@ -1083,6 +1143,8 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Load Google Sheet": LoadGoogleSheet,
     "SDVN Slider 100": slider100,
     "SDVN Slider 1": slider1,
+    "SDVN Int Slider": int_slider_custom,
+    "SDVN Float Slider": float_slider_custom,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1114,4 +1176,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Load Google Sheet": "📋 Load Google Sheet",
     "SDVN Slider 100": "📊 Slider 100",
     "SDVN Slider 1": "📊 Slider 1",
+    "SDVN Int Slider": "📊 Int Slider",
+    "SDVN Float Slider": "📊 Float Slider",
 }
