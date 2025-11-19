@@ -213,7 +213,7 @@ class LoadImage:
     def load_image(self, Load_url, Url, image):
         image_path = folder_paths.get_annotated_filepath(image)
         image_path = image_path if image != "None" and os.path.exists(image_path) else None
-        if Url != '' and Load_url and 'clipspace' not in image:
+        if Url != '' and Load_url and 'clipspace' not in image and 'image_editor/' not in image:
             Url = run_gallery_dl(Url)
             if 'http' in Url:
                 i = Image.open(requests.get(Url, stream=True).raw)
@@ -395,7 +395,7 @@ class LoadImageUltimate:
     @classmethod
     def INPUT_TYPES(s):
         input_dir = folder_paths.get_input_directory()
-        exclude_folders = ["clipspace", "folder_to_exclude2"]
+        exclude_folders = ["clipspace", "folder_to_exclude2", "image_editor"]
         file_list = []
 
         for root, dirs, files in os.walk(input_dir):
