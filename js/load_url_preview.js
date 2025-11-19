@@ -2,7 +2,6 @@ import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 
 const PREVIEW_ENDPOINT = "/sdvn/load_image_preview";
-const PREVIEW_NODE_PREFIX = "SDVN_URL_PREVIEW";
 const NODE_CONFIG = {
 	"SDVN Load Image": [
 		{
@@ -106,41 +105,6 @@ const NODE_CONFIG = {
 			},
 		},
 	],
-};
-
-const PreviewRunState = {
-	targetNodeId: null,
-};
-
-const originalQueuePrompt = api.queuePrompt;
-api.queuePrompt = async function (index, payload, ...args) {
-	if (PreviewRunState.targetNodeId !== null) {
-		const promptGraph = payload?.output ?? payload?.prompt;
-		if (!promptGraph) {
-			PreviewRunState.targetNodeId = null;
-			return originalQueuePrompt.call(this, index, payload, ...args);
-		}
-		const targetId = String(PreviewRunState.targetNodeId);
-		const trimmed = {};
-		addNodeWithDependencies(targetId, promptGraph, trimmed);
-		if (Object.keys(trimmed).length > 0) {
-			const previewNodeId = generatePreviewNodeId(promptGraph);
-			trimmed[previewNodeId] = createPreviewNodeEntry(targetId);
-			if (payload.output) {
-				payload.output = trimmed;
-			} else {
-				payload.prompt = trimmed;
-			}
-			payload = {
-				...payload,
-			};
-		}
-	}
-	try {
-		return await originalQueuePrompt.call(this, index, payload, ...args);
-	} finally {
-		PreviewRunState.targetNodeId = null;
-	}
 };
 
 app.registerExtension({
@@ -260,15 +224,29 @@ async function requestPreview(node, config, payload) {
 		if (!response.ok || data.status !== "ok" || !data.preview_url) {
 			throw new Error(data?.message || response.statusText || "Preview request failed");
 		}
+		const finalUrl = sanitizeUrl(data.preview_url);
+		if (!finalUrl) {
+			throw new Error("Preview URL missing from response");
+		}
 		const dims = data.width && data.height ? ` (${data.width}x${data.height})` : "";
-		setWidgetStatus(widget, `URL cached${dims}. Running node...`, "success");
-		await runNodePreview(node);
-		setWidgetStatus(widget, "Preview updated from node run.", "success");
+		updateWidgetPreview(widget, {
+			url: finalUrl,
+			width: data.width,
+			height: data.height,
+			resolved: data.resolved,
+			isRemote: Boolean(data.is_remote),
+		});
+		updateNodePreviewImage(node, finalUrl);
+		setWidgetStatus(widget, `URL preview updated${dims}.`, "success");
+		state.pendingPayload = null;
+		state.error = null;
 	} catch (error) {
 		if (state.requestId !== requestId) {
 			return;
 		}
 		state.error = error?.message || "Unable to fetch preview";
+		state.pendingPayload = null;
+		clearWidgetPreview(widget);
 		setWidgetStatus(widget, `Warning: ${state.error}`, "error");
 		console.error("[SDVN] URL preview error:", error);
 	}
@@ -278,6 +256,7 @@ function clearPendingState(node, config) {
 	const state = getPreviewState(node);
 	if (config?.widgetRef) {
 		setWidgetStatus(config.widgetRef, "", "info");
+		clearWidgetPreview(config.widgetRef);
 	}
 	state.pendingPayload = null;
 	state.error = null;
@@ -307,7 +286,6 @@ function getPreviewState(node) {
 			pendingPayload: null,
 			requestId: 0,
 			error: null,
-			runningPreview: false,
 		};
 	}
 	return node.__sdvnPreviewState;
@@ -315,71 +293,6 @@ function getPreviewState(node) {
 
 function sanitizeUrl(value) {
 	return String(value ?? "").trim();
-}
-
-async function runNodePreview(node) {
-	if (!node) return;
-	const state = getPreviewState(node);
-	if (state.runningPreview) {
-		return;
-	}
-	state.runningPreview = true;
-	try {
-		PreviewRunState.targetNodeId = node.id;
-		await app.queuePrompt(0);
-		return true;
-	} catch (err) {
-		throw err instanceof Error ? err : new Error("Failed to queue preview node");
-	} finally {
-		state.runningPreview = false;
-		PreviewRunState.targetNodeId = null;
-	}
-}
-
-function addNodeWithDependencies(nodeId, source, dest) {
-	if (!source || dest[nodeId] || !source[nodeId]) {
-		return;
-	}
-	dest[nodeId] = cloneNodeData(source[nodeId]);
-	const inputs = dest[nodeId].inputs || {};
-	Object.values(inputs).forEach((value) => addDependencyValue(value, source, dest));
-}
-
-function addDependencyValue(value, source, dest) {
-	if (Array.isArray(value)) {
-		if (value.length >= 2 && (typeof value[0] === "string" || typeof value[0] === "number")) {
-			addNodeWithDependencies(String(value[0]), source, dest);
-		} else {
-			value.forEach((entry) => addDependencyValue(entry, source, dest));
-		}
-	} else if (value && typeof value === "object") {
-		Object.values(value).forEach((entry) => addDependencyValue(entry, source, dest));
-	}
-}
-
-function cloneNodeData(data) {
-	if (typeof structuredClone === "function") {
-		return structuredClone(data);
-	}
-	return JSON.parse(JSON.stringify(data));
-}
-
-function generatePreviewNodeId(source) {
-	let base = Date.now();
-	while (source[String(base)]) {
-		base += 1;
-	}
-	return String(base);
-}
-
-function createPreviewNodeEntry(targetId) {
-	return {
-		class_type: "PreviewImage",
-		inputs: {
-			images: [targetId, 0],
-			filename_prefix: PREVIEW_NODE_PREFIX,
-		},
-	};
 }
 
 function normalizePinterestPin(raw) {
@@ -449,6 +362,119 @@ function setWidgetStatus(widget, text, tone = "info") {
 			statusEl.style.color = "#c8d4ff";
 		}
 	});
+}
+
+function updateWidgetPreview(widget, data = {}) {
+	if (!widget) {
+		return;
+	}
+	const previewUrl = sanitizeUrl(data.url ?? data.preview_url ?? "");
+	if (!previewUrl) {
+		clearWidgetPreview(widget);
+		return;
+	}
+	ensureInput(widget, (input) => {
+		let container = widget.__sdvnPreviewContainer;
+		if (!container) {
+			container = document.createElement("div");
+			container.className = "sdvn-url-preview-container";
+			container.style.marginTop = "6px";
+			container.style.border = "1px solid rgba(255, 255, 255, 0.1)";
+			container.style.borderRadius = "6px";
+			container.style.padding = "6px";
+			container.style.background = "rgba(0, 0, 0, 0.35)";
+			container.style.display = "flex";
+			container.style.flexDirection = "column";
+			container.style.gap = "4px";
+			container.style.maxWidth = "240px";
+			container.style.cursor = "pointer";
+			container.title = "Click to open preview in a new tab";
+			const mountPoint = input.closest?.(".comfy-control") ?? input.parentElement ?? input;
+			mountPoint.appendChild(container);
+			container.addEventListener("click", (event) => {
+				event.stopPropagation();
+				const target = widget.__sdvnPreviewSrc;
+				if (target) {
+					window.open(target, "_blank", "noopener");
+				}
+			});
+			widget.__sdvnPreviewContainer = container;
+		}
+		container.style.display = "flex";
+
+		let img = widget.__sdvnPreviewImg;
+		if (!img) {
+			img = document.createElement("img");
+			img.style.width = "100%";
+			img.style.maxHeight = "140px";
+			img.style.objectFit = "contain";
+			img.style.borderRadius = "4px";
+			img.loading = "lazy";
+			widget.__sdvnPreviewImg = img;
+			container.appendChild(img);
+		}
+
+		let caption = widget.__sdvnPreviewCaption;
+		if (!caption) {
+			caption = document.createElement("div");
+			caption.className = "sdvn-url-preview-caption";
+			caption.style.fontSize = "11px";
+			caption.style.opacity = "0.75";
+			widget.__sdvnPreviewCaption = caption;
+			container.appendChild(caption);
+		}
+
+		if (widget.__sdvnPreviewSrc !== previewUrl) {
+			widget.__sdvnPreviewSrc = previewUrl;
+			img.src = previewUrl;
+		}
+		const dims = data.width && data.height ? ` ${data.width}x${data.height}` : "";
+		const sourceLabel = data.isRemote ? "Remote preview" : "Cached preview";
+		caption.textContent = `${sourceLabel}${dims}`;
+		if (data.resolved) {
+			caption.title = data.resolved;
+		}
+	});
+}
+
+function updateNodePreviewImage(node, previewUrl) {
+	if (!node || !previewUrl) {
+		return;
+	}
+	const img = new Image();
+	img.crossOrigin = "anonymous";
+	img.onload = () => {
+		if (!node.imgs) {
+			node.imgs = [];
+		}
+		node.imgs.length = 0;
+		node.imgs.push(img);
+		if (typeof node.setDirtyCanvas === "function") {
+			node.setDirtyCanvas(true, true);
+		}
+	};
+	img.onerror = () => {
+		console.warn("[SDVN] Unable to load preview image for node", previewUrl);
+	};
+	img.src = previewUrl;
+}
+
+function clearWidgetPreview(widget) {
+	if (!widget) {
+		return;
+	}
+	const container = widget.__sdvnPreviewContainer;
+	if (container) {
+		container.style.display = "none";
+	}
+	if (widget.__sdvnPreviewImg) {
+		widget.__sdvnPreviewImg.src = "";
+	}
+	widget.__sdvnPreviewSrc = "";
+	const caption = widget.__sdvnPreviewCaption;
+	if (caption) {
+		caption.textContent = "";
+	}
 }
 
 function debounce(fn, wait = 400) {

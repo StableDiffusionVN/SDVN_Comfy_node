@@ -574,6 +574,8 @@ class LoadImageUltimate:
     FUNCTION = "load_image"
 
     def load_image(s, mode, image, folder_path, number_img, url, pin_url, range, number, random,  insta_url, index, seed):
+        if 'image_editor/' in image:
+            mode = "Input folder"
         if 'clipspace' in image:
             image_path = folder_paths.get_annotated_filepath(image)
             i = Image.open(image_path)

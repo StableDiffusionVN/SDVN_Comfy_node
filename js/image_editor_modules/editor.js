@@ -60,6 +60,7 @@ export class ImageEditor {
                 <div class="apix-sidebar-divider"></div>
                 <button class="apix-tool-btn icon-only" id="flip-btn-horizontal" title="Flip Horizontal">${ICONS.flipH}</button>
                 <button class="apix-tool-btn icon-only" id="flip-btn-vertical" title="Flip Vertical">${ICONS.flipV}</button>
+                <button class="apix-tool-btn icon-only" id="rotate-btn-90" title="Rotate 90 degrees">${ICONS.rotate}</button>
             </div>
 
             <!-- Main Area -->
@@ -373,6 +374,7 @@ export class ImageEditor {
         // Transform buttons
         this.overlay.querySelector("#flip-btn-horizontal").onclick = () => this.flipImage("horizontal");
         this.overlay.querySelector("#flip-btn-vertical").onclick = () => this.flipImage("vertical");
+        this.overlay.querySelector("#rotate-btn-90").onclick = () => this.rotateImage(90);
 
         // Main Actions
         this.overlay.querySelector("#action-close").onclick = () => this.close();
@@ -696,6 +698,51 @@ export class ImageEditor {
             this.pushHistory();
         };
         flipped.src = canvas.toDataURL();
+    }
+
+    rotateImage(angle = 90) {
+        if (!this.currentImage) return;
+        let normalized = angle % 360;
+        if (normalized < 0) normalized += 360;
+        if (normalized === 0) return;
+
+        const imgW = this.currentImage.width;
+        const imgH = this.currentImage.height;
+        const needsSwap = normalized === 90 || normalized === 270;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = needsSwap ? imgH : imgW;
+        canvas.height = needsSwap ? imgW : imgH;
+        const ctx = canvas.getContext("2d");
+        ctx.save();
+
+        if (normalized === 90) {
+            ctx.translate(canvas.width, 0);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(this.currentImage, 0, 0);
+        } else if (normalized === 180) {
+            ctx.translate(canvas.width, canvas.height);
+            ctx.rotate(Math.PI);
+            ctx.drawImage(this.currentImage, 0, 0);
+        } else if (normalized === 270) {
+            ctx.translate(0, canvas.height);
+            ctx.rotate(-Math.PI / 2);
+            ctx.drawImage(this.currentImage, 0, 0);
+        } else {
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((Math.PI / 180) * normalized);
+            ctx.drawImage(this.currentImage, -imgW / 2, -imgH / 2);
+        }
+
+        ctx.restore();
+
+        const rotated = new Image();
+        rotated.onload = () => {
+            this.currentImage = rotated;
+            this.requestRender();
+            this.pushHistory();
+        };
+        rotated.src = canvas.toDataURL();
     }
 
     applyPixelEffectsRegion(ctx, x, y, width, height) {
