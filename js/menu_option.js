@@ -9,6 +9,7 @@ function findWidget(node, name) {
 }
 
 function ensureInput(widget, cb) {
+	if (!widget || widget.__sdvnPopupSetting) return;
 	if (widget.inputEl) {
 		cb(widget.inputEl);
 		return;
@@ -25,6 +26,148 @@ function parseSetting(text) {
 		.filter(Boolean);
 }
 
+function hideSettingWidget(widget) {
+	if (!widget || widget.__sdvnPopupSetting) return;
+	widget.__sdvnPopupSetting = true;
+	let originalType = widget.type;
+	const originalCompute = widget.computeSize;
+	Object.defineProperty(widget, "type", {
+		get() {
+			return this.hidden ? "sdvnhide" : originalType;
+		},
+		set(val) {
+			originalType = val;
+		},
+		configurable: true,
+	});
+	widget.computeSize = function (target_width) {
+		if (this.hidden) return [0, -4];
+		if (typeof originalCompute === "function") {
+			return originalCompute.call(this, target_width);
+		}
+		return [target_width ?? 100, 20];
+	};
+	widget.hidden = true;
+}
+
+function centerDialog(dialog) {
+	if (!dialog || !dialog.style) return;
+	dialog.style.position = "fixed";
+	dialog.style.left = "50%";
+	dialog.style.top = "50%";
+	dialog.style.transform = "translate(-50%, -50%)";
+	dialog.style.margin = "0";
+}
+
+function openSettingDialog(node, state, title = "Menu Setting") {
+	const settingWidget = state.settingWidget;
+	if (!settingWidget || !app?.canvas?.createDialog) return;
+
+	state.settingDialog?.close?.();
+	const dialog = app.canvas.createDialog(
+		`
+		<div class="sdvn-setting-dialog" style="
+			min-width: 360px;
+			max-width: 75vw;
+			padding: 16px 18px;
+			border-radius: 8px;
+			background: rgba(20, 20, 20, 0.95);
+			border: 1px solid rgba(255,255,255,0.08);
+			box-shadow: 0 25px 70px rgba(0, 0, 0, 0.55);
+			resize: horizontal;
+			overflow: hidden;
+			">
+			<div style="font-weight: 600; margin-bottom: 6px; font-size: 15px;">${title}</div>
+			<textarea class="sdvn-setting-dialog__input" spellcheck="false" style="
+				width: 100%;
+				min-height: 220px;
+				border-radius: 6px;
+				border: 1px solid rgba(255,255,255,0.15);
+				background: rgba(255,255,255,0.02);
+				color: #fff;
+				padding: 10px 12px;
+				resize: vertical;
+			"></textarea>
+			<div style="font-size: 11px; margin-top: 6px; opacity: 0.75;">Ctrl + Enter để lưu • Esc để đóng</div>
+			<div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+				<button class="comfy-btn comfy-btn-secondary sdvn-setting-cancel">Hủy</button>
+				<button class="comfy-btn comfy-btn-primary sdvn-setting-save">Lưu</button>
+			</div>
+		</div>
+	`
+	);
+	centerDialog(dialog);
+	if (dialog?.style) {
+		dialog.style.resize = "both";
+		dialog.style.overflow = "visible";
+		dialog.style.minWidth = "360px";
+		dialog.style.maxWidth = "80vw";
+		dialog.style.padding = "0";
+	}
+	const textarea = dialog.querySelector("textarea");
+	if (textarea) {
+		textarea.value = (settingWidget.value ?? "").toString();
+	}
+
+	const closeDialog = () => {
+		dialog.close?.();
+		if (state.settingDialog === dialog) {
+			state.settingDialog = null;
+		}
+	};
+
+	const commitValue = () => {
+		if (!textarea) {
+			closeDialog();
+			return;
+		}
+		const newValue = textarea.value ?? "";
+		if (settingWidget.value !== newValue) {
+			settingWidget.value = newValue;
+			settingWidget.callback?.(newValue);
+		} else {
+			state.apply?.();
+		}
+		closeDialog();
+	};
+
+	dialog.querySelector(".sdvn-setting-save")?.addEventListener("click", (event) => {
+		event?.preventDefault?.();
+		commitValue();
+	});
+	dialog.querySelector(".sdvn-setting-cancel")?.addEventListener("click", (event) => {
+		event?.preventDefault?.();
+		closeDialog();
+	});
+
+	textarea?.addEventListener("keydown", (event) => {
+		if (!event) return;
+		event.stopPropagation();
+		if (event.key === "Escape") {
+			event.preventDefault();
+			closeDialog();
+		} else if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+			event.preventDefault();
+			commitValue();
+		}
+	});
+
+	setTimeout(() => textarea?.focus(), 0);
+	state.settingDialog = dialog;
+}
+
+function ensureSettingButton(node, state) {
+	if (!node?.addWidget || state.settingButton) return;
+	const button = node.addWidget("button", "⚙ Setting", null, () => openSettingDialog(node, state, "Menu Setting"), {
+		serialize: false,
+	});
+	if (button) {
+		button.__sdvnSettingTrigger = true;
+		button.tooltip = "Mở Setting";
+		state.settingButton = button;
+	}
+}
+
 function setupMenuOption(node) {
 	if (!node?.widgets) {
 		requestAnimationFrame(() => setupMenuOption(node));
@@ -38,6 +181,8 @@ function setupMenuOption(node) {
 	const state = (node.__sdvnMenuOptionState ||= {});
 	state.menuWidget = menuWidget;
 	state.settingWidget = settingWidget;
+	hideSettingWidget(settingWidget);
+	ensureSettingButton(node, state);
 
 	const ensureValuesArray = () => {
 		if (state.valuesArray) {
