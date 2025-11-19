@@ -817,8 +817,7 @@ class menu_option:
                 "Setting": ("STRING", {"multiline": True,"default": """
 Option_1:parameter1
 Option_2:parameter2
-Option_3:parameter3
-Option_4:parameter4                                                                                                                                                         
+Option_3:parameter3                                                                                                                                                      
 """}),
             },
         }
@@ -845,6 +844,65 @@ Option_4:parameter4
         p = SimpleAnyInput().simple_any(target)[0]
         
         return (p,)
+
+class menu_option_extra:
+    DEFAULT_MENU_NAMES = ["Option_1","Option_2","Option_3","Option_4","Option_5","Option_6","Option_7","Option_8"]
+    DEFAULT_SUB_NAMES = ["Sub_1","Sub_2","Sub_3","Sub_4","Sub_5"]
+
+    @classmethod
+    def _parse_entries(cls, Setting):
+        lines = [line.strip() for line in Setting.strip().splitlines() if line.strip()]
+        entries = []
+        for idx, line in enumerate(lines):
+            if ":" in line:
+                name, value = line.split(":", 1)
+            else:
+                name, value = line, ""
+            menu_name = name.strip() or (cls.DEFAULT_MENU_NAMES[idx] if idx < len(cls.DEFAULT_MENU_NAMES) else f"Option_{idx+1}")
+            sub_entries = [item.strip() for item in value.split(",") if item.strip()]
+            if not sub_entries:
+                sub_entries = [menu_name]
+            entries.append((menu_name, sub_entries))
+        if not entries:
+            entries = [(cls.DEFAULT_MENU_NAMES[0], cls.DEFAULT_SUB_NAMES[:])]
+        return entries
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "Menu": (s.DEFAULT_MENU_NAMES, {"default": s.DEFAULT_MENU_NAMES[0]}),
+                "Sub_Menu": (s.DEFAULT_SUB_NAMES, {"default": s.DEFAULT_SUB_NAMES[0]}),
+                "Setting": ("STRING", {"multiline": True,"default": """
+Option_1: sub_a, sub_b, sub_c
+Option_2: sub_d, sub_e, sub_f
+Option_3: sub_g, sub_h                                                                                                                                                     
+"""}),
+            },
+        }
+
+    CATEGORY = "📂 SDVN/💡 Creative"
+    RETURN_TYPES = (any, any)
+    RETURN_NAMES = ("menu", "sub_menu")
+    OUTPUT_IS_LIST = (True, True)
+    FUNCTION = "menu_option_extra"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, Menu, Sub_Menu, Setting):
+        return True
+
+    def menu_option_extra(s, Menu, Sub_Menu, Setting):
+        entries = s._parse_entries(Setting)
+        labels = [entry[0] for entry in entries]
+        mapping = {entry[0]: entry[1] for entry in entries}
+        if Menu not in mapping:
+            Menu = labels[0]
+        sub_options = mapping.get(Menu, entries[0][1])
+        if Sub_Menu not in sub_options:
+            Sub_Menu = sub_options[0]
+        menu_value = SimpleAnyInput().simple_any(Menu)[0]
+        sub_value = SimpleAnyInput().simple_any(Sub_Menu)[0]
+        return (menu_value, sub_value)
 
 class dic_convert:
     @classmethod
@@ -1020,6 +1078,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Any From List":load_any_from_list,
     "SDVN Filter List": filter_list,
     "SDVN Menu Option": menu_option,
+    "SDVN Menu Option Extra": menu_option_extra,
     "SDVN Dic Convert": dic_convert,
     "SDVN Load Google Sheet": LoadGoogleSheet,
     "SDVN Slider 100": slider100,
@@ -1050,6 +1109,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Filter List": "⚖️ Filter List",
     "SDVN Simple Any Input": "🔡 Simple Any Input",
     "SDVN Menu Option": "📋 Menu Option",
+    "SDVN Menu Option Extra": "📋 Menu Option Extra",
     "SDVN Dic Convert": "🔄 Dic Convert",
     "SDVN Load Google Sheet": "📋 Load Google Sheet",
     "SDVN Slider 100": "📊 Slider 100",
