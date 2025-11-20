@@ -25,6 +25,11 @@ const ICONS = {
 const LIGHTBOX_ID = "sdvn-gallery-lightbox";
 const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp"];
 
+const buildViewUrl = (path) => {
+	const cacheBust = Date.now();
+	return `/local_image_gallery/view?filepath=${encodeURIComponent(path)}&t=${cacheBust}`;
+};
+
 function ensureLightbox() {
 	if (document.getElementById(LIGHTBOX_ID)) return;
 	const overlay = document.createElement("div");
@@ -58,7 +63,7 @@ function openLightbox(path, name) {
 	const overlay = document.getElementById(LIGHTBOX_ID);
 	if (!overlay) return;
 	const img = overlay.querySelector("img");
-	img.src = `/local_image_gallery/view?filepath=${encodeURIComponent(path)}`;
+	img.src = buildViewUrl(path);
 	overlay.querySelector(".sdvn-lightbox-caption").textContent = name ?? "";
 	overlay.classList.add("visible");
 }
@@ -556,7 +561,7 @@ app.registerExtension({
 			const openSelectedInEditor = () => {
 				const target = getPrimaryImageSelection();
 				if (!target) return;
-				const src = `/local_image_gallery/view?filepath=${encodeURIComponent(target.path)}`;
+				const src = buildViewUrl(target.path);
 				new ImageEditor(src, async (blob) => {
 					const formData = new FormData();
 					formData.append("path", target.path);
