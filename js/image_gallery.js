@@ -1,952 +1,803 @@
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
+import { ImageEditor } from "./image_editor_modules/editor.js";
 
-function setupGlobalLightbox() {
-    if (document.getElementById('global-image-lightbox')) return;
-    const lightboxId = 'global-image-lightbox';
-    const lightboxHTML = `
-        <div id="${lightboxId}" class="lightbox-overlay">
-            <button class="lightbox-close">&times;</button>
-            <button class="lightbox-prev">&lt;</button>
-            <button class="lightbox-next">&gt;</button>
-            <div class="lightbox-content">
-                <img src="" alt="Preview" style="display: none;">
-                <video src="" controls autoplay style="display: none;"></video>
-                <audio src="" controls autoplay style="display: none;"></audio>
-            </div>
-            <div class="lightbox-dimensions"></div>
-        </div>
-    `;
-    const lightboxCSS = `
-        #${lightboxId} { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); display: none; align-items: center; justify-content: center; z-index: 10000; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
-        #${lightboxId} .lightbox-content { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        #${lightboxId} img, #${lightboxId} video { max-width: 95%; max-height: 95%; object-fit: contain; transition: transform 0.1s ease-out; transform: scale(1) translate(0, 0); }
-        #${lightboxId} audio { width: 80%; max-width: 600px; }
-        #${lightboxId} img { cursor: grab; }
-        #${lightboxId} img.panning { cursor: grabbing; }
-        #${lightboxId} .lightbox-close { position: absolute; top: 15px; right: 20px; width: 35px; height: 35px; background-color: rgba(0,0,0,0.5); color: #fff; border-radius: 50%; border: 2px solid #fff; font-size: 24px; line-height: 30px; text-align: center; cursor: pointer; z-index: 10002; }
-        #${lightboxId} .lightbox-prev, #${lightboxId} .lightbox-next { position: absolute; top: 50%; transform: translateY(-50%); width: 45px; height: 60px; background-color: rgba(0,0,0,0.4); color: #fff; border: none; font-size: 30px; cursor: pointer; z-index: 10001; transition: background-color 0.2s; }
-        #${lightboxId} .lightbox-prev:hover, #${lightboxId} .lightbox-next:hover { background-color: rgba(0,0,0,0.7); }
-        #${lightboxId} .lightbox-prev { left: 15px; }
-        #${lightboxId} .lightbox-next { right: 15px; }
-        #${lightboxId} [disabled] { display: none; }
-        #${lightboxId} .lightbox-dimensions { 
-            position: absolute; 
-            bottom: 0px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background-color: rgba(0, 0, 0, 0.7); 
-            color: #fff; 
-            padding: 2px 4px; 
-            border-radius: 5px; 
-            font-size: 14px; 
-            z-index: 10001; 
-        }
-    `;
-    document.body.insertAdjacentHTML('beforeend', lightboxHTML);
-    const styleEl = document.createElement('style');
-    styleEl.textContent = lightboxCSS;
-    document.head.appendChild(styleEl);
+const ICONS = {
+	refresh:
+		'<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-6-6c1.66 0 3.14.69 4.22 1.78L13 12h7V5z"/></svg>',
+	up: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14l5-5 5 5H7z"/></svg>',
+	folder:
+		'<svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M10 4l2 2h8a2 2 0 0 1 2 2v10c0 1.1-.9 2-2 2H4a2 2 0 0 1-2-2V6c0-1.1.9-2 2-2h6z"/></svg>',
+	image:
+		'<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14h18zm-4-9l-3 4-2-2-4 5h12l-3-4zm-9-3a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>',
+	sortAsc:
+		'<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7 14l5 5 5-5H7zM7 10l5-5 5 5H7z"/></svg>',
+	sortDesc:
+		'<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7 10l5-5 5 5H7zM7 14l5 5 5-5H7z" transform="scale(1,-1) translate(0,-24)"/></svg>',
+	zoom: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M15 3c-3.31 0-6 2.69-6 6 0 .93.21 1.81.58 2.6L3 18.17V21h2.83l6.58-6.58c.79.37 1.67.58 2.59.58 3.31 0 6-2.69 6-6s-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></svg>',
+	reset: '<svg viewBox="0 0 24 24" width="16" height="16"><polyline fill="none" stroke="currentColor" stroke-width="2" points="1 4 1 10 7 10"></polyline><path fill="none" stroke="currentColor" stroke-width="2" d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>',
+	folders: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 6a2 2 0 0 1 2-2h5l2 2h9a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/><path fill="currentColor" d="M2 9h20v2H2z" opacity="0.55"/></svg>',
+	sortName: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>',
+	sortDate: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>',
+	sortSize: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M2 20h20v-4H2v4zm2-3h2v2H4v-2zM2 4v4h20V4H2zm4 3H4V5h2v2zm-4 7h20v-4H2v4zm2-3h2v2H4v-2z"/></svg>',
+};
+
+const LIGHTBOX_ID = "sdvn-gallery-lightbox";
+const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp"];
+
+function ensureLightbox() {
+	if (document.getElementById(LIGHTBOX_ID)) return;
+	const overlay = document.createElement("div");
+	overlay.id = LIGHTBOX_ID;
+	overlay.innerHTML = `
+		<div class="sdvn-lightbox-backdrop">
+			<button class="sdvn-lightbox-close" title="Close">&times;</button>
+			<img alt="Preview" />
+			<div class="sdvn-lightbox-caption"></div>
+		</div>
+		<style>
+			#${LIGHTBOX_ID} { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); z-index: 10000; }
+			#${LIGHTBOX_ID}.visible { display: flex; }
+			#${LIGHTBOX_ID} .sdvn-lightbox-backdrop { position: relative; max-width: 95vw; max-height: 95vh; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+			#${LIGHTBOX_ID} img { max-width: 95vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+			#${LIGHTBOX_ID} .sdvn-lightbox-caption { color: #fff; font-size: 13px; }
+			#${LIGHTBOX_ID} .sdvn-lightbox-close { position: absolute; top: -32px; right: -32px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-size: 20px; cursor: pointer; }
+			#${LIGHTBOX_ID} .sdvn-lightbox-close:hover { background: rgba(255,255,255,0.2); }
+		</style>
+	`;
+	document.body.appendChild(overlay);
+	overlay.addEventListener("click", (event) => {
+		if (event.target === overlay || event.target.classList.contains("sdvn-lightbox-close")) {
+			overlay.classList.remove("visible");
+		}
+	});
 }
 
-setupGlobalLightbox();
+function openLightbox(path, name) {
+	ensureLightbox();
+	const overlay = document.getElementById(LIGHTBOX_ID);
+	if (!overlay) return;
+	const img = overlay.querySelector("img");
+	img.src = `/local_image_gallery/view?filepath=${encodeURIComponent(path)}`;
+	overlay.querySelector(".sdvn-lightbox-caption").textContent = name ?? "";
+	overlay.classList.add("visible");
+}
 
+async function fetchDefaultDirectory() {
+	try {
+		const resp = await api.fetchApi("/local_image_gallery/default_directory");
+		if (resp.ok) {
+			const data = await resp.json();
+			return data?.path || "";
+		}
+	} catch (err) {
+		console.warn("SDVN.ImageGallery: default directory fallback", err);
+	}
+	return "";
+}
 
 app.registerExtension({
-    name: "Comfy.SDVNImageGallery",
-    async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "SDVN ImageGallery") {
-            const onNodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = function () {
-                const r = onNodeCreated?.apply(this, arguments);
-
-                const galleryContainer = document.createElement("div");
-                const uniqueId = `lmm-gallery-${Math.random().toString(36).substring(2, 9)}`;
-                galleryContainer.id = uniqueId;
-
-                const folderSVG = `<svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><path d="M928 320H488L416 232c-15.1-18.9-38.3-29.9-63.1-29.9H128c-35.3 0-64 28.7-64 64v512c0 35.3 28.7 64 64 64h800c35.3 0 64-28.7 64-64V384c0-35.3-28.7-64-64-64z" fill="#F4D03F"></path></svg>`;
-                const videoSVG = `<svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><path d="M895.9 203.4H128.1c-35.3 0-64 28.7-64 64v489.2c0 35.3 28.7 64 64 64h767.8c35.3 0 64-28.7 64-64V267.4c0-35.3-28.7-64-64-64zM384 691.2V332.8L668.1 512 384 691.2z" fill="#AED6F1"></path></svg>`;
-                const audioSVG = `<svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><path d="M768 256H256c-35.3 0-64 28.7-64 64v384c0 35.3 28.7 64 64 64h512c35.3 0 64-28.7 64-64V320c0-35.3-28.7-64-64-64zM512 665.6c-84.8 0-153.6-68.8-153.6-153.6S427.2 358.4 512 358.4s153.6 68.8 153.6 153.6-68.8 153.6-153.6 153.6z" fill="#A9DFBF"></path><path d="M512 409.6c-56.5 0-102.4 45.9-102.4 102.4s45.9 102.4 102.4 102.4 102.4-45.9 102.4-102.4-45.9-102.4-102.4-102.4z" fill="#A9DFBF"></path></svg>`;
-
-                galleryContainer.innerHTML = `
-                    <style>
-                        #${uniqueId} .lmm-container-wrapper { width: 100%; font-family: sans-serif; color: var(--node-text-color); box-sizing: border-box; display: flex; flex-direction: column; height: 100%; }
-                        #${uniqueId} .lmm-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; align-items: center; flex-shrink: 0; }
-                        #${uniqueId} .lmm-controls label { margin-left: 0px; font-size: 12px; white-space: nowrap; }
-                        #${uniqueId} .lmm-controls input, #${uniqueId} .lmm-controls select, #${uniqueId} .lmm-controls button { background-color: #333; color: #ccc; border: 1px solid #555; border-radius: 4px; padding: 4px; font-size: 12px; }
-                        #${uniqueId} .lmm-controls input[type=text] { flex-grow: 1; min-width: 150px;}
-                        #${uniqueId} .lmm-path-controls { flex-grow: 1; display: flex; gap: 5px; }
-                        #${uniqueId} .lmm-path-presets { flex-grow: 1; }
-                        #${uniqueId} .lmm-controls button { cursor: pointer; }
-                        #${uniqueId} .lmm-controls button:hover { background-color: #444; }
-                        #${uniqueId} .lmm-controls button:disabled { background-color: #222; cursor: not-allowed; }
-                        #${uniqueId} .lmm-cardholder { position: relative; overflow-y: auto; background: #222; padding: 0 5px; border-radius: 5px; flex-grow: 1; min-height: 100px; width: 100%; transition: opacity 0.2s ease-in-out; }
-                        #${uniqueId} .lmm-gallery-card { position: absolute; border: 3px solid transparent; border-radius: 8px; box-sizing: border-box; transition: all 0.3s ease; display: flex; flex-direction: column; background-color: var(--comfy-input-bg); }
-                        #${uniqueId} .lmm-gallery-card.lmm-selected { border-color: #00FFC9; }
-                        #${uniqueId} .lmm-gallery-card.lmm-edit-selected { border-color: #FFD700; box-shadow: 0 0 10px #FFD700; }
-                        #${uniqueId} .lmm-selection-badge {
-                            position: absolute;
-                            top: 5px;
-                            right: 5px;
-                            background-color: rgba(0, 255, 201, 0.9);
-                            color: #000;
-                            font-weight: bold;
-                            width: 24px;
-                            height: 24px;
-                            border-radius: 50%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 14px;
-                            z-index: 1;
-                            border: 1px solid #000;
-                        }
-                        #${uniqueId} .lmm-card-media-wrapper { cursor: pointer; flex-grow: 1; position: relative; display: flex; align-items: center; justify-content: center; min-height: 100px; }
-                        #${uniqueId} .lmm-gallery-card img, #${uniqueId} .lmm-gallery-card video { width: 100%; height: auto; border-top-left-radius: 5px; border-top-right-radius: 5px; display: block; }
-                        #${uniqueId} .lmm-folder-card, #${uniqueId} .lmm-audio-card { cursor: pointer; background-color: transparent; flex-grow: 1; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-                        #${uniqueId} .lmm-folder-card:hover, #${uniqueId} .lmm-audio-card:hover { background-color: #444; }
-                        #${uniqueId} .lmm-folder-icon, #${uniqueId} .lmm-audio-icon { width: 60%; height: 60%; margin-bottom: 8px; }
-                        #${uniqueId} .lmm-folder-name, #${uniqueId} .lmm-audio-name { font-size: 12px; word-break: break-all; user-select: none; }
-                        #${uniqueId} .lmm-video-card-overlay { position: absolute; top: 5px; left: 5px; width: 24px; height: 24px; opacity: 0.8; pointer-events: none; }
-                        #${uniqueId} .lmm-card-info-panel { flex-shrink: 0; background-color: var(--comfy-input-bg); padding: 4px; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; min-height: 48px; position: relative; }
-                        #${uniqueId} .edit-tags-btn { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; background-color: rgba(0,0,0,0.5); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: background-color 0.2s; opacity: 0; cursor: pointer; }
-                        #${uniqueId} .lmm-gallery-card:hover .edit-tags-btn { opacity: 1; }
-                        #${uniqueId} .edit-tags-btn:hover { background-color: rgba(0,0,0,0.8); }
-                        #${uniqueId} .lmm-star-rating { font-size: 16px; cursor: pointer; color: #555; }
-                        #${uniqueId} .lmm-star-rating .lmm-star:hover { color: #FFD700 !important; }
-                        #${uniqueId} .lmm-star-rating .lmm-star.lmm-rated { color: #FFC700; }
-                        #${uniqueId} .lmm-tag-list { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
-                        #${uniqueId} .lmm-tag-list .lmm-tag { background-color: #006699; color: #fff; padding: 1px 4px; font-size: 10px; border-radius: 3px; cursor: pointer; }
-                        #${uniqueId} .lmm-tag-list .lmm-tag:hover { background-color: #0088CC; }
-                        #${uniqueId} .lmm-tag-editor { display: none; flex-wrap: wrap; gap: 5px; background-color: #2a2a2a; padding: 5px; border-radius: 4px; }
-                        #${uniqueId} .lmm-tag-editor.lmm-visible { display: flex; }
-                        #${uniqueId} .lmm-tag-editor-list { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-                        #${uniqueId} .lmm-tag-editor-list .lmm-tag .lmm-remove-tag { margin-left: 4px; color: #fdd; cursor: pointer; font-weight: bold; }
-                        #${uniqueId} .lmm-show-selected-btn.active { background-color: #4A90E2; color: white; border-color: #4A90E2; }
-                        #${uniqueId} .lmm-tag-filter-wrapper { display: flex; flex-grow: 1; position: relative; align-items: center; }
-                        #${uniqueId} .lmm-tag-filter-wrapper input { flex-grow: 1; }
-                        #${uniqueId} .lmm-clear-tag-filter-button {
-                            background: none;
-                            display: none;
-                        }
-                        #${uniqueId} .lmm-tag-filter-wrapper input:not(:placeholder-shown) + .lmm-clear-tag-filter-button {
-                            display: block;
-                        }                        
-                        #${uniqueId} .lmm-cardholder::-webkit-scrollbar { width: 8px; }
-                        #${uniqueId} .lmm-cardholder::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; }
-                        #${uniqueId} .lmm-cardholder::-webkit-scrollbar-thumb { background-color: #555; border-radius: 4px; }
-                    </style>
-                    <div class="lmm-container-wrapper">
-                         <div class="lmm-controls">
-                            <button class="lmm-up-button" title="Return to the previous directory" disabled>⬆️ Up</button> 
-                            <label>Path:</label>
-                            <div class="lmm-path-controls">
-                                <input type="text" placeholder="Enter full path to media folder">
-                                <select class="lmm-path-presets"></select>
-                                <button class="lmm-add-path-button" title="Add current path to presets">➕</button>
-                                <button class="lmm-remove-path-button" title="Remove selected preset">➖</button>
-                            </div>
-                            <button class="lmm-refresh-button">🔄 Refresh</button>
-                        </div>
-                        <div class="lmm-controls" style="gap: 5px;">
-                            <label>Sort by:</label> <select class="lmm-sort-by"> <option value="name">Name</option> <option value="date">Date</option> <option value="rating">Rating</option> </select>
-                            <label>Order:</label> <select class="lmm-sort-order"> <option value="asc">Ascending</option> <option value="desc">Descending</option> </select>
-                            <div style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
-                                <label>Show Videos:</label> <input type="checkbox" class="lmm-show-videos">
-                                <label>Show Audio:</label> <input type="checkbox" class="lmm-show-audio">
-                                <button class="lmm-show-selected-btn" title="Show all selected items across folders">Show Selected</button>
-                            </div>
-                        </div>
-                        <div class="lmm-controls" style="gap: 5px;">
-                            <label>Filter by Tag:</label>
-                            <div class="lmm-tag-filter-wrapper">
-                                <input type="text" class="lmm-tag-filter-input" placeholder="Enter tag...">
-                                <button class="lmm-clear-tag-filter-button" title="Clear Tag Filter">✖️</button>
-                            </div>
-                            <select class="lmm-tag-filter-presets"></select>
-                            <label>Global:</label> <input type="checkbox" class="lmm-global-search">
-                        </div>
-                        <div class="lmm-controls lmm-tag-editor">
-                            <label>Edit Tags (<span class="selected-count">0</span>):</label> 
-                            <input type="text" class="lmm-tag-editor-input" placeholder="Add tag and press Enter..." style="flex-grow:1;">
-                            <div class="lmm-tag-editor-list"></div>
-                        </div>
-                        <div class="lmm-cardholder"><p>Enter folder path and click 'Refresh'.</p></div>
-                    </div>
-                `;
-                this.addDOMWidget("local_image_gallery", "div", galleryContainer, {});
-                this.size = [800, 670];
-
-                const cardholder = galleryContainer.querySelector(".lmm-cardholder");
-                const controls = galleryContainer.querySelector(".lmm-container-wrapper");
-                const pathInput = controls.querySelector("input[type='text']");
-                const pathPresets = controls.querySelector(".lmm-path-presets");
-                const addPathButton = controls.querySelector(".lmm-add-path-button");
-                const removePathButton = controls.querySelector(".lmm-remove-path-button");
-                const upButton = controls.querySelector(".lmm-up-button");
-                const showVideosCheckbox = controls.querySelector(".lmm-show-videos");
-                const showAudioCheckbox = controls.querySelector(".lmm-show-audio");
-                const tagFilterInput = controls.querySelector(".lmm-tag-filter-input");
-                const tagFilterPresets = controls.querySelector(".lmm-tag-filter-presets");
-                const globalSearchCheckbox = controls.querySelector(".lmm-global-search");
-                const tagEditor = controls.querySelector(".lmm-tag-editor");
-                const tagEditorInput = controls.querySelector(".lmm-tag-editor-input");
-                const tagEditorList = controls.querySelector(".lmm-tag-editor-list");
-                const selectedCountEl = controls.querySelector(".selected-count");
-                const showSelectedButton = controls.querySelector(".lmm-show-selected-btn");
-
-                let isLoading = false, currentPage = 1, totalPages = 1, parentDir = null;
-                let selection = [];
-                let showSelectedMode = false;
-                let lastKnownPath = "";
-                let selectedCardsForEditing = new Set();
-
-                const debounce = (func, delay) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => func.apply(this, args), delay); }; };
-
-                const applyMasonryLayout = () => {
-                    const minCardWidth = 150, gap = 5, containerWidth = cardholder.clientWidth;
-                    if (containerWidth === 0) return;
-                    const columnCount = Math.max(1, Math.floor(containerWidth / (minCardWidth + gap)));
-                    const totalGapSpace = (columnCount - 1) * gap;
-                    const actualCardWidth = (containerWidth - totalGapSpace) / columnCount;
-                    const columnHeights = new Array(columnCount).fill(0);
-                    const cards = cardholder.querySelectorAll(".lmm-gallery-card");
-                    cards.forEach(card => {
-                        card.style.width = `${actualCardWidth}px`;
-                        const minHeight = Math.min(...columnHeights);
-                        const columnIndex = columnHeights.indexOf(minHeight);
-                        card.style.left = `${columnIndex * (actualCardWidth + gap)}px`;
-                        card.style.top = `${minHeight}px`;
-                        columnHeights[columnIndex] += card.offsetHeight + gap;
-                    });
-                    const newHeight = Math.max(...columnHeights);
-                    if (newHeight > 0) cardholder.style.height = `${newHeight}px`;
-                };
-
-                const debouncedLayout = debounce(applyMasonryLayout, 20);
-                new ResizeObserver(debouncedLayout).observe(cardholder);
-                
-                async function setUiState(nodeId, state) {
-                    try {
-                        await api.fetchApi("/local_image_gallery/set_ui_state", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ node_id: nodeId, state: state }),
-                        });
-                    } catch(e) { console.error("LocalImageGallery: Failed to set UI state", e); }
-                }
-
-                async function updateMetadata(path, { rating, tags }) {
-                    try {
-                        let payload = { path };
-                        if (rating !== undefined) payload.rating = rating;
-                        if (tags !== undefined) payload.tags = tags;
-                        await api.fetchApi("/local_image_gallery/update_metadata", {
-                            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-                        });
-                    } catch(e) { console.error("Failed to update metadata:", e); }
-                }
-
-                async function savePaths() {
-                    const paths = Array.from(pathPresets.options).map(o => o.value);
-                    try {
-                        await api.fetchApi("/local_image_gallery/save_paths", {
-                            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paths }),
-                        });
-                    } catch(e) { console.error("Failed to save paths:", e); }
-                }
-
-                async function loadAllTags() {
-                    try {
-                        const response = await api.fetchApi("/local_image_gallery/get_all_tags");
-                        const data = await response.json();
-                        tagFilterPresets.innerHTML = '<option value="">Select Tags</option>';
-                        if (data.tags) {
-                            data.tags.forEach(tag => {
-                                const option = new Option(tag, tag);
-                                tagFilterPresets.add(option);
-                            });
-                        }
-                    } catch(e) { console.error("Failed to load all tags:", e); }
-                }                
-
-                function updateCardTagsUI(card) {
-                    const tagListEl = card.querySelector('.lmm-tag-list');
-                    if (!tagListEl) return;
-                    
-                    const tags = card.dataset.tags ? card.dataset.tags.split(',') : [];
-                    tagListEl.innerHTML = tags.map(t => `<span class="lmm-tag">${t}</span>`).join('');
-                }
-
-                function renderSelectionBadges() {
-                    galleryContainer.querySelectorAll('.lmm-selection-badge').forEach(badge => badge.remove());
-                    const visibleSelectedCards = Array.from(cardholder.querySelectorAll('.lmm-gallery-card.lmm-selected'));
-
-                    visibleSelectedCards.forEach(card => {
-                        const path = card.dataset.path;
-                        const index = selection.findIndex(item => item.path === path);
-                        if (index > -1) {
-                            const badge = document.createElement('div');
-                            badge.className = 'lmm-selection-badge';
-                            badge.textContent = index;
-                            card.querySelector('.lmm-card-media-wrapper').appendChild(badge);
-                        }
-                    });
-                }
-
-                function renderTagEditor() {
-                    tagEditorList.innerHTML = "";
-                    selectedCountEl.textContent = selectedCardsForEditing.size;
-
-                    if (selectedCardsForEditing.size === 0) {
-                        tagEditor.classList.remove("lmm-visible");
-                        return;
-                    }
-
-                    const allTags = Array.from(selectedCardsForEditing).map(card => {
-                        return card.dataset.tags ? card.dataset.tags.split(',').filter(Boolean) : [];
-                    });
-
-                    const commonTags = allTags.reduce((acc, tags) => acc.filter(tag => tags.includes(tag)));
-
-                    commonTags.forEach(tag => {
-                        const tagEl = document.createElement("span");
-                        tagEl.className = "lmm-tag";
-                        tagEl.textContent = tag;
-                        const removeEl = document.createElement("span");
-                        removeEl.className = "lmm-remove-tag";
-                        removeEl.textContent = " ⓧ";
-                        removeEl.onclick = async (e) => {
-                            e.stopPropagation();
-
-                            const updatePromises = Array.from(selectedCardsForEditing).map(async (card) => {
-                                const path = card.dataset.path;
-                                const tags = card.dataset.tags ? card.dataset.tags.split(',').filter(Boolean) : [];
-                                const newTags = tags.filter(t => t !== tag);
-                                card.dataset.tags = newTags.join(',');
-                                updateCardTagsUI(card);
-                                await updateMetadata(path, { tags: newTags });
-                            });
-
-                            await Promise.all(updatePromises);
-                            await loadAllTags();
-                            renderTagEditor();
-
-                            if (tagFilterInput.value.trim()) {
-                                saveStateAndReload();
-                            }
-                        };
-                        tagEl.appendChild(removeEl);
-                        tagEditorList.appendChild(tagEl);
-                    });
-
-                    tagEditor.classList.add("lmm-visible");
-                }
-                
-                const fetchImages = async (page = 1, append = false) => {
-                    if (isLoading) return; 
-                    isLoading = true;
-                    updateShowSelectedButtonUI();
-
-                    if (showSelectedMode) {
-                        cardholder.style.opacity = 0; 
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                        
-                        if (selection.length === 0) {
-                            cardholder.innerHTML = "<p>No items selected.</p>";
-                            cardholder.style.opacity = 1;
-                            isLoading = false;
-                            return;
-                        }
-                        
-                        cardholder.innerHTML = "<p>Loading selected items...</p>";
-                        currentPage = 1;
-
-                        try {
-                            const response = await api.fetchApi("/local_image_gallery/get_selected_items", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ selection: selection }),
-                            });
-
-                            if (!response.ok) { 
-                                const errorData = await response.json(); 
-                                throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`); 
-                            }
-                            const api_data = await response.json();
-                            const items = api_data.items || [];
-
-                            cardholder.innerHTML = "";
-                            pathInput.value = "Selected Items";
-                            pathInput.disabled = true;
-                            upButton.disabled = true;
-                            
-                            items.forEach(item => {
-                                const card = document.createElement("div");
-                                card.className = "lmm-gallery-card";
-                                card.dataset.path = item.path;
-                                card.dataset.type = item.type;
-                                card.dataset.tags = item.tags.join(',');
-                                card.dataset.rating = item.rating;
-                                card.title = item.name;
-
-                                let mediaHTML = "";
-                                if (item.type === 'image') {
-                                    mediaHTML = `<div class="lmm-card-media-wrapper"><img src="/local_image_gallery/thumbnail?filepath=${encodeURIComponent(item.path)}" loading="lazy"></div>`;
-                                } else if (item.type === 'video') {
-                                    mediaHTML = `<div class="lmm-card-media-wrapper"><video src="/local_image_gallery/view?filepath=${encodeURIComponent(item.path)}#t=0.1" loop muted playsinline></video><div class="lmm-video-card-overlay">${videoSVG}</div></div>`;
-                                } else if (item.type === 'audio') {
-                                    mediaHTML = `<div class="lmm-card-media-wrapper"><div class="lmm-audio-card"><div class="lmm-audio-icon">${audioSVG}</div><div class="lmm-audio-name">${item.name}</div></div></div>`;
-                                }
-                                card.innerHTML = mediaHTML;
-                                
-                                const infoPanel = document.createElement("div");
-                                infoPanel.className = 'lmm-card-info-panel';
-                                const stars = Array.from({length: 5}, (_, i) => `<span class="lmm-star" data-value="${i + 1}">☆</span>`).join('');
-                                const tags = item.tags.map(t => `<span class="lmm-tag">${t}</span>`).join('');
-                                infoPanel.innerHTML = `
-                                    <div class="lmm-star-rating">${stars}</div>
-                                    <div class="lmm-tag-list">${tags}</div>
-                                    <div class="edit-tags-btn">✏️</div> 
-                                `;
-                                card.appendChild(infoPanel);
-                                
-                                const editBtn = infoPanel.querySelector(".edit-tags-btn");
-                                editBtn.addEventListener("click", (e) => {
-                                    e.stopPropagation();
-                                    if (e.ctrlKey) {
-                                        if (selectedCardsForEditing.has(card)) {
-                                            selectedCardsForEditing.delete(card);
-                                            card.classList.remove("lmm-edit-selected");
-                                        } else {
-                                            selectedCardsForEditing.add(card);
-                                            card.classList.add("lmm-edit-selected");
-                                        }
-                                    } else {
-                                        if (selectedCardsForEditing.has(card) && selectedCardsForEditing.size === 1) {
-                                            selectedCardsForEditing.clear();
-                                            card.classList.remove("lmm-edit-selected");
-                                        } else {
-                                            galleryContainer.querySelectorAll('.lmm-gallery-card.lmm-edit-selected').forEach(c => c.classList.remove("lmm-edit-selected"));
-                                            selectedCardsForEditing.clear();
-                                            selectedCardsForEditing.add(card);
-                                            card.classList.add("lmm-edit-selected");
-                                        }
-                                    }
-                                    renderTagEditor();
-                                });
-                                
-                                cardholder.appendChild(card);
-                                const starRating = card.querySelector('.lmm-star-rating');
-                                if (starRating) {
-                                    const stars = starRating.querySelectorAll('.lmm-star');
-                                    const rating = parseInt(item.rating || 0);
-                                    stars.forEach((star, index) => {
-                                        if (index < rating) {
-                                            star.innerHTML = '★';
-                                            star.classList.add('lmm-rated');
-                                        }
-                                    });
-                                }
-                                const img = card.querySelector("img");
-                                if(img) img.onload = debouncedLayout;
-                                const video = card.querySelector("video");
-                                if(video) video.onloadeddata = debouncedLayout;
-                            });
-                            
-                            cardholder.querySelectorAll('.lmm-gallery-card').forEach(card => card.classList.add('lmm-selected'));
-                            renderSelectionBadges();
-                            
-                        } catch (error) { 
-                            cardholder.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`; 
-                        } finally { 
-                            isLoading = false; 
-                            cardholder.style.opacity = 1; 
-                            requestAnimationFrame(debouncedLayout);
-                        }
-                        return;
-                    }
-
-                    if (!append) { cardholder.style.opacity = 0; await new Promise(resolve => setTimeout(resolve, 200)); cardholder.innerHTML = "<p>Loading...</p>"; currentPage = 1; }
-
-                    const directory = pathInput.value;
-                    const showVideos = showVideosCheckbox.checked;
-                    const showAudio = showAudioCheckbox.checked;
-                    const filterTag = tagFilterInput.value;
-                    const isGlobalSearch = globalSearchCheckbox.checked;
-
-                    if (!directory && !isGlobalSearch) { cardholder.innerHTML = "<p>Enter folder path and click 'Refresh'.</p>"; cardholder.style.opacity = 1; isLoading = false; return; }
-
-                    const sortBy = controls.querySelector(".lmm-sort-by").value;
-                    const sortOrder = controls.querySelector(".lmm-sort-order").value;
-                    let url = `/local_image_gallery/images?directory=${encodeURIComponent(directory)}&page=${page}&sort_by=${sortBy}&sort_order=${sortOrder}&show_videos=${showVideos}&show_audio=${showAudio}&filter_tag=${encodeURIComponent(filterTag)}&search_mode=${isGlobalSearch ? 'global' : 'local'}`;
-
-                    if (selection.length > 0) {
-                        selection.forEach(item => {
-                            url += `&selected_paths=${encodeURIComponent(item.path)}`;
-                        });
-                    }
-
-                    try {
-                        const response = await api.fetchApi(url);
-                        if (!response.ok) { const errorData = await response.json(); throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`); }
-                        const api_data = await response.json();
-                        const items = api_data.items || [];
-                        if (!append) cardholder.innerHTML = "";
-
-                        totalPages = api_data.total_pages; 
-                        parentDir = api_data.parent_directory;
-
-                        if (!api_data.is_global_search) {
-                            pathInput.value = api_data.current_directory;
-                            lastKnownPath = api_data.current_directory;
-                            setUiState(this.id, { last_path: api_data.current_directory });
-                        }
-                        pathInput.disabled = api_data.is_global_search;
-                        upButton.disabled = api_data.is_global_search || !parentDir;
-
-                        items.forEach(item => {
-                            const card = document.createElement("div");
-                            card.className = "lmm-gallery-card";
-                            card.dataset.path = item.path;
-                            card.dataset.type = item.type;
-                            card.dataset.tags = item.tags.join(',');
-                            card.dataset.rating = item.rating;
-                            card.title = item.name;
-
-                            let mediaHTML = "";
-                            if (item.type === 'dir') {
-                                mediaHTML = `<div class="lmm-card-media-wrapper"><div class="lmm-folder-card"><div class="lmm-folder-icon">${folderSVG}</div><div class="lmm-folder-name">${item.name}</div></div></div>`;
-                            } else if (item.type === 'image') {
-                                mediaHTML = `<div class="lmm-card-media-wrapper"><img src="/local_image_gallery/thumbnail?filepath=${encodeURIComponent(item.path)}" loading="lazy"></div>`;
-                            } else if (item.type === 'video') {
-                                mediaHTML = `<div class="lmm-card-media-wrapper"><video src="/local_image_gallery/view?filepath=${encodeURIComponent(item.path)}#t=0.1" loop muted playsinline></video><div class="lmm-video-card-overlay">${videoSVG}</div></div>`;
-                            } else if (item.type === 'audio') {
-                                mediaHTML = `<div class="lmm-card-media-wrapper"><div class="lmm-audio-card"><div class="lmm-audio-icon">${audioSVG}</div><div class="lmm-audio-name">${item.name}</div></div></div>`;
-                            }
-                            card.innerHTML = mediaHTML;
-
-                            if (item.type !== 'dir') {
-                                const infoPanel = document.createElement("div");
-                                infoPanel.className = 'lmm-card-info-panel';
-
-                                const stars = Array.from({length: 5}, (_, i) => `<span class="lmm-star" data-value="${i + 1}">☆</span>`).join('');
-                                const tags = item.tags.map(t => `<span class="lmm-tag">${t}</span>`).join('');
-
-                                infoPanel.innerHTML = `
-                                    <div class="lmm-star-rating">${stars}</div>
-                                    <div class="lmm-tag-list">${tags}</div>
-                                    <div class="edit-tags-btn">✏️</div> 
-                                `;
-                                card.appendChild(infoPanel);
-
-                                const editBtn = infoPanel.querySelector(".edit-tags-btn");
-                                editBtn.addEventListener("click", (e) => {
-                                    e.stopPropagation();
-
-                                    if (e.ctrlKey) {
-                                        if (selectedCardsForEditing.has(card)) {
-                                            selectedCardsForEditing.delete(card);
-                                            card.classList.remove("lmm-edit-selected");
-                                        } else {
-                                            selectedCardsForEditing.add(card);
-                                            card.classList.add("lmm-edit-selected");
-                                        }
-                                    } else {
-                                        if (selectedCardsForEditing.has(card) && selectedCardsForEditing.size === 1) {
-                                            selectedCardsForEditing.clear();
-                                            card.classList.remove("lmm-edit-selected");
-                                        } else {
-                                            galleryContainer.querySelectorAll('.lmm-gallery-card.lmm-edit-selected').forEach(c => c.classList.remove("lmm-edit-selected"));
-                                            selectedCardsForEditing.clear();
-                                            selectedCardsForEditing.add(card);
-                                            card.classList.add("lmm-edit-selected");
-                                        }
-                                    }
-                                    renderTagEditor();
-                                });
-
-                            } else {
-
-                            }
-
-                            cardholder.appendChild(card);
-
-                            const starRating = card.querySelector('.lmm-star-rating');
-                            if (starRating) {
-                                const stars = starRating.querySelectorAll('.lmm-star');
-                                const rating = parseInt(item.rating || 0);
-                                stars.forEach((star, index) => {
-                                    if (index < rating) {
-                                        star.innerHTML = '★';
-                                        star.classList.add('lmm-rated');
-                                    }
-                                });
-                            }
-                            const img = card.querySelector("img");
-                            if(img) img.onload = debouncedLayout;
-                            const video = card.querySelector("video");
-                            if(video) video.onloadeddata = debouncedLayout;
-                        });
-                        if (items.length === 0 && !append) {
-                            cardholder.innerHTML = `<p>${api_data.is_global_search ? 'No items found for this tag.' : 'The folder is empty.'}</p>`;
-                        }
-
-                        cardholder.querySelectorAll('.lmm-gallery-card').forEach(card => {
-                            if (selection.some(item => item.path === card.dataset.path)) {
-                                card.classList.add('lmm-selected');
-                            }
-                        });
-                        renderSelectionBadges();
-
-                        requestAnimationFrame(debouncedLayout); 
-                        currentPage = page;
-                    } catch (error) { cardholder.innerHTML = `<p style="color:red;">Error: ${error.message}</p>`; } 
-                    finally { isLoading = false; if (!append) cardholder.style.opacity = 1; }
-                };
-
-                cardholder.addEventListener('click', async (event) => {
-                    const card = event.target.closest('.lmm-gallery-card');
-                    if (!card) return;
-
-                    if (event.target.classList.contains('lmm-star')) {
-                        event.stopPropagation();
-                        const newRating = parseInt(event.target.dataset.value);
-                        const currentRating = parseInt(card.dataset.rating || 0);
-                        const finalRating = newRating === currentRating ? 0 : newRating;
-                        card.dataset.rating = finalRating;
-                        updateMetadata(card.dataset.path, { rating: finalRating });
-                        const starRating = card.querySelector('.lmm-star-rating');
-                        starRating.querySelectorAll('.lmm-star').forEach((star, index) => {
-                            star.innerHTML = index < finalRating ? '★' : '☆';
-                            star.classList.toggle('lmm-rated', index < finalRating);
-                        });
-                        return;
-                    }
-                    if (event.target.classList.contains('lmm-tag')) {
-                        event.stopPropagation();
-                        tagFilterInput.value = event.target.textContent;
-                        globalSearchCheckbox.checked = true;
-                        resetAndReload();
-                        return;
-                    }
-
-                    const type = card.dataset.type, path = card.dataset.path;
-
-                    if (type === 'dir') {
-                        pathInput.value = path;
-                        globalSearchCheckbox.checked = false;
-                        tagFilterInput.value = "";
-                        resetAndReload();
-                        return;
-                    }
-
-                    if (['image', 'video', 'audio'].includes(type)) {
-                        const selectionIndex = selection.findIndex(item => item.path === path);
-
-                        if (event.ctrlKey) {
-                            if (selectionIndex > -1) {
-                                selection.splice(selectionIndex, 1);
-                                card.classList.remove('lmm-selected');
-                            } else {
-                                selection.push({ path, type });
-                                card.classList.add('lmm-selected');
-                            }
-                        } else {
-                            if (selectionIndex > -1 && selection.length === 1) {
-                                selection = [];
-                                card.classList.remove('lmm-selected');
-                            } else {
-                                cardholder.querySelectorAll('.lmm-gallery-card.lmm-selected').forEach(c => c.classList.remove('lmm-selected'));
-                                selection = [{ path, type }];
-                                card.classList.add('lmm-selected');
-                            }
-                        }
-
-                        renderSelectionBadges();
-
-                        setUiState(this.id, { selection: selection });
-
-                        try { 
-                            await api.fetchApi("/local_image_gallery/set_node_selection", { 
-                                method: "POST", 
-                                headers: { "Content-Type": "application/json" }, 
-                                body: JSON.stringify({ node_id: this.id, selections: selection }), 
-                            });
-                        } catch(e) { console.error("An error occurred while sending data to the backend:", e); }
-                    }
-                });
-
-                cardholder.addEventListener('dblclick', (event) => {
-                    const card = event.target.closest('.lmm-gallery-card');
-                    if (!card || !['image', 'video', 'audio'].includes(card.dataset.type)) return;
-                    
-                    const allMediaCards = Array.from(cardholder.querySelectorAll(".lmm-gallery-card[data-type='image'], .lmm-gallery-card[data-type='video'], .lmm-gallery-card[data-type='audio']"));
-                    const currentMediaList = allMediaCards.map(c => ({ path: c.dataset.path, type: c.dataset.type }));
-                    const clickedPath = card.dataset.path;
-                    const startIndex = currentMediaList.findIndex(item => item.path === clickedPath);
-
-                    if (startIndex !== -1) {
-                        showMediaAtIndex(startIndex, currentMediaList);
-                    }
-                });
-
-                const lightbox = document.getElementById('global-image-lightbox');
-                const lightboxImg = lightbox.querySelector("img");
-                const lightboxVideo = lightbox.querySelector("video");
-                const lightboxAudio = lightbox.querySelector("audio");
-                const prevButton = lightbox.querySelector(".lightbox-prev");
-                const nextButton = lightbox.querySelector(".lightbox-next");
-                let scale = 1, panning = false, pointX = 0, pointY = 0, start = { x: 0, y: 0 };
-                let lightboxMediaList = [];
-                let lightboxCurrentIndex = -1;
-
-                function setTransform() { lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`; }
-                function resetLightboxState() { scale = 1; pointX = 0; pointY = 0; setTransform(); }
-
-                function showMediaAtIndex(index, mediaList) {
-                    lightboxMediaList = mediaList;
-                    if (index < 0 || index >= lightboxMediaList.length) return;
-                    lightboxCurrentIndex = index;
-                    const media = lightboxMediaList[index];
-                    
-                    resetLightboxState();
-                    lightbox.style.display = 'flex';
-                    
-                    const dimensionsEl = lightbox.querySelector(".lightbox-dimensions");
-                    lightboxImg.style.display = 'none';
-                    lightboxVideo.style.display = 'none';
-                    lightboxAudio.style.display = 'none';
-                    dimensionsEl.style.display = 'none';
-                    lightboxVideo.pause();
-                    lightboxAudio.pause();
-
-                    if (media.type === 'image') {
-                        lightboxImg.style.display = 'block';
-                        lightboxImg.src = `/local_image_gallery/view?filepath=${encodeURIComponent(media.path)}`;
-                        lightboxImg.onload = () => {
-                            dimensionsEl.textContent = `${lightboxImg.naturalWidth} x ${lightboxImg.naturalHeight}`;
-                            dimensionsEl.style.display = 'block';
-                        };
-                    } else if (media.type === 'video') {
-                        lightboxVideo.style.display = 'block';
-                        lightboxVideo.src = `/local_image_gallery/view?filepath=${encodeURIComponent(media.path)}`;
-                    } else if (media.type === 'audio') {
-                        lightboxAudio.style.display = 'block';
-                        lightboxAudio.src = `/local_image_gallery/view?filepath=${encodeURIComponent(media.path)}`;
-                    }
-
-                    prevButton.disabled = lightboxCurrentIndex === 0;
-                    nextButton.disabled = lightboxCurrentIndex === lightboxMediaList.length - 1;
-                }
-
-                prevButton.addEventListener('click', () => showMediaAtIndex(lightboxCurrentIndex - 1, lightboxMediaList));
-                nextButton.addEventListener('click', () => showMediaAtIndex(lightboxCurrentIndex + 1, lightboxMediaList));
-                
-                lightboxImg.addEventListener('mousedown', (e) => { e.preventDefault(); panning = true; lightboxImg.classList.add('panning'); start = { x: e.clientX - pointX, y: e.clientY - pointY }; });
-                window.addEventListener('mouseup', () => { panning = false; lightboxImg.classList.remove('panning'); });
-                window.addEventListener('mousemove', (e) => { if (!panning) return; e.preventDefault(); pointX = e.clientX - start.x; pointY = e.clientY - start.y; setTransform(); });
-                lightbox.addEventListener('wheel', (e) => {
-                    if (lightboxImg.style.display !== 'block') return;
-                    e.preventDefault(); const rect = lightboxImg.getBoundingClientRect(); const delta = -e.deltaY; const oldScale = scale; scale *= (delta > 0 ? 1.1 : 1 / 1.1); scale = Math.max(0.2, scale); pointX = (1 - scale / oldScale) * (e.clientX - rect.left) + pointX; pointY = (1 - scale / oldScale) * (e.clientY - rect.top) + pointY; setTransform(); 
-                });
-
-                const closeLightbox = () => { 
-                    lightbox.style.display = 'none'; 
-                    lightboxImg.src = ""; 
-                    lightboxVideo.pause(); lightboxVideo.src = "";
-                    lightboxAudio.pause(); lightboxAudio.src = "";
-                };
-                lightbox.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
-                lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
-                
-                window.addEventListener('keydown', (e) => {
-                    if (lightbox.style.display !== 'flex') return;
-                    if (e.key === 'ArrowLeft') { e.preventDefault(); prevButton.click(); } 
-                    else if (e.key === 'ArrowRight') { e.preventDefault(); nextButton.click(); } 
-                    else if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
-                });
-
-                const saveCurrentControlsState = () => {
-                    const sortBy = controls.querySelector(".lmm-sort-by");
-                    const sortOrder = controls.querySelector(".lmm-sort-order");
-
-                    const state = {
-                        sort_by: sortBy.value,
-                        sort_order: sortOrder.value,
-                        show_videos: showVideosCheckbox.checked,
-                        show_audio: showAudioCheckbox.checked,
-                        filter_tag: tagFilterInput.value,
-                        global_search: globalSearchCheckbox.checked,
-                        show_selected_mode: showSelectedMode,
-                    };
-                    setUiState(this.id, state);
-                };
-
-                const saveStateAndReload = () => {
-                    saveCurrentControlsState();
-                    resetAndReload();
-                };
-
-                const resetAndReload = () => { fetchImages(1, false); };
-                controls.querySelector('.lmm-refresh-button').onclick = saveStateAndReload;
-                tagFilterInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') saveStateAndReload(); });
-                tagEditorInput.addEventListener('keydown', async (e) => {
-                    if (e.key === 'Enter' && selectedCardsForEditing.size > 0) {
-                        e.preventDefault();
-                        const newTag = tagEditorInput.value.trim();
-                        if (newTag) {
-                            const updatePromises = Array.from(selectedCardsForEditing).map(async (card) => {
-                                const path = card.dataset.path;
-                                let tags = card.dataset.tags ? card.dataset.tags.split(',').filter(Boolean) : [];
-                                if (!tags.includes(newTag)) {
-                                    tags.push(newTag);
-                                    card.dataset.tags = tags.join(',');
-                                    updateCardTagsUI(card);
-                                    await updateMetadata(path, { tags });
-                                }
-                            });
-
-                            await Promise.all(updatePromises);
-                            await loadAllTags();
-                            renderTagEditor();
-                            tagEditorInput.value = "";
-                        }
-                    }
-                });
-                
-                controls.querySelectorAll('select').forEach(select => { select.addEventListener('change', saveStateAndReload); });
-                showVideosCheckbox.addEventListener('change', saveStateAndReload);
-                showAudioCheckbox.addEventListener('change', saveStateAndReload);
-                globalSearchCheckbox.addEventListener('change', saveStateAndReload);
-
-                addPathButton.addEventListener('click', () => {
-                    const currentPath = pathInput.value.trim();
-                    if (currentPath) {
-                        const exists = Array.from(pathPresets.options).some(o => o.value === currentPath);
-                        if (!exists) {
-                            const option = new Option(currentPath, currentPath);
-                            pathPresets.add(option);
-                            savePaths();
-                        }
-                    }
-                });
-                
-                removePathButton.addEventListener('click', () => {
-                    if (pathPresets.selectedIndex > -1) {
-                        pathPresets.remove(pathPresets.selectedIndex);
-                        savePaths();
-                    }
-                });
-                
-                pathPresets.addEventListener('change', () => {
-                    if (pathPresets.value) {
-                        pathInput.value = pathPresets.value;
-                        saveStateAndReload();
-                    }
-                });
-
-                tagFilterPresets.addEventListener('change', () => {
-                    if (tagFilterPresets.value) {
-                        tagFilterInput.value = tagFilterPresets.value;
-                        saveStateAndReload();
-                        tagFilterPresets.value = "";
-                    }
-                });
-
-                upButton.onclick = () => { if(parentDir){ pathInput.value = parentDir; globalSearchCheckbox.checked = false; tagFilterInput.value = ""; resetAndReload(); } };
-
-                const updateShowSelectedButtonUI = () => {
-                    if (showSelectedMode) {
-                        showSelectedButton.classList.add('active');
-                        showSelectedButton.textContent = `Show Folder (${selection.length})`;
-                        showSelectedButton.title = "Return to the current folder view";
-                    } else {
-                        showSelectedButton.classList.remove('active');
-                        showSelectedButton.textContent = "Show Selected";
-                        showSelectedButton.title = "Show all selected items across folders";
-                    }
-                };
-
-                showSelectedButton.addEventListener('click', () => {
-                    showSelectedMode = !showSelectedMode;
-                    if (!showSelectedMode) {
-                        pathInput.value = lastKnownPath;
-                    }
-                    saveStateAndReload();
-                });
-
-                cardholder.onscroll = () => { if (cardholder.scrollTop + cardholder.clientHeight >= cardholder.scrollHeight - 300 && !isLoading && currentPage < totalPages) { fetchImages(currentPage + 1, true); } };
-
-                const clearTagFilterButton = controls.querySelector(".lmm-clear-tag-filter-button");
-                clearTagFilterButton.addEventListener("click", () => {
-                    tagFilterInput.value = "";
-                    saveStateAndReload();
-                });
-
-                document.addEventListener("keydown", (e) => {
-                    if (e.key === "Escape") {
-                        if (selectedCardsForEditing.size > 0) {
-                            galleryContainer.querySelectorAll('.lmm-gallery-card.lmm-edit-selected').forEach(c => c.classList.remove("lmm-edit-selected"));
-                            selectedCardsForEditing.clear();
-                            renderTagEditor();
-                        }
-                    }
-                });                
-
-                const initializeNode = async () => {
-                    try {
-                        const response = await api.fetchApi(`/local_image_gallery/get_ui_state?node_id=${this.id}`);
-                        const state = await response.json();
-                        if (state) {
-                            controls.querySelector(".lmm-sort-by").value = state.sort_by;
-                            controls.querySelector(".lmm-sort-order").value = state.sort_order;
-                            showVideosCheckbox.checked = state.show_videos;
-                            showAudioCheckbox.checked = state.show_audio;
-                            tagFilterInput.value = state.filter_tag;
-                            globalSearchCheckbox.checked = state.global_search;
-                            showSelectedMode = state.show_selected_mode || false;
-
-                            selection = state.selection || [];
-
-                            if (state.last_path) {
-                                pathInput.value = state.last_path;
-                                lastKnownPath = state.last_path;
-                                resetAndReload();
-                            }
-                        }
-                    } catch (e) { console.error("LocalImageGallery: Unable to load the UI state:", e); }
-                };
-                
-                const loadSavedPaths = async () => {
-                    try {
-                        const response = await api.fetchApi("/local_image_gallery/get_saved_paths");
-                        const data = await response.json();
-                        pathPresets.innerHTML = '<option value="" disabled selected>Select a common path</option>';
-                        if (data.saved_paths) {
-                            data.saved_paths.forEach(p => {
-                                if (p) {
-                                    const option = new Option(p, p);
-                                    pathPresets.add(option);
-                                }
-                            });
-                        }
-                    } catch (e) { console.error("Unable to load saved paths:", e); }
-                };
-
-                setTimeout(() => initializeNode(), 1);
-                loadSavedPaths();
-                loadAllTags();
-
-                this.onResize = function(size) {
-                    const minHeight = 670;
-                    const minWidth = 510;
-                    if (size[1] < minHeight) size[1] = minHeight;
-                    if (size[0] < minWidth) size[0] = minWidth;
-                };
-                
-                return r;
-            };
-        }
-    },
+	name: "Comfy.SDVNImageGallery",
+	async beforeRegisterNodeDef(nodeType, nodeData) {
+		if (nodeData.name !== "SDVN ImageGallery") return;
+
+		const originalConfigure = nodeType.prototype.configure;
+		nodeType.prototype.configure = function () {
+			const config = arguments[0];
+			if (config?.widgets_values && Array.isArray(config.widgets_values)) {
+				this.__sdvnGallerySerializedWidgets = config.widgets_values.slice();
+			} else {
+				this.__sdvnGallerySerializedWidgets = null;
+			}
+			const result = originalConfigure?.apply(this, arguments);
+			if (this.onSdvnConfigure) {
+				this.onSdvnConfigure();
+			}
+			return result;
+		};
+
+		const originalOnNodeCreated = nodeType.prototype.onNodeCreated;
+		nodeType.prototype.onNodeCreated = function () {
+			const result = originalOnNodeCreated?.apply(this, arguments);
+			const node = this;
+			const gallery = document.createElement("div");
+			gallery.className = "sdvn-gallery";
+			gallery.innerHTML = `
+				<style>
+					.sdvn-gallery { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 8px; font-family: var(--comfy-ui-font, sans-serif); --sdvn-bg: #0f0f0f; --sdvn-panel: #1a1a1a; --sdvn-border: #2a2a2a; --sdvn-text: #e0e0e0; --sdvn-muted: #a2a7c2; --sdvn-accent: #f5c518; --sdvn-accent-2: #f5c518; }
+					.sdvn-toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+					.sdvn-path-field { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); height: 38px; }
+					.sdvn-path-field input { flex: 1; background: transparent; border: none; color: #f8f8f8; font-size: 13px; outline: none; height: 100%; }
+					.sdvn-toolbar button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: var(--sdvn-text); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+					.sdvn-toolbar button:hover { background: rgba(255,255,255,0.12); }
+					.sdvn-toolbar button.sdvn-active { border-color: var(--sdvn-accent); color: var(--sdvn-accent); background: rgba(245, 197, 24, 0.1); }
+					.sdvn-sort-group { display: inline-flex; align-items: center; gap: 4px; height: 38px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 0 4px; }
+					.sdvn-sort-group button { width: 30px; height: 30px; border: none; background: transparent; border-radius: 6px; }
+					.sdvn-sort-group button:hover { background: rgba(255,255,255,0.1); border: none; }
+					.sdvn-sort-group button.sdvn-active { background: rgba(255,255,255,0.15); color: var(--sdvn-accent); border: none; }
+					.sdvn-separator { width: 1px; height: 18px; background: rgba(255,255,255,0.15); margin: 0 2px; }
+					.sdvn-filter-group { flex: 1; min-width: 120px; display: flex; align-items: center; }
+					.sdvn-filter-input { background: rgba(18,18,18,0.9); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: #f8f8f8; font-size: 12px; padding: 0 12px; height: 38px; width: 100%; }
+					.sdvn-filter-input:focus { border-color: var(--sdvn-accent-2); outline: none; }
+					.sdvn-folder-strip { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 2px; overflow-x: auto; }
+					.sdvn-folder-strip .sdvn-card { width: 150px; margin-bottom: 0; }
+					.sdvn-gallery-grid { flex: 1; overflow-y: auto; overflow-x: hidden; column-gap: 14px; padding-right: 4px; column-width: 190px; }
+					@media (min-width: 720px) { .sdvn-gallery-grid { column-width: 200px; } }
+					@media (min-width: 1024px) { .sdvn-gallery-grid { column-width: 220px; } }
+					.sdvn-card { border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #dfe3f0; cursor: pointer; padding: 8px; display: inline-flex; width: 100%; flex-direction: column; gap: 6px; transition: border-color 0.2s, transform 0.1s; margin-bottom: 12px; break-inside: avoid; box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+					.sdvn-card:hover { border-color: rgba(255,255,255,0.35); }
+					.sdvn-card.sdvn-selected { border-color: var(--sdvn-accent); border-width: 2px; box-shadow: none; }
+					.sdvn-card .sdvn-thumb { width: 100%; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.04); }
+					.sdvn-card .sdvn-thumb img { display: block; width: 100%; height: auto; }
+					.sdvn-card .sdvn-card-name { display: none; }
+					.sdvn-card.sdvn-folder { align-items: center; justify-content: center; min-height: 120px; text-align: center; gap: 8px; background: rgba(255,255,255,0.04); }
+					.sdvn-folder-icon { width: 100%; display: flex; justify-content: center; }
+					.sdvn-card.sdvn-folder .sdvn-card-name { display: block; font-size: 11px; color: #cdd3f8; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
+					.sdvn-card.sdvn-folder svg { opacity: 0.85; width: 48px; height: 48px; }
+					.sdvn-footer { display: flex; align-items: center; justify-content: space-between; font-size: 12px; gap: 8px; }
+					.sdvn-footer button { padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(10,10,10,0.9); color: var(--sdvn-text); cursor: pointer; font-size: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+					.sdvn-footer button:hover { background: rgba(255,255,255,0.08); }
+					.sdvn-gallery.sdvn-drop-active { outline: 2px dashed var(--sdvn-accent); outline-offset: 4px; }
+					.sdvn-gallery.sdvn-uploading .sdvn-gallery-grid,
+					.sdvn-gallery.sdvn-uploading .sdvn-folder-strip { opacity: 0.5; pointer-events: none; }
+				</style>
+				<div class="sdvn-toolbar">
+					<div class="sdvn-path-field">
+						<span style="display:flex;">${ICONS.folder}</span>
+						<input type="text" class="sdvn-path-input" placeholder="Select folder" />
+					</div>
+					<button type="button" data-action="up" title="Parent">${ICONS.up}</button>
+					<button type="button" data-action="refresh" title="Refresh">${ICONS.reset}</button>
+					<button type="button" data-action="toggle-folders" title="Toggle subfolders">${ICONS.folders}</button>
+					<div class="sdvn-sort-group">
+						<button type="button" data-sort="name" title="Sort by Name">${ICONS.sortName}</button>
+						<button type="button" data-sort="date" title="Sort by Date">${ICONS.sortDate}</button>
+						<button type="button" data-sort="size" title="Sort by Size">${ICONS.sortSize}</button>
+						<div class="sdvn-separator"></div>
+						<button type="button" data-action="toggle-order" title="Toggle sort order">${ICONS.sortAsc}</button>
+					</div>
+					<div class="sdvn-filter-group">
+						<input class="sdvn-filter-input" placeholder="Name filter" />
+					</div>
+				</div>
+				<div class="sdvn-folder-strip"></div>
+				<div class="sdvn-gallery-grid"></div>
+				<div class="sdvn-footer">
+					<div class="sdvn-selection-label">No image selected</div>
+					<div style="display:flex; gap:6px; flex-wrap: wrap;">
+						<button type="button" data-action="preview" title="Preview selection">${ICONS.zoom}</button>
+						<button type="button" data-action="edit-image" title="Edit in Image Editor">Image Editor</button>
+						<button type="button" data-action="delete" title="Delete selected images">Delete</button>
+						<button type="button" data-action="load-more">Load more</button>
+					</div>
+				</div>
+			`;
+
+			node.addDOMWidget("sdvn_gallery", "div", gallery, {});
+			if (node.size) {
+				node.size[0] = Math.max(node.size[0] || 360, 360);
+				node.size[1] = Math.max(node.size[1] || 500, 500);
+			}
+
+			const pathWidget = node.widgets?.find((w) => w.name === "current_directory");
+			if (pathWidget) {
+				pathWidget.hidden = true;
+				pathWidget.computeSize = () => [0, 0];
+			}
+
+			const selectionWidget = node.widgets?.find((w) => w.name === "selected_paths");
+			if (selectionWidget) {
+				selectionWidget.hidden = true;
+				selectionWidget.computeSize = () => [0, 0];
+			}
+
+			const getWidgetStoredValue = (widget) => {
+				if (!widget) return "";
+				const idx = node.widgets?.indexOf?.(widget) ?? -1;
+				if (idx >= 0) {
+					if (Array.isArray(node.__sdvnGallerySerializedWidgets) && node.__sdvnGallerySerializedWidgets.length > idx) {
+						const serialized = node.__sdvnGallerySerializedWidgets[idx];
+						if (serialized !== undefined && serialized !== null) return serialized;
+					}
+					if (Array.isArray(node.widgets_values) && node.widgets_values.length > idx) {
+						const stored = node.widgets_values[idx];
+						if (stored !== undefined && stored !== null) return stored;
+					}
+				}
+				return widget.value ?? "";
+			};
+
+			const parseSelectionList = (raw) => {
+				if (!raw) return [];
+				if (Array.isArray(raw)) return raw.filter((entry) => typeof entry === "string");
+				if (typeof raw === "string") {
+					const trimmed = raw.trim();
+					if (!trimmed) return [];
+					try {
+						const parsed = JSON.parse(trimmed);
+						if (Array.isArray(parsed)) return parsed.filter((entry) => typeof entry === "string");
+					} catch (err) {
+						// Fallback to newline-separated paths
+						return trimmed
+							.split(/\r?\n/)
+							.map((entry) => entry.trim())
+							.filter((entry) => !!entry);
+					}
+				}
+				return [];
+			};
+
+			const storedPathRaw = getWidgetStoredValue(pathWidget);
+			const storedPathValue = typeof storedPathRaw === "string" ? storedPathRaw.trim() : "";
+			const initialSelectionPaths = parseSelectionList(getWidgetStoredValue(selectionWidget));
+			let widgetSelectionTargets = new Set(initialSelectionPaths);
+			let needsWidgetSelectionRestore = widgetSelectionTargets.size > 0;
+			let defaultDirectory = "";
+			let filterDebounce;
+
+			const state = {
+				path: storedPathValue,
+				page: 1,
+				totalPages: 1,
+				items: [],
+				selection: [],
+				sortBy: "name",
+				sortOrder: "asc",
+				filterTag: "",
+				parentDirectory: "",
+				loading: false,
+				showFolders: true,
+				cacheBust: Date.now(),
+			};
+
+			const pathInput = gallery.querySelector(".sdvn-path-input");
+			const folderStrip = gallery.querySelector(".sdvn-folder-strip");
+			const grid = gallery.querySelector(".sdvn-gallery-grid");
+			const selectionLabel = gallery.querySelector(".sdvn-selection-label");
+			const loadMoreButton = gallery.querySelector('[data-action="load-more"]');
+			loadMoreButton.style.display = "none";
+			// const sortBySelect = gallery.querySelector(".sdvn-sort-by");
+			const sortButtons = gallery.querySelectorAll('[data-sort]');
+			const sortOrderButton = gallery.querySelector('[data-action="toggle-order"]');
+			const filterInput = gallery.querySelector(".sdvn-filter-input");
+			const previewButton = gallery.querySelector('[data-action="preview"]');
+			const editButton = gallery.querySelector('[data-action="edit-image"]');
+			const deleteButton = gallery.querySelector('[data-action="delete"]');
+			const toggleFoldersButton = gallery.querySelector('[data-action="toggle-folders"]');
+
+			const syncSelectionWidget = () => {
+				if (!selectionWidget) return;
+				const payload = JSON.stringify(state.selection.map((item) => item.path));
+				if (selectionWidget.value === payload) return;
+				selectionWidget.value = payload;
+				selectionWidget.callback?.(payload);
+				if (!Array.isArray(node.widgets_values)) {
+					node.widgets_values = node.widgets?.map((w) => w.value ?? null) ?? [];
+				}
+				const idx = node.widgets?.indexOf?.(selectionWidget) ?? -1;
+				if (idx >= 0) node.widgets_values[idx] = payload;
+			};
+
+			const syncPathWidget = (value) => {
+				if (!pathWidget) return;
+				const normalized = typeof value === "string" ? value : "";
+				if (pathWidget.value === normalized) return;
+				pathWidget.value = normalized;
+				pathWidget.callback?.(normalized);
+				if (!Array.isArray(node.widgets_values)) {
+					node.widgets_values = node.widgets?.map((w) => w.value ?? null) ?? [];
+				}
+				const idx = node.widgets?.indexOf?.(pathWidget) ?? -1;
+				if (idx >= 0) node.widgets_values[idx] = normalized;
+			};
+
+			const getImageSelection = () => state.selection.filter((item) => item.type === "image");
+			const getPrimaryImageSelection = () => getImageSelection()[0] || null;
+
+			const hasSupportedExtension = (name) => {
+				if (!name) return false;
+				const lower = name.toLowerCase();
+				return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+			};
+
+			const updateActionButtons = () => {
+				const hasImageSelection = getImageSelection().length > 0;
+				if (previewButton) previewButton.disabled = !hasImageSelection;
+				if (editButton) editButton.disabled = !hasImageSelection;
+				if (deleteButton) deleteButton.disabled = !hasImageSelection;
+			};
+
+			const updateSelectionLabel = () => {
+				const folderName = state.path ? state.path.split(/[/\\\\]/).filter(Boolean).pop() : "";
+				if (!state.selection.length) {
+					selectionLabel.textContent = folderName ? `Folder: ${folderName}` : "Folder: Input";
+				} else if (state.selection.length === 1) {
+					selectionLabel.textContent = `Selected: ${state.selection[0].name}`;
+				} else {
+					selectionLabel.textContent = `${state.selection.length} images selected`;
+				}
+				updateActionButtons();
+			};
+
+			const setPathValue = (value) => {
+				const normalized = typeof value === "string" ? value.trim() : "";
+				state.path = normalized;
+				if (pathInput && pathInput.value !== normalized) {
+					pathInput.value = normalized;
+				}
+				syncPathWidget(normalized);
+				updateSelectionLabel();
+			};
+
+			const updateCardSelection = () => {
+				const selectedPaths = new Set(state.selection.map((item) => item.path));
+				grid.querySelectorAll(".sdvn-card").forEach((card) => {
+					card.classList.toggle("sdvn-selected", selectedPaths.has(card.dataset.path));
+				});
+			};
+
+			const applySelection = (items) => {
+				state.selection = items;
+				updateSelectionLabel();
+				updateCardSelection();
+				syncSelectionWidget();
+			};
+
+			const clearSelection = () => {
+				applySelection([]);
+				needsWidgetSelectionRestore = false;
+				widgetSelectionTargets.clear();
+			};
+
+			const selectItem = (item, additive) => {
+				let nextSelection = [];
+				if (!additive) {
+					nextSelection = [item];
+				} else {
+					const exists = state.selection.findIndex((entry) => entry.path === item.path);
+					if (exists > -1) {
+						nextSelection = state.selection.filter((entry) => entry.path !== item.path);
+					} else {
+						nextSelection = state.selection.concat(item);
+					}
+				}
+				applySelection(nextSelection);
+				needsWidgetSelectionRestore = false;
+				widgetSelectionTargets.clear();
+			};
+
+			const setFolderStripVisibility = () => {
+				if (folderStrip) folderStrip.style.display = state.showFolders ? "" : "none";
+				if (toggleFoldersButton) toggleFoldersButton.classList.toggle("sdvn-active", state.showFolders);
+			};
+			setFolderStripVisibility();
+			setPathValue(state.path);
+
+			const createCard = (item) => {
+				const card = document.createElement("div");
+				card.className = `sdvn-card ${item.type === "dir" ? "sdvn-folder" : ""}`;
+				card.dataset.path = item.path;
+				card.title = item.name;
+				if (item.type === "dir") {
+					card.innerHTML = `<div class="sdvn-folder-icon">${ICONS.folder}</div><div class="sdvn-card-name">${item.name}</div>`;
+					card.addEventListener("click", () => {
+						if (item.path === state.path) return;
+						setPathValue(item.path || "");
+						clearSelection();
+						state.page = 1;
+						loadImages(false);
+					});
+				} else {
+					card.innerHTML = `
+						<div class="sdvn-thumb">
+							<img src="/local_image_gallery/thumbnail?filepath=${encodeURIComponent(item.path)}&t=${state.cacheBust}" loading="lazy" alt="${item.name}" />
+						</div>
+					`;
+					card.addEventListener("click", (event) => {
+						selectItem(item, event.metaKey || event.ctrlKey);
+					});
+					card.addEventListener("dblclick", () => openLightbox(item.path, item.name));
+				}
+				return card;
+			};
+
+			const refreshSelectionBindings = () => {
+				if (!state.selection.length) return;
+				const pathToItem = new Map(state.items.map((entry) => [entry.path, entry]));
+				let changed = false;
+				const rebound = state.selection.map((selected) => {
+					const updated = pathToItem.get(selected.path);
+					if (updated && updated !== selected) {
+						changed = true;
+						return updated;
+					}
+					return selected;
+				});
+				state.selection = rebound;
+				if (changed) {
+					updateSelectionLabel();
+					syncSelectionWidget();
+				}
+			};
+
+			const restoreSelectionFromWidget = () => {
+				if (!needsWidgetSelectionRestore || !widgetSelectionTargets.size) return;
+				const matches = state.items.filter((item) => widgetSelectionTargets.has(item.path));
+				if (!matches.length) return;
+				const existingPaths = new Set(state.selection.map((item) => item.path));
+				const merged = state.selection.slice();
+				matches.forEach((match) => {
+					if (!existingPaths.has(match.path)) merged.push(match);
+					widgetSelectionTargets.delete(match.path);
+				});
+				applySelection(merged);
+				if (!widgetSelectionTargets.size) needsWidgetSelectionRestore = false;
+			};
+
+			const renderItems = (items, append) => {
+				if (!append) {
+					grid.innerHTML = "";
+					folderStrip.innerHTML = "";
+				}
+				const folders = [];
+				const files = [];
+				items.forEach((item) => {
+					if (item.type === "dir") folders.push(item);
+					else files.push(item);
+				});
+				folders.forEach((item) => folderStrip.appendChild(createCard(item)));
+				files.forEach((item) => grid.appendChild(createCard(item)));
+				refreshSelectionBindings();
+				restoreSelectionFromWidget();
+				updateCardSelection();
+			};
+
+			const setLoadingState = (isLoading) => {
+				state.loading = isLoading;
+				const opacity = isLoading ? "0.5" : "1";
+				if (grid) grid.style.opacity = opacity;
+				if (folderStrip) folderStrip.style.opacity = opacity;
+			};
+
+			const loadImages = async (append) => {
+				if (state.loading) return;
+				setLoadingState(true);
+				try {
+					const params = new URLSearchParams({
+						directory: state.path,
+						page: String(append ? state.page + 1 : 1),
+						sort_by: state.sortBy,
+						sort_order: state.sortOrder,
+						filter_tag: state.filterTag,
+					});
+					const resp = await api.fetchApi(`/local_image_gallery/images?${params.toString()}`);
+					if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+					const data = await resp.json();
+					const resolvedPath = data.current_directory || state.path;
+					setPathValue(resolvedPath);
+					state.parentDirectory = data.parent_directory || "";
+					state.page = data.current_page;
+					state.totalPages = data.total_pages;
+					state.cacheBust = Date.now();
+					state.items = append ? state.items.concat(data.items) : data.items;
+					renderItems(data.items, append);
+					if (state.page >= state.totalPages) {
+						loadMoreButton.style.display = "none";
+					} else {
+						loadMoreButton.style.display = "inline-flex";
+						loadMoreButton.disabled = false;
+						loadMoreButton.textContent = "Load more";
+					}
+				} catch (err) {
+					grid.innerHTML = `<div style="color:#ff9b9b;">${err.message}</div>`;
+				} finally {
+					setLoadingState(false);
+				}
+			};
+
+			const previewSelectedImage = () => {
+				const target = getPrimaryImageSelection();
+				if (!target) return;
+				openLightbox(target.path, target.name);
+			};
+
+			const openSelectedInEditor = () => {
+				const target = getPrimaryImageSelection();
+				if (!target) return;
+				const src = `/local_image_gallery/view?filepath=${encodeURIComponent(target.path)}`;
+				new ImageEditor(src, async (blob) => {
+					const formData = new FormData();
+					formData.append("path", target.path);
+					formData.append("image", blob, target.name || "edited-image.png");
+					try {
+						const resp = await api.fetchApi("/local_image_gallery/save_image", {
+							method: "POST",
+							body: formData,
+						});
+						let data = {};
+						try {
+							data = await resp.json();
+						} catch (err) {
+							console.warn("SDVN.ImageGallery: save_image parse", err);
+						}
+						if (!resp.ok || data?.status !== "ok") {
+							const reason = data?.message || resp.statusText || "Failed to save image";
+							throw new Error(reason);
+						}
+						await loadImages(false);
+					} catch (err) {
+						alert(`Save failed: ${err.message}`);
+					}
+				});
+			};
+
+			const deleteSelectedImages = async () => {
+				const targets = getImageSelection();
+				if (!targets.length) {
+					alert("Select at least one image to delete.");
+					return;
+				}
+				if (!state.path) {
+					alert("Choose a folder before deleting images.");
+					return;
+				}
+				// const confirmMessage = targets.length === 1 ? `Delete ${targets[0].name}?` : `Delete ${targets.length} images?`;
+				// if (!window.confirm(confirmMessage)) return;
+				if (deleteButton) deleteButton.disabled = true;
+				try {
+					const resp = await api.fetchApi("/local_image_gallery/delete", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ paths: targets.map((item) => item.path) }),
+					});
+					let data = {};
+					try {
+						data = await resp.json();
+					} catch (err) {
+						console.warn("SDVN.ImageGallery: delete parse", err);
+					}
+					if (!resp.ok || data?.status !== "ok") {
+						const reason =
+							data?.message ||
+							(Array.isArray(data?.errors) ? data.errors.join(", ") : null) ||
+							resp.statusText ||
+							"Failed to delete images";
+						throw new Error(reason);
+					}
+					clearSelection();
+					await loadImages(false);
+				} catch (err) {
+					alert(`Delete failed: ${err.message}`);
+				} finally {
+					if (deleteButton) deleteButton.disabled = false;
+					updateActionButtons();
+				}
+			};
+
+				const uploadFilesToCurrentDirectory = async (files) => {
+					if (!files.length || !state.path) return;
+					gallery.classList.add("sdvn-uploading");
+					try {
+						const formData = new FormData();
+						formData.append("directory", state.path);
+						files.forEach((file) => formData.append("image", file, file.name));
+						const resp = await api.fetchApi("/local_image_gallery/upload", {
+							method: "POST",
+							body: formData,
+						});
+						let data = {};
+						try {
+							data = await resp.json();
+						} catch (err) {
+							console.warn("SDVN.ImageGallery: upload parse", err);
+						}
+						if (!resp.ok || data?.status !== "ok") {
+							const reason =
+								data?.message ||
+								(Array.isArray(data?.errors) ? data.errors.filter(Boolean).join(", ") : null) ||
+								resp.statusText ||
+								"Upload failed";
+							throw new Error(reason);
+						}
+						clearSelection();
+						await loadImages(false);
+					} catch (err) {
+						alert(`Upload failed: ${err.message}`);
+					} finally {
+						gallery.classList.remove("sdvn-uploading");
+					}
+				};
+
+				let dragDepth = 0;
+				const isFileDrag = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
+				const setDropHighlight = (active) => {
+					gallery.classList.toggle("sdvn-drop-active", !!active);
+				};
+
+			gallery.querySelector('[data-action="refresh"]').addEventListener("click", async () => {
+				if (filterInput) filterInput.value = "";
+				state.filterTag = "";
+				state.sortBy = "name";
+				updateSortUI();
+				state.sortOrder = "asc";
+				if (sortOrderButton) sortOrderButton.innerHTML = ICONS.sortAsc;
+				state.page = 1;
+				if (defaultDirectory) {
+					setPathValue(defaultDirectory);
+				}
+				clearSelection();
+				await loadImages(false);
+			});
+
+			gallery.querySelector('[data-action="up"]').addEventListener("click", () => {
+				if (!state.parentDirectory) return;
+				setPathValue(state.parentDirectory || "");
+				clearSelection();
+				state.page = 1;
+				loadImages(false);
+			});
+
+			if (toggleFoldersButton) {
+				toggleFoldersButton.addEventListener("click", () => {
+					state.showFolders = !state.showFolders;
+					setFolderStripVisibility();
+				});
+			}
+
+			const updateSortUI = () => {
+				sortButtons.forEach(btn => {
+					btn.classList.toggle("sdvn-active", btn.dataset.sort === state.sortBy);
+				});
+			};
+
+			sortButtons.forEach(btn => {
+				btn.addEventListener("click", () => {
+					const sortType = btn.dataset.sort;
+					if (state.sortBy === sortType) return;
+					state.sortBy = sortType;
+					updateSortUI();
+					state.page = 1;
+					loadImages(false);
+				});
+			});
+			updateSortUI();
+
+			sortOrderButton.addEventListener("click", () => {
+				state.sortOrder = state.sortOrder === "asc" ? "desc" : "asc";
+				sortOrderButton.innerHTML = state.sortOrder === "asc" ? ICONS.sortAsc : ICONS.sortDesc;
+				state.page = 1;
+				loadImages(false);
+			});
+
+			if (filterInput) {
+				const applyFilterValue = () => {
+					const nextFilter = filterInput.value.trim().toLowerCase();
+					if (nextFilter === state.filterTag) return;
+					state.filterTag = nextFilter;
+					state.page = 1;
+					loadImages(false);
+				};
+				filterInput.addEventListener("input", () => {
+					clearTimeout(filterDebounce);
+					filterDebounce = setTimeout(applyFilterValue, 400);
+				});
+				filterInput.addEventListener("keydown", (event) => {
+					if (event.key === "Enter") {
+						event.preventDefault();
+						clearTimeout(filterDebounce);
+						applyFilterValue();
+					}
+				});
+			}
+
+			if (pathInput) {
+				pathInput.addEventListener("keydown", (event) => {
+					if (event.key === "Enter") {
+						const targetPath = pathInput.value;
+						setPathValue(targetPath);
+						clearSelection();
+						state.page = 1;
+						loadImages(false);
+					}
+				});
+			}
+
+			loadMoreButton.addEventListener("click", () => {
+				if (state.page < state.totalPages) {
+					loadImages(true);
+				}
+			});
+
+			if (previewButton) previewButton.addEventListener("click", previewSelectedImage);
+			if (editButton) editButton.addEventListener("click", openSelectedInEditor);
+			if (deleteButton) deleteButton.addEventListener("click", deleteSelectedImages);
+
+			const handleDragOver = (event) => {
+				if (!isFileDrag(event)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				event.dataTransfer.dropEffect = "copy";
+			};
+
+			const handleDragEnter = (event) => {
+				if (!isFileDrag(event)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				dragDepth += 1;
+				setDropHighlight(true);
+			};
+
+			const handleDragLeave = (event) => {
+				if (!isFileDrag(event)) return;
+				event.stopPropagation();
+				dragDepth = Math.max(0, dragDepth - 1);
+				if (dragDepth === 0) setDropHighlight(false);
+			};
+
+			const handleDrop = async (event) => {
+				if (!isFileDrag(event)) return;
+				event.preventDefault();
+				event.stopPropagation();
+				dragDepth = 0;
+				setDropHighlight(false);
+				if (!event.dataTransfer) return;
+				if (!state.path) {
+					alert("Select a folder before uploading images.");
+					return;
+				}
+				if (gallery.classList.contains("sdvn-uploading")) return;
+				const candidates = Array.from(event.dataTransfer.files || []);
+				const accepted = candidates.filter((file) => hasSupportedExtension(file.name));
+				if (!accepted.length) {
+					alert("No supported image formats found in dropped files.");
+					return;
+				}
+				await uploadFilesToCurrentDirectory(accepted);
+			};
+
+			gallery.addEventListener("dragover", handleDragOver);
+			gallery.addEventListener("dragenter", handleDragEnter);
+			gallery.addEventListener("dragleave", handleDragLeave);
+			gallery.addEventListener("drop", handleDrop);
+
+			const init = async () => {
+				try {
+					const fetchedDefault = await fetchDefaultDirectory();
+					defaultDirectory = fetchedDefault || defaultDirectory || "";
+				} catch (err) {
+					console.warn("SDVN.ImageGallery: Failed to fetch default directory", err);
+				}
+				if (!defaultDirectory) defaultDirectory = state.path || "";
+				if (!state.path) {
+					setPathValue(defaultDirectory);
+				} else {
+					setPathValue(state.path);
+				}
+				await loadImages(false);
+			};
+
+			node.onSdvnConfigure = () => {
+				const storedPathRaw = getWidgetStoredValue(pathWidget);
+				const storedPathValue = typeof storedPathRaw === "string" ? storedPathRaw.trim() : "";
+				if (storedPathValue) {
+					setPathValue(storedPathValue);
+				}
+
+				const initialSelectionPaths = parseSelectionList(getWidgetStoredValue(selectionWidget));
+				if (initialSelectionPaths.length > 0) {
+					widgetSelectionTargets = new Set(initialSelectionPaths);
+					needsWidgetSelectionRestore = true;
+				}
+
+				if (state.path) {
+					state.page = 1;
+					loadImages(false);
+				}
+			};
+
+			init();
+			ensureLightbox();
+			return result;
+		};
+	},
 });
