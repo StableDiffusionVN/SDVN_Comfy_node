@@ -36,23 +36,18 @@ function ensureLightbox() {
 	overlay.id = LIGHTBOX_ID;
 	overlay.innerHTML = `
 		<div class="sdvn-lightbox-backdrop">
-			<button class="sdvn-lightbox-close" title="Close">&times;</button>
 			<img alt="Preview" />
-			<div class="sdvn-lightbox-caption"></div>
 		</div>
 		<style>
 			#${LIGHTBOX_ID} { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); z-index: 10000; }
 			#${LIGHTBOX_ID}.visible { display: flex; }
-			#${LIGHTBOX_ID} .sdvn-lightbox-backdrop { position: relative; max-width: 95vw; max-height: 95vh; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-			#${LIGHTBOX_ID} img { max-width: 95vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
-			#${LIGHTBOX_ID} .sdvn-lightbox-caption { color: #fff; font-size: 13px; }
-			#${LIGHTBOX_ID} .sdvn-lightbox-close { position: absolute; top: -32px; right: -32px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-size: 20px; cursor: pointer; }
-			#${LIGHTBOX_ID} .sdvn-lightbox-close:hover { background: rgba(255,255,255,0.2); }
+			#${LIGHTBOX_ID} .sdvn-lightbox-backdrop { position: relative; max-width: 95vw; max-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+			#${LIGHTBOX_ID} img { max-width: 95vw; max-height: 100vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
 		</style>
 	`;
 	document.body.appendChild(overlay);
 	overlay.addEventListener("click", (event) => {
-		if (event.target === overlay || event.target.classList.contains("sdvn-lightbox-close")) {
+		if (event.target === overlay) {
 			overlay.classList.remove("visible");
 		}
 	});
@@ -64,7 +59,6 @@ function openLightbox(path, name) {
 	if (!overlay) return;
 	const img = overlay.querySelector("img");
 	img.src = buildViewUrl(path);
-	overlay.querySelector(".sdvn-lightbox-caption").textContent = name ?? "";
 	overlay.classList.add("visible");
 }
 
