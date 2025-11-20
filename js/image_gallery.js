@@ -234,6 +234,7 @@ app.registerExtension({
 			let needsWidgetSelectionRestore = widgetSelectionTargets.size > 0;
 			let defaultDirectory = "";
 			let filterDebounce;
+			let urlDownloadInProgress = false;
 
 			const state = {
 				path: storedPathValue,
@@ -298,6 +299,12 @@ app.registerExtension({
 				if (!name) return false;
 				const lower = name.toLowerCase();
 				return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+			};
+
+			const isLikelyUrl = (value) => {
+				if (!value) return false;
+				const trimmed = value.trim();
+				return /^https?:\/\//i.test(trimmed);
 			};
 
 			const updateActionButtons = () => {
@@ -492,6 +499,51 @@ app.registerExtension({
 					grid.innerHTML = `<div style="color:#ff9b9b;">${err.message}</div>`;
 				} finally {
 					setLoadingState(false);
+				}
+			};
+
+			const importUrlIntoTempGallery = async (rawUrl) => {
+				const resp = await api.fetchApi("/local_image_gallery/import_url", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ url: rawUrl.trim() }),
+				});
+				let data = {};
+				try {
+					data = await resp.json();
+				} catch (err) {
+					console.warn("SDVN.ImageGallery: import_url parse error", err);
+				}
+				if (!resp.ok || data?.status !== "ok") {
+					const reason = data?.message || resp.statusText || "Không thể tải ảnh từ URL.";
+					throw new Error(reason);
+				}
+				return data;
+			};
+
+			const handleUrlDirectoryImport = async (rawUrl) => {
+				if (urlDownloadInProgress) return;
+				urlDownloadInProgress = true;
+				gallery.classList.add("sdvn-url-loading");
+				try {
+					const result = await importUrlIntoTempGallery(rawUrl);
+					const nextDirectory = result?.directory || "";
+					const downloadedPath = result?.image?.path || "";
+					if (nextDirectory) {
+						setPathValue(nextDirectory);
+					}
+					clearSelection();
+					if (downloadedPath) {
+						widgetSelectionTargets = new Set([downloadedPath]);
+						needsWidgetSelectionRestore = true;
+					}
+					state.page = 1;
+					await loadImages(false);
+				} catch (err) {
+					alert(err?.message || "Không thể tải ảnh từ URL.");
+				} finally {
+					urlDownloadInProgress = false;
+					gallery.classList.remove("sdvn-url-loading");
 				}
 			};
 
@@ -691,14 +743,19 @@ app.registerExtension({
 			}
 
 			if (pathInput) {
-				pathInput.addEventListener("keydown", (event) => {
-					if (event.key === "Enter") {
-						const targetPath = pathInput.value;
-						setPathValue(targetPath);
-						clearSelection();
-						state.page = 1;
-						loadImages(false);
+				pathInput.addEventListener("keydown", async (event) => {
+					if (event.key !== "Enter") return;
+					event.preventDefault();
+					const targetPath = (pathInput.value || "").trim();
+					if (!targetPath) return;
+					if (isLikelyUrl(targetPath)) {
+						await handleUrlDirectoryImport(targetPath);
+						return;
 					}
+					setPathValue(targetPath);
+					clearSelection();
+					state.page = 1;
+					await loadImages(false);
 				});
 			}
 

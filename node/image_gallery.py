@@ -10,14 +10,101 @@ from PIL import Image, ImageOps
 import urllib.parse
 import io
 import re
+import shutil
+import requests
 from comfy.utils import common_upscale
 import folder_paths
+from .load import run_gallery_dl
 
 NODE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_FILE = os.path.join(NODE_DIR, "config.json")
 METADATA_FILE = os.path.join(NODE_DIR, "metadata.json")
 SUPPORTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp']
 DEFAULT_PER_PAGE = 80
+GALLERY_TEMP_FOLDER = os.path.join(folder_paths.get_temp_directory(), "sdvn_gallery_downloads")
+REMOTE_FORMAT_EXTENSIONS = {
+    "JPEG": ".jpg",
+    "JPG": ".jpg",
+    "PNG": ".png",
+    "WEBP": ".webp",
+    "BMP": ".bmp",
+    "GIF": ".gif",
+}
+
+os.makedirs(GALLERY_TEMP_FOLDER, exist_ok=True)
+
+def ensure_temp_gallery_directory():
+    os.makedirs(GALLERY_TEMP_FOLDER, exist_ok=True)
+    return GALLERY_TEMP_FOLDER
+
+def unique_destination(directory, filename):
+    base, ext = os.path.splitext(filename)
+    candidate = os.path.join(directory, filename)
+    counter = 1
+    while os.path.exists(candidate):
+        candidate = os.path.join(directory, f"{base}_{counter}{ext}")
+        counter += 1
+    return candidate
+
+def _convert_bytes_to_supported_image(data_bytes):
+    try:
+        with Image.open(io.BytesIO(data_bytes)) as img:
+            fmt = (img.format or "").upper()
+            ext = REMOTE_FORMAT_EXTENSIONS.get(fmt)
+            if ext and ext.lower() in SUPPORTED_IMAGE_EXTENSIONS:
+                return data_bytes, ext
+            buffer = io.BytesIO()
+            convert_mode = "RGBA" if img.mode in ("RGBA", "LA", "P") else "RGB"
+            img.convert(convert_mode).save(buffer, format="PNG")
+            return buffer.getvalue(), ".png"
+    except Exception as err:
+        raise RuntimeError("Nội dung tải về không phải là ảnh hợp lệ.") from err
+
+def download_remote_image(source_url):
+    try:
+        response = requests.get(source_url, timeout=60)
+        response.raise_for_status()
+    except Exception as err:
+        raise RuntimeError(f"Không thể tải ảnh từ URL: {err}") from err
+
+    image_bytes, extension = _convert_bytes_to_supported_image(response.content)
+    parsed = urllib.parse.urlparse(source_url)
+    filename_hint = sanitize_filename(os.path.basename(parsed.path) or "downloaded")
+    if not filename_hint.lower().endswith(extension):
+        filename_hint = f"{os.path.splitext(filename_hint)[0]}{extension}"
+    target_dir = ensure_temp_gallery_directory()
+    dest_path = unique_destination(target_dir, filename_hint)
+    with open(dest_path, "wb") as f:
+        f.write(image_bytes)
+    return dest_path
+
+def copy_local_image(source_path):
+    abs_source = os.path.abspath(source_path)
+    if not os.path.isfile(abs_source):
+        raise RuntimeError("Không tìm thấy tệp ảnh nguồn.")
+    try:
+        ensure_supported_extension(abs_source)
+    except ValueError:
+        with Image.open(abs_source) as img:
+            buffer = io.BytesIO()
+            img.convert("RGB").save(buffer, format="PNG")
+            filename = f"{os.path.splitext(os.path.basename(abs_source))[0]}.png"
+            dest_path = unique_destination(ensure_temp_gallery_directory(), sanitize_filename(filename))
+            with open(dest_path, "wb") as f:
+                f.write(buffer.getvalue())
+            return dest_path
+
+    filename = sanitize_filename(os.path.basename(abs_source))
+    dest_path = unique_destination(ensure_temp_gallery_directory(), filename)
+    shutil.copy2(abs_source, dest_path)
+    return dest_path
+
+def cache_source_image(resolved_path):
+    if not resolved_path:
+        raise RuntimeError("Không thể xác định đường dẫn ảnh.")
+    if resolved_path.startswith("http"):
+        return download_remote_image(resolved_path)
+    return copy_local_image(resolved_path)
 
 def sanitize_filename(name):
     if not name:
@@ -255,6 +342,43 @@ async def get_all_tags(request):
         return web.json_response({"tags": sorted_tags})
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+@prompt_server.routes.post("/local_image_gallery/import_url")
+async def import_gallery_url(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON payload."}, status=400)
+
+    raw_url = (data.get("url") or "").strip()
+    if not raw_url:
+        return web.json_response({"status": "error", "message": "Thiếu URL cần tải."}, status=400)
+
+    try:
+        resolved_path = run_gallery_dl(raw_url)
+    except Exception as err:
+        return web.json_response({"status": "error", "message": f"Không thể xử lý URL: {err}"}, status=500)
+
+    if not resolved_path:
+        return web.json_response({"status": "error", "message": "Không thể xác định ảnh từ URL đã nhập."}, status=400)
+
+    try:
+        cached_path = cache_source_image(resolved_path)
+    except RuntimeError as err:
+        return web.json_response({"status": "error", "message": str(err)}, status=400)
+    except Exception as err:
+        return web.json_response({"status": "error", "message": str(err)}, status=500)
+
+    directory = os.path.dirname(cached_path)
+    return web.json_response({
+        "status": "ok",
+        "directory": directory,
+        "resolved": resolved_path,
+        "image": {
+            "path": cached_path,
+            "name": os.path.basename(cached_path),
+        },
+    })
 
 @prompt_server.routes.get("/local_image_gallery/images")
 async def get_local_images(request):
