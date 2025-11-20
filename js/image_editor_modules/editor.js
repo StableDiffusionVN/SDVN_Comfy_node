@@ -536,7 +536,7 @@ export class ImageEditor {
     shouldApplyPixelEffects() {
         const p = this.params;
         const totalNoise = Math.max(0, (p.noise || 0) + (p.grain || 0));
-        return totalNoise > 0 || this.hasHSLAdjustments() || p.clarity !== 0 || p.dehaze !== 0 || p.highlight !== 0 || p.shadow !== 0 || (this.curveEditor?.hasAdjustments() ?? false);
+        return totalNoise > 0 || this.hasHSLAdjustments() || p.clarity !== 0 || p.dehaze !== 0 || p.highlight !== 0 || p.shadow !== 0 || p.vibrance !== 0 || (this.curveEditor?.hasAdjustments() ?? false);
     }
 
     loadImage() {
@@ -631,7 +631,7 @@ export class ImageEditor {
         const dehazeBoost = 1 + Math.max(0, p.dehaze || 0) / 200;
         const brightness = 100 + p.exposure;
         const contrast = Math.max(0, (100 + p.contrast) * clarityBoost * dehazeBoost);
-        let saturate = 100 + p.saturation + (p.vibrance * 0.5);
+        let saturate = 100 + p.saturation;
         if (p.dehaze > 0) {
             saturate += p.dehaze * 0.3;
         }
@@ -752,7 +752,7 @@ export class ImageEditor {
     applyPixelEffectsRegion(ctx, x, y, width, height) {
         const p = this.params;
         const totalNoise = Math.max(0, (p.noise || 0) + (p.grain || 0));
-        const needsProcessing = totalNoise > 0 || this.hasHSLAdjustments() || p.clarity !== 0 || p.dehaze !== 0 || p.highlight !== 0 || p.shadow !== 0 || (this.curveEditor?.hasAdjustments() ?? false);
+        const needsProcessing = totalNoise > 0 || this.hasHSLAdjustments() || p.clarity !== 0 || p.dehaze !== 0 || p.highlight !== 0 || p.shadow !== 0 || p.vibrance !== 0 || (this.curveEditor?.hasAdjustments() ?? false);
         if (!needsProcessing) return;
         if (width <= 0 || height <= 0) return;
 
@@ -784,6 +784,8 @@ export class ImageEditor {
         const highlightStrength = (p.highlight || 0) / 100;
         const shadowStrength = (p.shadow || 0) / 100;
         const noiseStrength = totalNoise / 100 * 30;
+        const vibranceStrength = (p.vibrance || 0) / 100;
+        const applyVibrance = vibranceStrength !== 0;
 
         for (let i = 0; i < data.length; i += 4) {
             let r = data[i];
@@ -836,15 +838,16 @@ export class ImageEditor {
                 const influence = (0.5 - l) * 2;
                 l = clamp01(l + influence * shadowStrength);
             }
+            if (applyVibrance) {
+                const midToneFactor = 0.5 + (1 - Math.abs(2 * l - 1)) * 0.5;
+                if (vibranceStrength > 0) {
+                    s = clamp01(s + (1 - s) * vibranceStrength * midToneFactor);
+                } else {
+                    s = clamp01(s + s * vibranceStrength * 0.8);
+                }
+            }
 
             ({ r, g, b } = hslToRgb(h, s, l));
-
-            if (noiseStrength > 0) {
-                const rand = (Math.random() - 0.5) * 2 * noiseStrength;
-                r = clamp255(r + rand);
-                g = clamp255(g + rand);
-                b = clamp255(b + rand);
-            }
 
             if (curvesActive) {
                 if (curveR) r = curveR[r];
@@ -855,6 +858,13 @@ export class ImageEditor {
                     g = curveRGB[g];
                     b = curveRGB[b];
                 }
+            }
+
+            if (noiseStrength > 0) {
+                const rand = (Math.random() - 0.5) * 2 * noiseStrength;
+                r = clamp255(r + rand);
+                g = clamp255(g + rand);
+                b = clamp255(b + rand);
             }
 
             data[i] = r;
@@ -1174,7 +1184,7 @@ export class ImageEditor {
         const dehazeBoost = 1 + Math.max(0, p.dehaze || 0) / 200;
         const brightness = 100 + p.exposure;
         const contrast = Math.max(0, (100 + p.contrast) * clarityBoost * dehazeBoost);
-        let saturate = 100 + p.saturation + (p.vibrance * 0.5);
+        let saturate = 100 + p.saturation;
         if (p.dehaze > 0) {
             saturate += p.dehaze * 0.3;
         }
