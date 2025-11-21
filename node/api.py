@@ -1,7 +1,7 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from google import genai
 from openai import OpenAI
-import io, base64, torch, numpy as np, re, os, json, ast, inspect, textwrap
+import io, base64, torch, numpy as np, re, os, json, ast, inspect, textwrap, folder_paths
 from typing import Callable, Any
 from googletrans import LANGUAGES
 from PIL import Image, ImageOps
@@ -786,7 +786,95 @@ class joy_caption:
                 api_name="/stream_chat"
         )
         return result
+
+def i2tensor(i) -> torch.Tensor:
+    i = ImageOps.exif_transpose(i)
+    image = i.convert("RGB")
+    image = np.array(image).astype(np.float32) / 255.0
+    image = torch.from_numpy(image)[None,]
+    return image
     
+class Gemini_3_Pro_Image:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
+                "aspect_ratio": (["Auto","1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], {"default": "Auto", "tooltip": "Tỷ lệ khung hình"}),
+                "resolution": (["1K", "2K", "4K"], {"default": "1K", "tooltip": "Độ phân giải"}),
+                "translate": (lang_list(), {"default": "english", "tooltip": "Ngôn ngữ dịch"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+            },
+            "optional": {
+                "image": ("IMAGE", {"tooltip": "Ảnh tham khảo (Tối đa 14 ảnh)"})
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💬 API"
+    RETURN_TYPES = ("IMAGE","STRING",)
+    FUNCTION = "api_imagen"
+    INPUT_IS_LIST = True
+    OUTPUT_IS_LIST = (False,)
+
+    def api_imagen(self, Gemini_API, prompt, aspect_ratio, resolution, translate, seed, image=None):
+        Gemini_API, prompt, aspect_ratio, resolution, translate, seed = [
+            Gemini_API[0], prompt[0], aspect_ratio[0], resolution[0], translate[0], seed[0]
+        ]
+        
+        if Gemini_API == "":
+            api_list = api_check()
+            Gemini_API = api_list["Gemini"]
+
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
+        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt, translate)[0]
+        
+        client = genai.Client(api_key=Gemini_API)
+        
+        contents = [prompt]
+        if image is not None:       
+            pil_images = []
+            for img_batch in image:
+                for i in range(img_batch.shape[0]):
+                    pil_images.append(tensor2pil(img_batch[i]))
+            
+            pil_images = pil_images[:14]
+            contents.extend(pil_images)
+
+        response = client.models.generate_content(
+            model="gemini-3-pro-image-preview",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_modalities=['TEXT', 'IMAGE'],
+                image_config=types.ImageConfig(
+                    aspect_ratio=aspect_ratio if aspect_ratio != "Auto" else None,
+                    image_size=resolution
+                ),
+            )
+        )
+        temp_dir = folder_paths.get_temp_directory()
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_path = os.path.join(temp_dir, "gemini-3-pro-image-preview.png")
+        if os.path.exists(temp_path):
+            name, ext = os.path.splitext(temp_path)
+            counter = 1
+            while os.path.exists(f"{name}_{counter}{ext}"):
+                counter += 1
+            temp_path = f"{name}_{counter}{ext}"
+
+        for part in response.parts:
+            if part.text is not None:
+                text_output = part.text
+            else:
+                text_output = ""
+            if image:= part.as_image():
+                image.save(temp_path)
+                img = Image.open(temp_path)
+                img = i2tensor(img)
+            else:
+                img = torch.zeros((1, 64, 64, 3))
+        return (img, text_output,)
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Run Python Code": run_python_code,
     "SDVN API chatbot": API_chatbot,
@@ -797,6 +885,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Joy Caption": joy_caption,
     "SDVN Google Imagen": API_Imagen,
     "SDVN Gemini Flash 2 Image": Gemini_Flash2_Image,
+    "SDVN Gemini 3 Pro Image": Gemini_3_Pro_Image,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -808,5 +897,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Google Imagen": "🎨 Google Imagen",
     "SDVN Gemini Flash 2 Image": "🎨 Gemini Flash 2 Image",
     "SDVN GPT Image": "🎨 GPT Image",
+    "SDVN Gemini 3 Pro Image": "🎨 Gemini 3 Pro Image",
     "SDVN Dall-E Generate Image 2": "🎨 DALL-E 2",
 }
