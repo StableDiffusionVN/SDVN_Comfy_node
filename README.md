@@ -29,11 +29,26 @@ ___
 [**Example**](#Example)
 
 ___
-# Todo
+# Overview
 
+- A full toolkit of smart ComfyUI nodes covering loading/downloading, merging, masks, layouts, and API-based generation for SD15, SDXL, Flux, and more.
+- Built-in conveniences: auto model-type detection (CFG/sampler/scheduler), translation + dynamic prompt support across text fields, ControlNet/Apply Style presets, and curated model/style libraries (`model_lib*.json`, `lora_lib.json`, `styles.csv`).
+- Download helpers for checkpoints, LoRA, ControlNet, upscalers, IPAdapter/InstantID, and image sources (Pinterest/URL/Instagram) with aria2c acceleration when available.
+- Utilities for metadata inspection/editing, streamlined wiring (Pipe/Switch/Any nodes), mask tools, and API nodes for Gemini, OpenAI, Hugging Face, and Deepseek.
+- Workflow examples live in the `examples` folder; preview images are in `preview` to quickly show what each node set does.
+
+# Todo
 - [x] Workflow Example
 - [x] Guide
 - [x] Install
+___
+
+# Quick start
+
+- Clone into `custom_nodes`, then install Python deps from the ComfyUI root: `pip install -r custom_nodes/SDVN_Comfy_node/requirements.txt`
+- macOS/Windows: install `aria2c` manually for download nodes.
+- (Optional) Rename `API_key.json.example` to `API_key.json` and fill in keys; copy `my_styles.csv.example` to `my_styles.csv` to customize style presets.
+- Start ComfyUI — nodes appear under SDVN categories; recommended companion nodes are listed below.
 ___
 
 # Install
@@ -41,6 +56,7 @@ ___
 Install with simple commands: 
 - `cd <ComfyUI folder path>/custom_nodes`
 - `git clone https://github.com/StableDiffusionVN/SDVN_Comfy_node`
+- From your ComfyUI root, install dependencies: `pip install -r custom_nodes/SDVN_Comfy_node/requirements.txt`
 - *For Windows or macOS machines, users are required to manually install `aria2c` in order to use nodes that automatically download models.*
 
 Also you should install the following nodes to be able to use all functions:
@@ -102,6 +118,7 @@ This is a powerful node that combines 5 different loading modes (Input Folder, C
 - Support Random ability with Dynamic Prompt (Request installed node [Dynamicprompts](https://github.com/adieyal/comfyui-dynamicprompts))
 - Support Translate function
 - Support Style Card.
+- Includes helper text encoders for advanced models: **Qwen Edit Text Encoder / Plus** and **Kontext Reference** (pass reference images/masks into conditioning/latent).
 
 **🗂️ Prompt Styles**
 
@@ -116,6 +133,7 @@ Provide full option to use ControlNet in a single node (Request installed node [
 - Supports automatic downloading of most popular ControlNet models for SD15, SDXL, and Flux.
 - Supports direct usage with ControlNet Inpaint Alimama Flux.
 - Supports exporting parameters for integration with the AutoGenerate node.
+- Extras: **Diffsynth Controlnet Apply** and **Diffsynth Union Lora Apply** for users who work with Diffusynth workflows.
 
 **🌈 Apply Style Model**
 
@@ -213,6 +231,14 @@ A node that intelligently arranges image layouts with various flexible modes, he
 **🧅 Overlay Two Images | 🎭 Mask → Transparent Color | 🧩 Overlay Mask Color on Image**
 
 - Blend images and visualize masks with custom colors.
+
+**🖼️ Save Image Compare**
+
+- Save before/after pairs side-by-side for quick QA within a workflow.
+
+**🖼️ Image Gallery**
+
+- Browse, paginate, and download/collect images (local or remote/pinterest/URL) into a gallery with temp caching.
 ___
 
 ### Download
@@ -221,6 +247,7 @@ ___
 -  Supports direct download from **civitai** and **huggingface** with model address link and model download link
 -  Additionally, some nodes provide a list of popular models to make downloading them more convenient and faster.
 -  Includes download nodes for IPAdapter, InstantID, DualCLIP, QuadrupleCLIP and more.
+-  Extra download helpers: **AnyDownload List**, **ModelPatch/UNET/CLIP/Style/CLIP Vision downloads**, upscale model download, and VAE download.
  
 ![Download Nodes](/preview/download_node.png)
 
@@ -251,6 +278,7 @@ Support 3 types of syntax to adjust for each block
 **🧬 Model Merge**
 
 - This node supports merging 2 or 3 checkpoints, extracting LoRA from 2 checkpoints — similar to the merge function in Automatic1111.
+- **Model Export** saves merged results to disk with optional metadata edits.
 
 [*See more workflow examples*](#Example)
 
@@ -346,7 +374,17 @@ Example: A workflow to filter images with a width ≥ 1000px.
 - Nodes that support creating automated options and dynamically changing variables based on input.
 
 ![](preview/dic_convert.jpeg)
+
+**🎲 Random Prompt | 📋 Menu Option Extra | 🎚️ Sliders (x4)**
+
+- Quick prompt randomizer plus helper widgets (extra menu option, slider100, slider1, custom int/float slider) to speed up UI prototyping.
 ___
+
+### Dev
+
+- **Run Python Code**: inline execution of custom Python functions inside a workflow (supports dict/list unpacking).
+- **Kontext Reference / Qwen Edit Text Encoder (+ Plus)**: advanced conditioning/text encoders for reference-driven or Qwen-edit models.
+- **Save Image Compare + Image Gallery** also double as utility nodes for debugging and dataset management.
 
 ### API
 
@@ -368,12 +406,10 @@ Support the use of AI models through API
 ![](preview/chatbot2.jpeg)
 ![](preview/chatbot3.jpeg)
 
-**🎨 DALL-E 2 | 🎨 DALL-E 3 | 🎨 GPT Image**
+**🎨 DALL-E 3 | 🎨 GPT Image**
 
 - Support translate and Dynamic prompt
 
-![](preview/dalle-2.jpeg)
-![](preview/dalle-2_mask.jpeg)
 ![](preview/dalle-3.jpeg)
 ![](preview/gptimage.jpeg)
 ![](preview/gptimage_input.jpeg)
@@ -389,13 +425,12 @@ Support the use of AI models through API
 ![](preview/gemini_multi.jpeg)
 ![](preview/imagen.jpeg)
 
-**✨ IC-Light v2 | ✨ Joy Caption**
+**🎨 Gemini 3 Pro Image**
 
-A node that uses the Hugging Face API to directly interact with corresponding Spaces.
- - IC-Light v2: https://huggingface.co/spaces/lllyasviel/iclight-v2
- - Joy Caption: https://huggingface.co/spaces/fancyfeast/joy-caption-alpha-two
+- Uses Gemini 3 Pro Image Preview to return both an image and accompanying text
+- Accepts up to 14 reference images; supports aspect ratio and resolution presets
+- Translate + Dynamic prompt support, pulls API from `API_key.json` if not provided
 
-![](preview/iclight-v2.jpeg)
 ___
 
 # Info check
@@ -467,6 +502,10 @@ Nodes that support both basic and advanced mask processing and inpainting.
 **🧩 Mask Regions**
 
 - This node separates distinct masked areas into individual masks, working exceptionally well with the inpaint crop node set.
+
+**📏 Get Mask Size**
+
+- Returns mask width/height (and latent) to drive dimension-aware workflows.
 
 **⚡️ Crop Inpaint | 🔄 Loop Inpaint Stitch**
 

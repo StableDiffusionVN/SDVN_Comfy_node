@@ -27,6 +27,14 @@ ___
 [**Example**](#Example)
 
 ___
+# Tổng quan
+
+- Bộ toolkit node thông minh cho ComfyUI, bao phủ tải/tải về, merge, mask, layout và sinh ảnh qua API cho SD15, SDXL, Flux...
+- Tích hợp sẵn tiện ích: tự nhận diện loại model (CFG/sampler/scheduler), hỗ trợ dịch + dynamic prompt trên ô văn bản, preset ControlNet/Apply Style, và thư viện model/style có sẵn (`model_lib*.json`, `lora_lib.json`, `styles.csv`).
+- Hỗ trợ tải checkpoint, LoRA, ControlNet, upscale, IPAdapter/InstantID và nguồn ảnh (Pinterest/URL/Instagram) với gia tốc aria2c khi có.
+- Cung cấp tiện ích đọc/chỉnh metadata, sắp xếp dây nối gọn (Pipe/Switch/Any), công cụ mask, và node API cho Gemini, OpenAI, Hugging Face, Deepseek.
+- Thư mục `examples` chứa workflow mẫu; thư mục `preview` giúp xem nhanh giao diện/tác dụng mỗi nhóm node.
+
 # Todo
 
 - [x] Workflow Example
@@ -34,11 +42,20 @@ ___
 - [x] Install
 ___
 
+# Bắt đầu nhanh
+
+- Clone vào `custom_nodes`, sau đó cài phụ thuộc Python từ thư mục gốc ComfyUI: `pip install -r custom_nodes/SDVN_Comfy_node/requirements.txt`
+- macOS/Windows: tự cài `aria2c` để dùng các node tải model.
+- (Tùy chọn) Đổi `API_key.json.example` thành `API_key.json` và điền key; sao chép `my_styles.csv.example` thành `my_styles.csv` để tùy chỉnh style.
+- Khởi động ComfyUI — các node sẽ xuất hiện dưới nhóm SDVN; danh sách node nên cài thêm nằm ngay dưới đây.
+___
+
 # Install
 
 Cài đặt với các lệnh đơn giản: 
 - `cd <đường_dẫn_đến_thư_mục_ComfyUI>/custom_nodes`
 - `git clone https://github.com/StableDiffusionVN/SDVN_Comfy_node`
+- Từ thư mục gốc ComfyUI, cài phụ thuộc: `pip install -r custom_nodes/SDVN_Comfy_node/requirements.txt`
 - *Đối với máy Windows hoặc macOS, người dùng cần tự cài đặt `aria2c` để sử dụng các node tự động tải model.*
 
 Bạn cũng nên cài đặt các node sau để có thể sử dụng đầy đủ các chức năng:
@@ -99,6 +116,7 @@ Tự động tìm kiếm và tải ảnh từ Pinterest. Ảnh sẽ được t�
 - Hỗ trợ khả năng Random với Dynamic Prompt (Yêu cầu cài đặt node [Dynamicprompts](https://github.com/adieyal/comfyui-dynamicprompts))
 - Hỗ trợ chức năng dịch
 - Hỗ trợ Style Card.
+- Bổ sung encoder nâng cao cho model đặc thù: **Qwen Edit Text Encoder / Plus** và **Kontext Reference** (đưa ảnh/mask tham chiếu vào conditioning/latent).
 
 **🗂️ Prompt Styles**
 
@@ -113,6 +131,7 @@ Node tổng hợp đầy đủ các tùy chọn để sử dụng ControlNet tro
 - Hỗ trợ tự động tải các model ControlNet phổ biến cho SD15, SDXL và Flux.
 - Hỗ trợ sử dụng trực tiếp với ControlNet Inpaint Alimama Flux.
 - Hỗ trợ xuất tham số để tích hợp với node AutoGenerate.
+- Bản mở rộng: **Diffsynth Controlnet Apply** và **Diffsynth Union Lora Apply** cho người dùng workflow Diffusynth.
 
 **🌈 Apply Style Model**
 
@@ -209,6 +228,14 @@ Node sắp xếp layout ảnh thông minh với nhiều chế độ linh hoạt,
 **🧅 Overlay Two Images | 🎭 Mask → Transparent Color | 🧩 Overlay Mask Color on Image**
 
 - Chồng ảnh và hiển thị mask với màu tùy chọn.
+
+**🖼️ Save Image Compare**
+
+- Lưu cặp ảnh trước/sau đặt cạnh nhau để so sánh nhanh trong workflow.
+
+**🖼️ Image Gallery**
+
+- Duyệt, phân trang và tải/thu thập ảnh (local hoặc URL/Pinterest) vào thư viện tạm.
 ___
 
 ### Download
@@ -217,6 +244,7 @@ ___
 -  Hỗ trợ tải trực tiếp từ **civitai** và **huggingface** bằng địa chỉ model hoặc link tải model
 -  Ngoài ra, một số node cung cấp danh sách các model phổ biến để tải nhanh và tiện lợi hơn.
 -  Bổ sung các node tải IPAdapter, InstantID, DualCLIP, QuadrupleCLIP và nhiều loại model khác.
+-  Các tiện ích tải thêm: **AnyDownload List**, tải ModelPatch/UNET/CLIP/Style/CLIP Vision, tải model upscale và VAE.
 ![Download Nodes](/preview/download_node.png)
 
 ___
@@ -246,6 +274,7 @@ Hỗ trợ 3 kiểu cú pháp để điều chỉnh từng block
 **🧬 Model Merge**
 
 - Node này hỗ trợ trộn 2 hoặc 3 checkpoint, tách LoRA từ 2 checkpoint — tương tự chức năng merge của Automatic1111.
+- **Model Export**: lưu kết quả merge ra file và có thể chỉnh metadata.
 
 [*Xem thêm ví dụ workflow*](#Example)
 
@@ -341,7 +370,17 @@ Ví dụ: Workflow lọc ảnh có chiều rộng ≥ 1000px.
 - Node hỗ trợ tạo tùy chọn tự động và thay đổi biến động theo đầu vào.
 
 ![](preview/dic_convert.jpeg)
+
+**🎲 Random Prompt | 📋 Menu Option Extra | 🎚️ Sliders (x4)**
+
+- Trộn prompt ngẫu nhiên và các widget phụ (menu option extra, slider100, slider1, int/float slider custom) giúp dựng UI nhanh hơn.
 ___
+
+### Dev
+
+- **Run Python Code**: chạy hàm Python tự viết trực tiếp trong workflow (hỗ trợ unpack dict/list).
+- **Kontext Reference / Qwen Edit Text Encoder (+ Plus)**: encoder conditioning/văn bản nâng cao cho các model tham chiếu hoặc Qwen edit.
+- **Save Image Compare + Image Gallery** cũng hữu ích cho debug và quản lý bộ ảnh.
 
 ### API
 
@@ -363,12 +402,10 @@ Hỗ trợ sử dụng các model AI qua API
 ![](preview/chatbot2.jpeg)
 ![](preview/chatbot3.jpeg)
 
-**🎨 DALL-E 2 | 🎨 DALL-E 3 | 🎨 GPT Image**
+**🎨 DALL-E 3 | 🎨 GPT Image**
 
 - Hỗ trợ dịch và Dynamic prompt
 
-![](preview/dalle-2.jpeg)
-![](preview/dalle-2_mask.jpeg)
 ![](preview/dalle-3.jpeg)
 ![](preview/gptimage.jpeg)
 ![](preview/gptimage_input.jpeg)
@@ -384,13 +421,12 @@ Hỗ trợ sử dụng các model AI qua API
 ![](preview/gemini_multi.jpeg)
 ![](preview/imagen.jpeg)
 
-**✨ IC-Light v2 | ✨ Joy Caption**
+**🎨 Gemini 3 Pro Image**
 
-Node sử dụng API Hugging Face để tương tác trực tiếp với các Spaces tương ứng.
- - IC-Light v2: https://huggingface.co/spaces/lllyasviel/iclight-v2
- - Joy Caption: https://huggingface.co/spaces/fancyfeast/joy-caption-alpha-two
+- Sử dụng Gemini 3 Pro Image Preview, trả về cả ảnh và phần văn bản kèm theo
+- Hỗ trợ tối đa 14 ảnh tham chiếu; có sẵn preset tỷ lệ khung hình và độ phân giải
+- Hỗ trợ dịch + Dynamic prompt, tự lấy API trong `API_key.json` nếu để trống
 
-![](preview/iclight-v2.jpeg)
 ___
 
 # Info check
@@ -462,6 +498,10 @@ Bộ node hỗ trợ xử lý mask cơ bản và nâng cao, cũng như inpaintin
 **🧩 Mask Regions**
 
 - Node này tách các vùng mask riêng biệt thành các mask riêng, hoạt động rất tốt với bộ node inpaint crop.
+
+**📏 Get Mask Size**
+
+- Trả về chiều rộng/chiều cao (và latent) của mask để xây dựng workflow phụ thuộc kích thước.
 
 **⚡️ Crop Inpaint | 🔄 Loop Inpaint Stitch**
 

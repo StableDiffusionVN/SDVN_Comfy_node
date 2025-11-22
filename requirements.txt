@@ -4,9 +4,8 @@ openai >= 1.99.3
 gallery-dl
 instaloader
 googletrans-py
-gradio_client>=1.5.4
 opencv-python
-google-genai
+google-genai>=1.51.0
 PyYAML
 pandas
 ultralytics==8.3.107

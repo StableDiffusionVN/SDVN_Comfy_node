@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update Support controlnet Qwen"
-version = "1.13.2"   
+description = "Update all UI, Image Editor ...."
+version = "1.14"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 

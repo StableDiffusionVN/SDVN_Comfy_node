@@ -5,7 +5,6 @@ import io, base64, torch, numpy as np, re, os, json, ast, inspect, textwrap, fol
 from typing import Callable, Any
 from googletrans import LANGUAGES
 from PIL import Image, ImageOps
-from gradio_client import Client, handle_file
 from google.genai import types
 from io import BytesIO
 
@@ -380,66 +379,6 @@ class API_DALLE:
         image = ALL_NODE["SDVN Load Image Url"]().load_image_url(image_url)["result"][0]
         return (image,)
 
-class API_DALLE_2:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "OpenAI_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
-                "size": (['auto','256x256', '512x512', '1024x1024'],{"default": "1024x1024", "tooltip": "Kích thước ảnh"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys", "tooltip": "Nội dung mô tả"}),
-                "n": ("INT", {"default": 1, "min": 1, "max": 4, "tooltip": "Số lượng ảnh"}),
-                "translate": (lang_list(), {"tooltip": "Dịch prompt"}),
-            },
-            "optional": {
-                "image": ("IMAGE", {"tooltip": "Ảnh nguồn"}),
-                "mask": ("MASK",)
-            }
-        }
-
-    CATEGORY = "📂 SDVN/💬 API"
-
-    RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "api_dalle"
-    OUTPUT_IS_LIST = (True,)
-    DESCRIPTION = "Tạo hoặc chỉnh sửa ảnh bằng API DALL-E 2."
-    OUTPUT_TOOLTIPS = ("Danh sách ảnh kết quả.",)
-
-    def api_dalle(self, OpenAI_API, size, seed, prompt, n, translate, image = None, mask = None):
-        if OpenAI_API == "":
-            api_list = api_check()
-            OpenAI_API =  api_list["OpenAI"]
-            
-        ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
-        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
-
-        client = OpenAI(
-            api_key=OpenAI_API
-        )
-        if image != None and mask != None:
-            response = client.images.edit(
-                model="dall-e-2",
-                prompt=prompt,
-                image = pil_to_bytesio(image),
-                n = n,
-                mask = mask_bytesio(mask),
-                size=size,
-            )
-        else:
-            response = client.images.generate(
-                model="dall-e-2",
-                prompt=prompt,
-                size=size,
-                n=n,
-            )
-        images = []
-        for i in range(n):
-            image_url = response.data[i].url
-            image = ALL_NODE["SDVN Load Image Url"]().load_image_url(image_url)["result"][0]
-            images.append(image)
-        return (images,)
-    
 class API_GPT_image:
     @classmethod
     def INPUT_TYPES(s):
@@ -617,176 +556,6 @@ class API_Imagen:
         image = pil2tensor(image)
         return (image,)
         
-class ic_light_v2:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "image": ("IMAGE",),
-                "mode": (["v2", "v2_vary"],{"default":"v2"}),
-                "bg_source": (['None', 'Left Light', 'Right Light', 'Top Light', 'Bottom Light'],{"default":"None"}),
-                "prompt": ("STRING",{"default":"","multiline": True}),
-                "translate": (lang_list(),),
-                "n_prompt": ("STRING",{"default":"","multiline": False}),
-                "hf_token": ("STRING",{"default":"","multiline": False}),
-                "image_size": ("INT", {"default":1024,"min":512,"max":2048}),
-                "steps": ("INT", {"default":25,"min":1,"max":50}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, }),
-            }
-        }
-
-    CATEGORY = "📂 SDVN/💬 API"
-    RETURN_TYPES = ("IMAGE","IMAGE")
-    RETURN_NAMES = ("image","grey_img")
-    FUNCTION = "ic_light_v2"
-
-    def ic_light_v2(s, image, mode, bg_source, prompt, translate, n_prompt, hf_token, image_size, steps, seed):
-
-        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
-        n_prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(n_prompt, 1, seed)[0][0]
-
-        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
-        n_prompt = ALL_NODE["SDVN Translate"]().ggtranslate(n_prompt,translate)[0]
-        if hf_token == "":
-            api_list = api_check()
-            if api_check() != None:
-                hf_token =  api_list["HuggingFace"]
-
-        samples = image.movedim(-1, 1)
-        w = samples.shape[3]
-        h = samples.shape[2]
-        width = image_size
-        height = image_size
-        if width/height < w/h:
-            height = round(h * width / w)
-        else:
-            width = round(w * height / h)
-        image = tensor2pil(image)
-
-        input_path = "/tmp/ic_light.jpg"
-        space_path = "lllyasviel/iclight-v2" if mode == "v2" else "lllyasviel/iclight-v2-vary"
-
-        if not os.path.isdir("/tmp"):
-            os.mkdir("/tmp")
-        image.save(input_path, format="JPEG")
-        if hf_token == "":
-            client = Client(space_path)
-        else:
-            client = Client(space_path, hf_token = hf_token)
-        if mode == "v2":
-            result = client.predict(
-                    input_fg = handle_file(input_path),
-                    bg_source = bg_source,
-                    prompt = prompt,
-                    image_width = width,
-                    image_height = height,
-                    num_samples = 1,
-                    seed = seed,
-                    steps = steps,
-                    n_prompt = n_prompt,
-                    cfg=1,
-                    gs=5,
-                    rs=1,
-                    init_denoise=0.999,
-                    api_name="/process"
-            )
-        else:
-            result = client.predict(
-                    input_fg = handle_file(input_path),
-                    bg_source = bg_source,
-                    prompt = prompt,
-                    image_width = width,
-                    image_height = height,
-                    num_samples = 1,
-                    seed = seed,
-                    steps = steps,
-                    n_prompt = n_prompt,
-                    cfg=2,
-                    gs=5,
-                    enable_hr_fix=True,
-                    hr_downscale=0.5,
-                    lowres_denoise=0.8,
-                    highres_denoise=0.99,
-                    api_name="/process"
-            )
-
-        img_path = result[0][0]['image']
-        img_grey_path = result[1]
-        img = ALL_NODE["SDVN Load Image Url"]().load_image_url(img_path)["result"][0]
-        img_grey = ALL_NODE["SDVN Load Image Url"]().load_image_url(img_grey_path)["result"][0]
-        return (img,img_grey,)
-
-class joy_caption:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "image": ("IMAGE", {"tooltip": "Ảnh cần mô tả"}),
-                "caption_type": (["Descriptive", "Descriptive (Informal)", "Training Prompt", "MidJourney", "Booru tag list", "Booru-like tag list", "Art Critic", "Product Listing", "Social Media Post"], {"tooltip": "Kiểu chú thích"}),
-                "caption_length": (["any", "very short", "short", "medium-length", "long", "very long"] + [str(i) for i in range(20, 261, 10)], {"tooltip": "Độ dài"}),
-                "extra_options": ([
-                    "None",
-					"If there is a person/character in the image you must refer to them as {name}.",
-					"Do NOT include information about people/characters that cannot be changed (like ethnicity, gender, etc), but do still include changeable attributes (like hair style).",
-					"Include information about lighting.",
-					"Include information about camera angle.",
-					"Include information about whether there is a watermark or not.",
-					"Include information about whether there are JPEG artifacts or not.",
-					"If it is a photo you MUST include information about what camera was likely used and details such as aperture, shutter speed, ISO, etc.",
-					"Do NOT include anything sexual; keep it PG.",
-					"Do NOT mention the image's resolution.",
-					"You MUST include information about the subjective aesthetic quality of the image from low to very high.",
-					"Include information on the image's composition style, such as leading lines, rule of thirds, or symmetry.",
-					"Do NOT mention any text that is in the image.",
-					"Specify the depth of field and whether the background is in focus or blurred.",
-					"If applicable, mention the likely use of artificial or natural lighting sources.",
-					"Do NOT use any ambiguous language.",
-					"Include whether the image is sfw, suggestive, or nsfw.",
-					"ONLY describe the most important elements of the image."
-				],),
-                "name_input": ("STRING",{"default":"","multiline": False, "tooltip": "Tên nhân vật"}),
-                "custom_prompt": ("STRING",{"default":"","multiline": True, "tooltip": "Prompt tùy chỉnh"}),
-                "translate": (lang_list(), {"tooltip": "Ngôn ngữ dịch"}),
-                "hf_token": ("STRING",{"default":"","multiline": False, "tooltip": "HuggingFace token"}),
-            }
-        }
-
-    CATEGORY = "📂 SDVN/💬 API"
-    RETURN_TYPES = ("STRING","STRING",)
-    RETURN_NAMES = ("prompt","caption",)
-    FUNCTION = "joy_caption"
-
-    def joy_caption(s, image, caption_type, caption_length, extra_options, name_input, custom_prompt, translate, hf_token):
-        if custom_prompt != "":
-            custom_prompt = ALL_NODE["SDVN Translate"]().ggtranslate(custom_prompt,translate)[0]
-        if hf_token == "":
-            api_list = api_check()
-            if api_check() != None:
-                hf_token =  api_list["HuggingFace"]
-        extra_options = "" if extra_options == "None" else extra_options
-
-        image = tensor2pil(image)
-        input_path = "/tmp/joy_caption.jpg"
-        if not os.path.isdir("/tmp"):
-            os.mkdir("/tmp")
-        image.save(input_path, format="JPEG")
-
-        space_path = "fancyfeast/joy-caption-alpha-two"
-        if hf_token == "":
-            client = Client(space_path)
-        else:
-            client = Client(space_path, hf_token = hf_token)
-        result = client.predict(
-                input_image = handle_file(input_path),
-                caption_type = caption_type,
-                caption_length = caption_length,
-                extra_options = [extra_options],
-                name_input = name_input,
-                custom_prompt = custom_prompt,
-                api_name="/stream_chat"
-        )
-        return result
-
 def i2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
     image = i.convert("RGB")
@@ -803,7 +572,7 @@ class Gemini_3_Pro_Image:
                 "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
                 "aspect_ratio": (["Auto","1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], {"default": "Auto", "tooltip": "Tỷ lệ khung hình"}),
                 "resolution": (["1K", "2K", "4K"], {"default": "1K", "tooltip": "Độ phân giải"}),
-                "translate": (lang_list(), {"default": "english", "tooltip": "Ngôn ngữ dịch"}),
+                "translate": (lang_list(), {"default": "None", "tooltip": "Ngôn ngữ dịch"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
             },
             "optional": {
@@ -879,10 +648,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Run Python Code": run_python_code,
     "SDVN API chatbot": API_chatbot,
     "SDVN DALL-E Generate Image": API_DALLE,
-    "SDVN Dall-E Generate Image 2": API_DALLE_2,
     "SDVN GPT Image": API_GPT_image, 
-    "SDVN IC-Light v2": ic_light_v2,
-    "SDVN Joy Caption": joy_caption,
     "SDVN Google Imagen": API_Imagen,
     "SDVN Gemini Flash 2 Image": Gemini_Flash2_Image,
     "SDVN Gemini 3 Pro Image": Gemini_3_Pro_Image,
@@ -892,11 +658,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Run Python Code": "👨🏻‍💻 Run Python Code",
     "SDVN API chatbot": "💬 Chatbot",
     "SDVN DALL-E Generate Image": "🎨 DALL-E 3",
-    "SDVN IC-Light v2": "✨ IC-Light v2",
-    "SDVN Joy Caption": "✨ Joy Caption",
     "SDVN Google Imagen": "🎨 Google Imagen",
-    "SDVN Gemini Flash 2 Image": "🎨 Gemini Flash 2 Image",
+    "SDVN Gemini Flash 2 Image": "🎨 Nano Banana (Gemini 2)",
     "SDVN GPT Image": "🎨 GPT Image",
-    "SDVN Gemini 3 Pro Image": "🎨 Gemini 3 Pro Image",
-    "SDVN Dall-E Generate Image 2": "🎨 DALL-E 2",
+    "SDVN Gemini 3 Pro Image": "🎨 Nano Banana Pro (Gemini 3 Pro)",
 }
