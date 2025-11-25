@@ -1490,7 +1490,7 @@ class KontextReference:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
+                    "img_size": ("INT",  {"default": 1024, "min": 0, "max": 4096, "step": 1}),
                     "conditioning": ("CONDITIONING", ),
                     "vae": ("VAE", ),
                              },
