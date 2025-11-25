@@ -1829,7 +1829,7 @@ class CLIPDownload:
         return {"required": { 
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
-                    "type": (["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream", "chroma", "ace", "omnigen2", "qwen_image"],)
+                    "type": (["stable_diffusion", "stable_cascade", "sd3", "flux2", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream", "chroma", "ace", "omnigen2", "qwen_image"],)
                              }}
     RETURN_TYPES = ("CLIP",)
     FUNCTION = "download"
