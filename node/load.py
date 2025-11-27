@@ -1499,7 +1499,7 @@ class KontextReference:
                      "image2": ("IMAGE",),
                      "image3": ("IMAGE",),
                      "mask": ("MASK",),
-                },
+                },  
                              }
     
     RETURN_TYPES = ("CONDITIONING", "INT", "INT", "LATENT")

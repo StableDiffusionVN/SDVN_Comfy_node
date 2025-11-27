@@ -167,5 +167,9 @@
     
     "qwen_image_canny_diffsynth_controlnet.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/model_patches/qwen_image_canny_diffsynth_controlnet.safetensors","ModelPatch"],
     "qwen_image_depth_diffsynth_controlnet.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/model_patches/qwen_image_depth_diffsynth_controlnet.safetensors","ModelPatch"],
-    "qwen_image_inpaint_diffsynth_controlnet.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/model_patches/qwen_image_inpaint_diffsynth_controlnet.safetensors","ModelPatch"]
+    "qwen_image_inpaint_diffsynth_controlnet.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/model_patches/qwen_image_inpaint_diffsynth_controlnet.safetensors","ModelPatch"],
+
+    "z_image_turbo_bf16.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors", "UNET/Diffusion", "default"],
+    "qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "lumina2"],
+    "z_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors","VAE"]
 }
