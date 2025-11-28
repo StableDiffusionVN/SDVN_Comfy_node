@@ -892,6 +892,7 @@ ModelType_list = {
     "HunyuanVideo": [1.0, "euler", "simple"],
     "QwenImage": [2.5, "euler", "simple"],
     "QwenImage Lightning": [1, "euler", "simple"],
+    "Z-Image": [1, "euler", "simple"],
 }
 
 StepsType_list = {
@@ -904,11 +905,13 @@ StepsType_list = {
     "Flux schnell": 4,
     "HiDream-Fast": 16,
     "QwenImage": 50,
+    "Z-Image-turbo": 8,
 }
 
 def check_type_model(m):
     type_name = m.model.__class__.__name__
     type_name = "SD 1.5" if type_name == "BaseModel" else type_name
+    type_name = "Z-Image" if type_name == "Lumina2" else type_name
     return type_name
 
 class Easy_KSampler:
