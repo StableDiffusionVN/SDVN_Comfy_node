@@ -38,6 +38,7 @@ function addShowControl(nodeType, nodeData) {
         const showConfigs = {
             "SDVN Auto Generate": {
                 controller: "AdvSetting",
+                keepSize: true,
                 targets: (v) => ({
                     cfg: v === true,
                     sampler_name: v === true,
