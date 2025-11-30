@@ -104,6 +104,8 @@ class auto_generate:
     FUNCTION = "auto_generate"
     model_para = {
         "Flux": [1152, "None", 0.3, 1536],
+        "Z-Image": [1152, "None", 0.3, 1536],
+        "QwenImage": [1152, "None", 0.3, 1536],
         "SDXL": [1024, "XL-BasePrompt", 0.3, 1536],
         "SDXL Lightning": [1024, "XL-BasePrompt", 0.3, 1536],
         "SDXL Hyper": [1024, "XL-BasePrompt", 0.3, 1536],
