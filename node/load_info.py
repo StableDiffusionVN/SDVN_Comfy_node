@@ -304,7 +304,7 @@ class lora_info:
         return {
             "required": {
                 "lora_path": ("STRING",{"forceInput": True, "tooltip": "Đường dẫn LoRA"}),
-                "info_type": (["name","img_type","img_format", "color_mode", "image_size", "dpi", "metadata", "exif_data"], {"tooltip": "Loại thông tin cần đọc."}),
+                "info_type": (["Full_Data","Tag", *list(list_data_check)],)
             }
         }
 
