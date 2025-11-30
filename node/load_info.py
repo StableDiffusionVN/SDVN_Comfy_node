@@ -61,7 +61,7 @@ class metadata_check:
         return {
             "required": {
                 "metadata": ("STRING",{"forceInput": True, "tooltip": "Chuỗi metadata."}),
-                "info_type": (["name","img_type","img_format", "color_mode", "image_size", "dpi", "metadata", "exif_data"], {"tooltip": "Loại thông tin cần đọc."}),
+                "info_type": (["ComfyUI_Workflow_Json", "ComfyUI_Node_List", "Automatic_Info", "Automatic_Positive", "Automatic_Negative", "Automatic_Setting",],)
             }
         }
 
