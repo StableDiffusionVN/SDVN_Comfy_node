@@ -1214,7 +1214,10 @@ class DiffsynthControlNetApply:
                 print(
                     "You have not installed it yet Controlnet Aux (https://github.com/Fannovel16/comfyui_controlnet_aux)")
         image = UpscaleImage().upscale("Maxsize", resolution, resolution, 1, "None", image)[0]
-        model_patch = ALL_NODE["SDVN AnyDownload List"]().any_download_list(model_patch)[0]
+        if model_patch in self.modellist:
+            model_patch = ALL_NODE["SDVN AnyDownload List"]().any_download_list(model_patch)[0]
+        else:
+            model_patch = ALL_NODE["ModelPatchLoader"]().load_model_patch(model_patch)[0]
         model = ALL_NODE["QwenImageDiffsynthControlnet"]().diffsynth_controlnet( model, model_patch, vae, image, strength, mask)[0]
         latent = ALL_NODE["VAEEncode"]().encode(vae, image)[0]
         results = ALL_NODE["PreviewImage"]().save_images(image)
