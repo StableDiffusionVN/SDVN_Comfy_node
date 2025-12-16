@@ -194,11 +194,21 @@ function ensureCanvasPatched() {
 	const proto = LiteGraph.LGraphCanvas.prototype;
 	const originalDrawNode = proto.drawNode;
 	proto.drawNode = function (node) {
-		const result = originalDrawNode.apply(this, arguments);
-		if (node?.__sdvnSaveCompareDraw && typeof node.__sdvnSaveCompareDraw === "function") {
-			node.__sdvnSaveCompareDraw(this.ctx);
+		const hasCompareDraw = node?.__sdvnSaveCompareDraw && typeof node.__sdvnSaveCompareDraw === "function";
+		let originalImgs;
+		if (hasCompareDraw) {
+			// Hide the default preview (and its index badge) so our comparer can draw cleanly.
+			originalImgs = node.imgs;
+			node.imgs = [];
 		}
-		return result;
+		try {
+			return originalDrawNode.apply(this, arguments);
+		} finally {
+			if (hasCompareDraw) {
+				node.imgs = originalImgs;
+				node.__sdvnSaveCompareDraw(this.ctx);
+			}
+		}
 	};
 }
 
