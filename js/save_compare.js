@@ -83,6 +83,31 @@ function drawImage(ctx, img, area, clipX) {
 	const { x, y, width, height } = area;
 	const imgAspect = img.naturalWidth / img.naturalHeight;
 	const boxAspect = width / (height || 1);
+	const { targetWidth, targetHeight, destX, destY } =
+		imgAspect > boxAspect
+			? { targetWidth: width, targetHeight: width / imgAspect, destX: x, destY: y + (height - width / imgAspect) / 2 }
+			: { targetHeight: height, targetWidth: height * imgAspect, destX: x + (width - height * imgAspect) / 2, destY: y };
+
+	if (clipX != null) {
+		const clamped = Math.min(Math.max(clipX, destX), destX + targetWidth);
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(destX, destY, Math.max(clamped - destX, 0), targetHeight);
+		ctx.clip();
+		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
+		ctx.restore();
+		return { destX, destY, destWidth: targetWidth, destHeight: targetHeight, clipX: clamped };
+	}
+
+	ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
+	return { destX, destY, destWidth: targetWidth, destHeight: targetHeight };
+}
+
+function computeImageRect(img, area) {
+	if (!img || !img.naturalWidth || !img.naturalHeight || !area) return null;
+	const { x, y, width, height } = area;
+	const imgAspect = img.naturalWidth / img.naturalHeight;
+	const boxAspect = width / (height || 1);
 	let targetWidth;
 	let targetHeight;
 	let destX;
@@ -100,18 +125,6 @@ function drawImage(ctx, img, area, clipX) {
 		destY = y;
 	}
 
-	if (clipX != null) {
-		const clamped = Math.min(Math.max(clipX, destX), destX + targetWidth);
-		ctx.save();
-		ctx.beginPath();
-		ctx.rect(destX, destY, Math.max(clamped - destX, 0), targetHeight);
-		ctx.clip();
-		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
-		ctx.restore();
-		return { destX, destY, destWidth: targetWidth, destHeight: targetHeight, clipX: clamped };
-	}
-
-	ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
 	return { destX, destY, destWidth: targetWidth, destHeight: targetHeight };
 }
 
@@ -163,7 +176,13 @@ function drawCompare(ctx) {
 	ctx.rect(area.x, area.y, area.width, area.height);
 	ctx.clip();
 
-	const baseRect = drawImage(ctx, base, area);
+	const overlayOnly = this.__sdvnOverlayOnly ?? false;
+	const baseRect = overlayOnly ? computeImageRect(base, area) : drawImage(ctx, base, area);
+	if (!baseRect) {
+		ctx.restore();
+		return;
+	}
+
 	let lineX = null;
 	const overlay = resolveStateImage(state.images?.[1]);
 	const hasOverlay = state.isPointerOver && hasOverlayImages(state);
@@ -195,20 +214,38 @@ function ensureCanvasPatched() {
 	const originalDrawNode = proto.drawNode;
 	proto.drawNode = function (node) {
 		const hasCompareDraw = node?.__sdvnSaveCompareDraw && typeof node.__sdvnSaveCompareDraw === "function";
-		let originalImgs;
-		if (hasCompareDraw) {
-			// Hide the default preview (and its index badge) so our comparer can draw cleanly.
-			originalImgs = node.imgs;
-			node.imgs = [];
-		}
+		const shouldDrawHere = hasCompareDraw && !node.__sdvnDrawCompareInDrawPass;
 		try {
 			return originalDrawNode.apply(this, arguments);
 		} finally {
-			if (hasCompareDraw) {
-				node.imgs = originalImgs;
+			if (shouldDrawHere) {
 				node.__sdvnSaveCompareDraw(this.ctx);
 			}
 		}
+	};
+
+	const originalDraw = proto.draw;
+	proto.draw = function () {
+		const result = originalDraw.apply(this, arguments);
+		const nodes = this.graph?._nodes;
+		if (!nodes?.length) return result;
+		const ctx = this.ctx;
+		const ds = this.ds || {};
+		const scale = ds.scale ?? this.scale ?? 1;
+		const offset = ds.offset ?? this.offset ?? [0, 0];
+		ctx.save();
+		ctx.scale(scale, scale);
+		ctx.translate(offset[0] ?? 0, offset[1] ?? 0);
+		for (const node of nodes) {
+			if (!node?.__sdvnSaveCompareDraw || !node.__sdvnDrawCompareInDrawPass) continue;
+			ctx.save();
+			const pos = node.pos || [0, 0];
+			ctx.translate(pos[0], pos[1]);
+			node.__sdvnSaveCompareDraw(ctx);
+			ctx.restore();
+		}
+		ctx.restore();
+		return result;
 	};
 }
 
@@ -230,6 +267,8 @@ app.registerExtension({
 				this.size[1] = Math.max(this.size[1], 260);
 			}
 			this.__sdvnSaveCompareDraw = (ctx) => drawCompare.call(this, ctx);
+			this.__sdvnOverlayOnly = true;
+			this.__sdvnDrawCompareInDrawPass = true;
 			return r;
 		};
 
