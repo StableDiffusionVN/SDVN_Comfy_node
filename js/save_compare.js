@@ -22,11 +22,24 @@ function ensureState(node) {
 	return node.__sdvnSaveCompare;
 }
 
+function syncNodeImages(node) {
+	const state = ensureState(node);
+	const nextImgs = [];
+	const base = resolveStateImage(state.images?.[0]);
+	const overlay = resolveStateImage(state.images?.[1]);
+	if (base) nextImgs[0] = base;
+	if (overlay) nextImgs[1] = overlay;
+	node.imgs = nextImgs;
+}
+
 function loadImage(meta, node) {
 	if (!meta) return null;
 	const img = new Image();
 	img.src = imageDataToUrl(meta);
-	img.onload = () => node.setDirtyCanvas(true, false);
+	img.onload = () => {
+		node.setDirtyCanvas(true, false);
+		syncNodeImages(node);
+	};
 	return { meta, img };
 }
 
@@ -53,6 +66,7 @@ function updateImages(node, data) {
 	} else {
 		state.images = [loadImage(primary, node), loadImage(secondary, node)];
 	}
+	syncNodeImages(node);
 	node.setDirtyCanvas(true, true);
 }
 
@@ -83,31 +97,6 @@ function drawImage(ctx, img, area, clipX) {
 	const { x, y, width, height } = area;
 	const imgAspect = img.naturalWidth / img.naturalHeight;
 	const boxAspect = width / (height || 1);
-	const { targetWidth, targetHeight, destX, destY } =
-		imgAspect > boxAspect
-			? { targetWidth: width, targetHeight: width / imgAspect, destX: x, destY: y + (height - width / imgAspect) / 2 }
-			: { targetHeight: height, targetWidth: height * imgAspect, destX: x + (width - height * imgAspect) / 2, destY: y };
-
-	if (clipX != null) {
-		const clamped = Math.min(Math.max(clipX, destX), destX + targetWidth);
-		ctx.save();
-		ctx.beginPath();
-		ctx.rect(destX, destY, Math.max(clamped - destX, 0), targetHeight);
-		ctx.clip();
-		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
-		ctx.restore();
-		return { destX, destY, destWidth: targetWidth, destHeight: targetHeight, clipX: clamped };
-	}
-
-	ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
-	return { destX, destY, destWidth: targetWidth, destHeight: targetHeight };
-}
-
-function computeImageRect(img, area) {
-	if (!img || !img.naturalWidth || !img.naturalHeight || !area) return null;
-	const { x, y, width, height } = area;
-	const imgAspect = img.naturalWidth / img.naturalHeight;
-	const boxAspect = width / (height || 1);
 	let targetWidth;
 	let targetHeight;
 	let destX;
@@ -125,6 +114,18 @@ function computeImageRect(img, area) {
 		destY = y;
 	}
 
+	if (clipX != null) {
+		const clamped = Math.min(Math.max(clipX, destX), destX + targetWidth);
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(destX, destY, Math.max(clamped - destX, 0), targetHeight);
+		ctx.clip();
+		ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
+		ctx.restore();
+		return { destX, destY, destWidth: targetWidth, destHeight: targetHeight, clipX: clamped };
+	}
+
+	ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, destX, destY, targetWidth, targetHeight);
 	return { destX, destY, destWidth: targetWidth, destHeight: targetHeight };
 }
 
@@ -163,6 +164,42 @@ function getNodePreviewImage(node) {
 	return null;
 }
 
+function getCurrentPreviewEntry(node, state) {
+	const preferOverlay = state.isPointerOver && hasOverlayImages(state);
+	if (preferOverlay && state.images?.[1]) {
+		const img = resolveStateImage(state.images[1]);
+		if (img) return { img, meta: state.images[1]?.meta ?? state.images[1] };
+	}
+	if (state.images?.[0]) {
+		const img = resolveStateImage(state.images[0]);
+		if (img) return { img, meta: state.images[0]?.meta ?? state.images[0] };
+	}
+	const img = getNodePreviewImage(node);
+	return img ? { img, meta: null } : null;
+}
+
+function drawImageInfo(ctx, area, entry) {
+	if (!entry?.img) return;
+	const width = entry.img.naturalWidth || entry.meta?.width;
+	const height = entry.img.naturalHeight || entry.meta?.height;
+	if (!width || !height) return;
+	const text = `${width} × ${height}`;
+	ctx.save();
+	ctx.font = "12px monospace";
+	ctx.textBaseline = "middle";
+	const padding = 4;
+	const textMetrics = ctx.measureText(text);
+	const boxWidth = textMetrics.width + padding * 2;
+	const boxHeight = 16;
+	const x = area.x + area.width - boxWidth - padding;
+	const y = area.y + area.height - boxHeight - padding;
+	ctx.fillStyle = "rgba(0,0,0,0.6)";
+	ctx.fillRect(x, y, boxWidth, boxHeight);
+	ctx.fillStyle = "#fff";
+	ctx.fillText(text, x + padding, y + boxHeight / 2);
+	ctx.restore();
+}
+
 function drawCompare(ctx) {
 	const state = ensureState(this);
 	const base = getNodePreviewImage(this) ?? resolveStateImage(state.images?.[0]);
@@ -176,13 +213,7 @@ function drawCompare(ctx) {
 	ctx.rect(area.x, area.y, area.width, area.height);
 	ctx.clip();
 
-	const overlayOnly = this.__sdvnOverlayOnly ?? false;
-	const baseRect = overlayOnly ? computeImageRect(base, area) : drawImage(ctx, base, area);
-	if (!baseRect) {
-		ctx.restore();
-		return;
-	}
-
+	const baseRect = drawImage(ctx, base, area);
 	let lineX = null;
 	const overlay = resolveStateImage(state.images?.[1]);
 	const hasOverlay = state.isPointerOver && hasOverlayImages(state);
@@ -205,6 +236,58 @@ function drawCompare(ctx) {
 		ctx.stroke();
 		ctx.restore();
 	}
+
+	const activeEntry = getCurrentPreviewEntry(this, state);
+	if (activeEntry?.img) {
+		drawImageInfo(ctx, area, activeEntry);
+	}
+}
+
+async function copyImageToClipboard(entry) {
+	if (!entry?.img) return;
+	if (!navigator?.clipboard?.write) {
+		console.warn("[SDVN.SaveImageCompare] Clipboard API is not available.");
+		return;
+	}
+	if (typeof ClipboardItem === "undefined") {
+		console.warn("[SDVN.SaveImageCompare] ClipboardItem is not available in this browser.");
+		return;
+	}
+	const canvas = document.createElement("canvas");
+	canvas.width = entry.img.naturalWidth || entry.img.width;
+	canvas.height = entry.img.naturalHeight || entry.img.height;
+	const ctx = canvas.getContext("2d");
+	ctx.drawImage(entry.img, 0, 0);
+	return new Promise((resolve, reject) => {
+		canvas.toBlob(async (blob) => {
+			if (!blob) {
+				reject(new Error("Failed to create image blob"));
+				return;
+			}
+			try {
+				await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+				resolve();
+			} catch (err) {
+				reject(err);
+			}
+		}, "image/png");
+	});
+}
+
+function downloadImage(entry) {
+	if (!entry?.img) return;
+	const url = entry.meta ? imageDataToUrl(entry.meta) : entry.img.src;
+	if (!url) return;
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = entry.meta?.filename || "image.png";
+	link.click();
+}
+
+function openImage(entry) {
+	if (!entry?.img) return;
+	const url = entry.meta ? imageDataToUrl(entry.meta) : entry.img.src;
+	if (url) window.open(url, "_blank");
 }
 
 function ensureCanvasPatched() {
@@ -214,38 +297,20 @@ function ensureCanvasPatched() {
 	const originalDrawNode = proto.drawNode;
 	proto.drawNode = function (node) {
 		const hasCompareDraw = node?.__sdvnSaveCompareDraw && typeof node.__sdvnSaveCompareDraw === "function";
-		const shouldDrawHere = hasCompareDraw && !node.__sdvnDrawCompareInDrawPass;
+		let originalImgs;
+		if (hasCompareDraw) {
+			// Hide the default preview (and its index badge) so our comparer can draw cleanly.
+			originalImgs = node.imgs;
+			node.imgs = [];
+		}
 		try {
 			return originalDrawNode.apply(this, arguments);
 		} finally {
-			if (shouldDrawHere) {
+			if (hasCompareDraw) {
+				node.imgs = originalImgs;
 				node.__sdvnSaveCompareDraw(this.ctx);
 			}
 		}
-	};
-
-	const originalDraw = proto.draw;
-	proto.draw = function () {
-		const result = originalDraw.apply(this, arguments);
-		const nodes = this.graph?._nodes;
-		if (!nodes?.length) return result;
-		const ctx = this.ctx;
-		const ds = this.ds || {};
-		const scale = ds.scale ?? this.scale ?? 1;
-		const offset = ds.offset ?? this.offset ?? [0, 0];
-		ctx.save();
-		ctx.scale(scale, scale);
-		ctx.translate(offset[0] ?? 0, offset[1] ?? 0);
-		for (const node of nodes) {
-			if (!node?.__sdvnSaveCompareDraw || !node.__sdvnDrawCompareInDrawPass) continue;
-			ctx.save();
-			const pos = node.pos || [0, 0];
-			ctx.translate(pos[0], pos[1]);
-			node.__sdvnSaveCompareDraw(ctx);
-			ctx.restore();
-		}
-		ctx.restore();
-		return result;
 	};
 }
 
@@ -267,8 +332,6 @@ app.registerExtension({
 				this.size[1] = Math.max(this.size[1], 260);
 			}
 			this.__sdvnSaveCompareDraw = (ctx) => drawCompare.call(this, ctx);
-			this.__sdvnOverlayOnly = true;
-			this.__sdvnDrawCompareInDrawPass = true;
 			return r;
 		};
 
@@ -317,6 +380,30 @@ app.registerExtension({
 			state.isPointerOver = false;
 			state.pointerX = null;
 			this.setDirtyCanvas?.(true, false);
+			return result;
+		};
+
+		const originalGetExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
+		nodeType.prototype.getExtraMenuOptions = function (_, options) {
+			const result = originalGetExtraMenuOptions?.apply(this, arguments);
+			const entry = getCurrentPreviewEntry(this, ensureState(this));
+			if (entry?.img && Array.isArray(options)) {
+				options.unshift(
+					{
+						content: "Copy image",
+						callback: () => copyImageToClipboard(entry).catch((err) => console.warn("[SDVN.SaveImageCompare] Copy failed", err)),
+					},
+					{
+						content: "Save image",
+						callback: () => downloadImage(entry),
+					},
+					{
+						content: "Open image in new tab",
+						callback: () => openImage(entry),
+					},
+					null
+				);
+			}
 			return result;
 		};
 	},
