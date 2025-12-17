@@ -178,6 +178,19 @@ function getCurrentPreviewEntry(node, state) {
 	return img ? { img, meta: null } : null;
 }
 
+function getPrimarySavedEntry(node, state) {
+	if (state.images?.[0]) {
+		const img = resolveStateImage(state.images[0]);
+		if (img) return { img, meta: state.images[0]?.meta ?? state.images[0] };
+	}
+	if (state.images?.[1]) {
+		const img = resolveStateImage(state.images[1]);
+		if (img) return { img, meta: state.images[1]?.meta ?? state.images[1] };
+	}
+	const img = getNodePreviewImage(node);
+	return img ? { img, meta: null } : null;
+}
+
 function drawImageInfo(ctx, area, entry) {
 	if (!entry?.img) return;
 	const width = entry.img.naturalWidth || entry.meta?.width;
@@ -386,7 +399,7 @@ app.registerExtension({
 		const originalGetExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
 		nodeType.prototype.getExtraMenuOptions = function (_, options) {
 			const result = originalGetExtraMenuOptions?.apply(this, arguments);
-			const entry = getCurrentPreviewEntry(this, ensureState(this));
+			const entry = getPrimarySavedEntry(this, ensureState(this));
 			if (entry?.img && Array.isArray(options)) {
 				options.unshift(
 					{
