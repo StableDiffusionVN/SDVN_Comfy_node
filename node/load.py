@@ -1853,7 +1853,7 @@ class ModelPatchDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
                              }}
-    RETURN_TYPES = ("CLIP",)
+    RETURN_TYPES = ("MODEL_PATCH",)
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
