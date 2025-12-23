@@ -170,6 +170,9 @@
     "qwen_image_inpaint_diffsynth_controlnet.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/model_patches/qwen_image_inpaint_diffsynth_controlnet.safetensors","ModelPatch"],
 
     "Z-Image-Turbo-Fun-Controlnet-Union.safetensors": ["https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union/blob/main/Z-Image-Turbo-Fun-Controlnet-Union.safetensors","ModelPatch"],
+    "Z-Image-Turbo-Fun-Controlnet-Tile-2.1-8steps.safetensors": ["https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1/blob/main/Z-Image-Turbo-Fun-Controlnet-Tile-2.1-8steps.safetensors","ModelPatch"],
+    "ZZ-Image-Turbo-Fun-Controlnet-Union-2.1-8steps.safetensors": ["https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1/blob/main/Z-Image-Turbo-Fun-Controlnet-Union-2.1-8steps.safetensors","ModelPatch"],
+    "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors": ["https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1/blob/main/Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors","ModelPatch"],
 
     "z_image_turbo_bf16.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors", "UNET/Diffusion", "default"],
     "qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "lumina2"],
