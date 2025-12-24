@@ -161,6 +161,8 @@
     "qwen_image_edit_fp8_e4m3fn.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_edit_fp8_e4m3fn.safetensors", "UNET/Diffusion", "fp8_e4m3fn"],
     "qwen_image_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_bf16.safetensors", "UNET/Diffusion", "default"],
     "qwen_image_edit_2509_fp8_e4m3fn.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_edit_2509_fp8_e4m3fn.safetensors", "UNET/Diffusion", "default"],
+    "qwen_image_edit_2511_fp8_e4m3fn_scaled_lightning_comfyui.safetensors": ["https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/blob/main/qwen_image_edit_2511_fp8_e4m3fn_scaled_lightning_comfyui.safetensors", "UNET/Diffusion", "default"],
+    "qwen_image_edit_2511_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_edit_2511_bf16.safetensors", "UNET/Diffusion", "default"],
 
     "qwen_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/vae/qwen_image_vae.safetensors","VAE"],
     "qwen_2.5_vl_7b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors","CLIP", "qwen_image"],

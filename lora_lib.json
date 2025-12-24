@@ -59,6 +59,7 @@
     "Qwen-Image-Edit-Lightning-8steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-Lightning-8steps-V1.0.safetensors",
     "Qwen-Image-Edit-2509-Lightning-4steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
     "Qwen-Image-Edit-2509-Lightning-8steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors",
+    "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/blob/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
 
     "Qwen-Edit-Relight.safetensors": "https://huggingface.co/dx8152/Qwen-Image-Edit-2509-Relight/blob/main/Qwen-Edit-Relight.safetensors",
     "Qwen-Edit-Multi-angles.safetensors": "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/blob/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors",
