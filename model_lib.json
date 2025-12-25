@@ -81,6 +81,7 @@
     "Qwen_Image_fp8.safetensors":"https://huggingface.co/StableDiffusionVN/QwenImage/resolve/main/Checkpoint/Qwen_Image_fp8.safetensors",
     "Qwen_Image_Edit_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/resolve/main/Checkpoint/Qwen_Image_Edit_fp8.safetensors",
     "Qwen_Image_Edit_2509_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Checkpoint/Qwen_Image_Edit_2509_fp8.safetensors",
+    "Qwen_Image_Edit_2511_fp8_lightning.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Checkpoint/Qwen_Image_Edit_2511_fp8_lightning.safetensors",
     "Z_Image_turbo_fp16.safetensors": "https://huggingface.co/StableDiffusionVN/Z_turbo/blob/main/Checkpoint/Z_Image_turbo_fp16.safetensors",
     "Z_Image_turbo_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Z_turbo/blob/main/Checkpoint/Z_Image_turbo_fp8.safetensors"
 }
