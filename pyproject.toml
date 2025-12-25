@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
 description = "Update support Z-Image, Qwen 2511"
-version = "1.2"   
+version = "1.12.25"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 
