@@ -7,6 +7,7 @@
     "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors",
     "SDVN_qwen_edit_real_swap.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap.safetensors",
     "SDVN_qwen_edit_real_swap_2509.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap_2509.safetensors",
+    "SDVN_qwen_edit_real_swap_2511.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap_2511.safetensors",
     "Flux_Turbo_8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Flux_Turbo_8steps.safetensors",
     "Hyper-SD15-8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Hyper-SD15-8steps.safetensors",
     "Hyper-SDXL-8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Hyper-SDXL-8steps.safetensors",
