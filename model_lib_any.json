@@ -169,6 +169,7 @@
     "qwen_image_layered_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-Layered_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_layered_bf16.safetensors", "UNET/Diffusion", "default"],
 
     "qwen_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/vae/qwen_image_vae.safetensors","VAE"],
+    "qwen_image_layered_vae.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-Layered_ComfyUI/blob/main/split_files/vae/qwen_image_layered_vae.safetensors","VAE"],
     "qwen_2.5_vl_7b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors","CLIP", "qwen_image"],
     
     "qwen_image_canny_diffsynth_controlnet.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-DiffSynth-ControlNets/blob/main/split_files/model_patches/qwen_image_canny_diffsynth_controlnet.safetensors","ModelPatch"],
