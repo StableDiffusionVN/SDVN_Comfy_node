@@ -19,6 +19,9 @@
     "flux.1-fill-dev-object-removal-lora.safetensors": "https://huggingface.co/Comfy-Org/OneReward_repackaged/blob/main/split_files/loras/flux.1-fill-dev-object-removal-lora.safetensors",
     "SDXL-lightning-cfg2-dpmppcfg-8-128.safetensors": "https://huggingface.co/StableDiffusionVN/SDXL/blob/main/StepsLora/lightning-cfg2-dpmppcfg-8-128.safetensors",
 
+    "Flux_2-Turbo-LoRA_comfyui.safetensors": "https://huggingface.co/Comfy-Org/flux2-dev/blob/main/split_files/loras/Flux_2-Turbo-LoRA_comfyui.safetensors",
+    "Flux2TurboComfyv2.safetensors": "https://huggingface.co/Comfy-Org/flux2-dev/blob/main/split_files/loras/Flux2TurboComfyv2.safetensors",
+    
     "ACE+_fft.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/ace_plus_fft.safetensors",
     "ACE+_subject_lora16.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/subject/comfyui_subject_lora16.safetensors",
     "ACE+_portrait_lora64.safetensors": "https://huggingface.co/ali-vilab/ACE_Plus/blob/main/portrait/comfyui_portrait_lora64.safetensors",
@@ -61,6 +64,8 @@
     "Qwen-Image-Edit-2509-Lightning-4steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
     "Qwen-Image-Edit-2509-Lightning-8steps.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Lightning/blob/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors",
     "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/blob/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+    "Qwen-Image-2512-Lightning-4steps-V1.0-bf16.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/blob/main/Qwen-Image-2512-Lightning-4steps-V1.0-bf16.safetensors",
+    "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors": "https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/blob/main/Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
 
     "Qwen-Edit-Relight.safetensors": "https://huggingface.co/dx8152/Qwen-Image-Edit-2509-Relight/blob/main/Qwen-Edit-Relight.safetensors",
     "Qwen-Edit-Multi-angles.safetensors": "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/blob/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors",
