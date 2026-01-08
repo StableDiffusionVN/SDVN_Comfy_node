@@ -182,6 +182,7 @@
     "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors": ["https://huggingface.co/alibaba-pai/Z-Image-Turbo-Fun-Controlnet-Union-2.1/blob/main/Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors","ModelPatch"],
 
     "z_image_turbo_bf16.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors", "UNET/Diffusion", "default"],
+    "z_image_turbo_nvfp4.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_nvfp4.safetensors", "UNET/Diffusion", "default"],
     "qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "lumina2"],
     "z_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors","VAE"]
 }
