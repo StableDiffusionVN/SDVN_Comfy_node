@@ -3,6 +3,7 @@
     "[SDVN]_arin_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_arin_nn_1536.safetensors",
     "[SDVN]_hane_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_haneface_nn.safetensors",
     "[SDVN]_oy_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_oyface_nn.safetensors",
+    "SDVN_cuctinhy_z.safetensors": "https://huggingface.co/StableDiffusionVN/Z_turbo/blob/main/Lora/Z_Cuctinhy.safetensors",
 
     "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors",
     "SDVN_qwen_edit_real_swap.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap.safetensors",
