@@ -882,6 +882,7 @@ ModelType_list = {
     "SD 1.5": [7.0, "euler_ancestral", "normal"],
     "SDXL": [9.0, "dpmpp_2m_sde", "karras"],
     "Flux": [1.0, "euler", "simple"],
+    "Flux2": [1.0, "euler", "simple"],
     "SD 1.5 Hyper": [1.0, "euler_ancestral", "sgm_uniform"],
     "SDXL Hyper": [1.0, "euler_ancestral", "sgm_uniform"],
     "SDXL Lightning": [1.0, "dpmpp_2m_sde", "sgm_uniform"],
@@ -890,8 +891,7 @@ ModelType_list = {
     "HiDream-Fast": [1.0, "lcm", "normal"],
     "WAN21": [6.0,"uni_pc", "simple"],
     "HunyuanVideo": [1.0, "euler", "simple"],
-    "QwenImage": [2.5, "euler", "simple"],
-    "QwenImage Lightning": [1, "euler", "simple"],
+    "QwenImage": [1, "euler", "simple"],
     "Z-Image": [1, "euler", "simple"],
 }
 
@@ -963,7 +963,10 @@ class Easy_KSampler:
         if tile_width == None or tile_height == None:
             tile_width = tile_height = 1024
         if latent_image == None:
-            cls_emply = ALL_NODE["EmptyLatentImage"]
+            if check_type_model(model) != "Flux2":
+                cls_emply = ALL_NODE["EmptyLatentImage"]
+            else:
+                cls_emply = ALL_NODE["EmptyFlux2LatentImage"]
             latent_image = cls_emply().generate(tile_width, tile_height, 1)[0]
             tile_width = int(math.ceil(tile_width/2))
             tile_height = int(math.ceil(tile_width/2))
@@ -1496,9 +1499,10 @@ class KontextReference:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-                    "img_size": ("INT",  {"default": 1024, "min": 0, "max": 4096, "step": 1}),
+                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
                     "conditioning": ("CONDITIONING", ),
                     "vae": ("VAE", ),
+                    "flux_2": ("BOOLEAN", {"default": False}),
                              },
                 "optional": {
                      "image": ("IMAGE",),
@@ -1514,7 +1518,7 @@ class KontextReference:
 
     CATEGORY = "📂 SDVN"
 
-    def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
+    def append(s, img_size, conditioning, vae, flux_2, image=None, image2=None, image3=None, mask=None):
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
@@ -2039,7 +2043,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN UNET Download":UNETDownload,
     "SDVN CLIP Download":CLIPDownload,
     "SDVN StyleModel Download":StyleModelDownload,
-    "SDVN Apply Kontext Reference": KontextReference,
+    "SDVN Apply Reference": KontextReference,
     "SDVN QwenEdit TextEncoder": QwenEditTextEncoder,
     "SDVN QwenEdit TextEncoder Plus": QwenEditTextEncoderPlus,
     "SDVN IPAdapterModel Download": IPAdapterModelDownload,
@@ -2068,7 +2072,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN DiffsynthUnionLora Apply": "🎚️ DiffsynthUnionLora Apply",
     "SDVN Inpaint": "👨‍🎨 Inpaint",
     "SDVN Apply Style Model": "🌈 Apply Style Model",
-    "SDVN Apply Kontext Reference": "🌈 Apply Kontext Reference",
+    "SDVN Apply Kontext Reference": "🌈 Apply Reference",
     "SDVN QwenEdit TextEncoder": "🔡 QwenEdit TextEncoder",
     "SDVN QwenEdit TextEncoder Plus": "🔡 QwenEdit TextEncoder Plus",
     "SDVN Styles":"🗂️ Prompt Styles",
