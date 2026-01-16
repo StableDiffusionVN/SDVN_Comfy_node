@@ -841,6 +841,39 @@ Negative: {negative}
         token_n = clip.tokenize(negative)
         return (clip.encode_from_tokens_scheduled(token_p), clip.encode_from_tokens_scheduled(token_n), prompt)
 
+class CLIPTextEncodeSimple:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "positive": ("STRING", {"multiline": True, "tooltip": "Prompt tích cực mô tả nội dung bạn muốn sinh ra."}),
+                "style": (none2list(style_list()[0]),{"default": "None", "tooltip": "Chọn style mẫu có sẵn để thêm vào prompt."}),
+                "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
+                "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
+            }
+        }
+    RETURN_TYPES = ("CONDITIONING", "STRING")
+    RETURN_NAMES = ("positive", "prompt")
+    OUTPUT_TOOLTIPS = (
+        "Điều kiện chứa văn bản đã mã hóa để hướng dẫn mô hình sinh ảnh.",)
+    FUNCTION = "encode"
+
+    CATEGORY = "📂 SDVN"
+    DESCRIPTION = "Mã hóa prompt văn bản bằng CLIP, chỉ dùng positive prompt."
+
+    def encode(self, clip, positive, style, translate, seed):
+        if style != "None":
+            positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
+
+        positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
+        positive = ALL_NODE["SDVN Translate"]().ggtranslate(positive,translate)[0]
+        prompt = f"""
+Positive: {positive}
+        """
+        token_p = clip.tokenize(positive)
+        return (clip.encode_from_tokens_scheduled(token_p), prompt)
+
 class StyleLoad:
     @classmethod
     def INPUT_TYPES(s):
@@ -2023,6 +2056,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN LoadPinterest": LoadPinterest,
     "SDVN Load Image Ultimate": LoadImageUltimate,
     "SDVN CLIP Text Encode": CLIPTextEncode,
+    "SDVN CLIP Text Encode Simple": CLIPTextEncodeSimple,
     "SDVN Controlnet Apply": AutoControlNetApply,
     "SDVN DiffsynthControlNet Apply": DiffsynthControlNetApply,
     "SDVN DiffsynthUnionLora Apply": DiffsynthUnionLoraApply,
@@ -2065,6 +2099,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN LoadPinterest": "📥 Load Pinterest",
     "SDVN Load Image Ultimate": "🏞️ Load Image Ultimate",
     "SDVN CLIP Text Encode": "🔡 CLIP Text Encode",
+    "SDVN CLIP Text Encode Simple": "🔡 CLIP Text Encode Simple",
     "SDVN KSampler": "⌛️ KSampler",
     "SDVN Controlnet Apply": "🎚️ Controlnet Apply",
     "SDVN DiffsynthControlNet Apply": "🎚️ DiffsynthControlNet Apply",
