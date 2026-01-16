@@ -2042,7 +2042,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN UNET Download":UNETDownload,
     "SDVN CLIP Download":CLIPDownload,
     "SDVN StyleModel Download":StyleModelDownload,
-    "SDVN Apply Reference": KontextReference,
+    "SDVN Apply Kontext Reference": KontextReference,
     "SDVN QwenEdit TextEncoder": QwenEditTextEncoder,
     "SDVN QwenEdit TextEncoder Plus": QwenEditTextEncoderPlus,
     "SDVN IPAdapterModel Download": IPAdapterModelDownload,
