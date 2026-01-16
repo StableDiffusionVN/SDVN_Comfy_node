@@ -1502,7 +1502,6 @@ class KontextReference:
                     "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
                     "conditioning": ("CONDITIONING", ),
                     "vae": ("VAE", ),
-                    "flux_2": ("BOOLEAN", {"default": False}),
                              },
                 "optional": {
                      "image": ("IMAGE",),
@@ -1518,7 +1517,7 @@ class KontextReference:
 
     CATEGORY = "📂 SDVN"
 
-    def append(s, img_size, conditioning, vae, flux_2, image=None, image2=None, image3=None, mask=None):
+    def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
