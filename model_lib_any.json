@@ -24,6 +24,17 @@
     "mistral_3_small_flux2_fp8.safetensors": ["https://huggingface.co/Comfy-Org/flux2-dev/blob/main/split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors","CLIP", "flux2"],
     "flux2-vae.safetensors": ["https://huggingface.co/Comfy-Org/flux2-dev/blob/main/split_files/vae/flux2-vae.safetensors","VAE"],
 
+    "flux-2-klein-4b.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-4B/blob/main/split_files/diffusion_models/flux-2-klein-4b.safetensors", "UNET/Diffusion", "default"],
+    "flux-2-klein-base-4b.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-4B/blob/main/split_files/diffusion_models/flux-2-klein-base-4b.safetensors", "UNET/Diffusion", "default"],
+    "flux-2_qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-4B/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "flux2"],
+    "flux-2_qwen_3_4b_fp4.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-4B/blob/main/split_files/text_encoders/qwen_3_4b_fp4_flux2.safetensors","CLIP", "flux2"],
+
+    "flux-2-klein-9b.safetensors": ["https://huggingface.co/black-forest-labs/FLUX.2-klein-9B/blob/main/flux-2-klein-9b.safetensors", "UNET/Diffusion", "default"],
+    "flux-2-klein-base-9b.safetensors": ["https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9B/blob/main/flux-2-klein-base-9b.safetensors", "UNET/Diffusion", "default"],
+    "flux-2_qwen_3_8b.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-9B/blob/main/split_files/text_encoders/qwen_3_8b.safetensors","CLIP", "flux2"],
+    "flux-2_qwen_3_8b_fp8mixed.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-9B/blob/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors","CLIP", "flux2"],
+    "flux-2_qwen_3_8b_fp4mixed.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-9B/blob/main/split_files/text_encoders/qwen_3_8b_fp4mixed.safetensors","CLIP", "flux2"],
+
     "hunyuan_video_image_to_video_720p_bf16.safetensors": ["https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/blob/main/split_files/diffusion_models/hunyuan_video_image_to_video_720p_bf16.safetensors","UNET/Diffusion", "default"],
     "hunyuan_video_t2v_720p_bf16.safetensors": ["https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/blob/main/split_files/diffusion_models/hunyuan_video_t2v_720p_bf16.safetensors","UNET/Diffusion", "default"],
     "hunyuan_video_v2_replace_image_to_video_720p_bf16.safetensors": ["https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/blob/main/split_files/diffusion_models/hunyuan_video_v2_replace_image_to_video_720p_bf16.safetensors","UNET/Diffusion", "default"],
