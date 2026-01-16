@@ -997,10 +997,9 @@ class Easy_KSampler:
             tile_width = tile_height = 1024
         if latent_image == None:
             if check_type_model(model) != "Flux2":
-                cls_emply = ALL_NODE["EmptyLatentImage"]
+                latent_image = ALL_NODE["EmptyLatentImage"]().generate(tile_width, tile_height, 1)[0]
             else:
-                cls_emply = ALL_NODE["EmptyFlux2LatentImage"]
-            latent_image = cls_emply().generate(tile_width, tile_height, 1)[0]
+                latent_image = ALL_NODE["EmptyFlux2LatentImage"]().execute(tile_width, tile_height, 1)[0]
             tile_width = int(math.ceil(tile_width/2))
             tile_height = int(math.ceil(tile_width/2))
         if Tiled == True:
