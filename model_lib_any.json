@@ -29,8 +29,8 @@
     "flux-2_qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-4B/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "flux2"],
     "flux-2_qwen_3_4b_fp4.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-4B/blob/main/split_files/text_encoders/qwen_3_4b_fp4_flux2.safetensors","CLIP", "flux2"],
 
-    "flux-2-klein-9b.safetensors": ["https://huggingface.co/black-forest-labs/FLUX.2-klein-9B/blob/main/flux-2-klein-9b.safetensors", "UNET/Diffusion", "default"],
-    "flux-2-klein-base-9b.safetensors": ["https://huggingface.co/black-forest-labs/FLUX.2-klein-base-9B/blob/main/flux-2-klein-base-9b.safetensors", "UNET/Diffusion", "default"],
+    "flux-2-klein-9b.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux2/blob/main/diffusion_model/flux-2-klein-9b.safetensors", "UNET/Diffusion", "default"],
+    "flux-2-klein-base-9b.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux2/blob/main/diffusion_model/flux-2-klein-base-9b.safetensors", "UNET/Diffusion", "default"],
     "flux-2_qwen_3_8b.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-9B/blob/main/split_files/text_encoders/qwen_3_8b.safetensors","CLIP", "flux2"],
     "flux-2_qwen_3_8b_fp8mixed.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-9B/blob/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors","CLIP", "flux2"],
     "flux-2_qwen_3_8b_fp4mixed.safetensors": ["https://huggingface.co/Comfy-Org/flux2-klein-9B/blob/main/split_files/text_encoders/qwen_3_8b_fp4mixed.safetensors","CLIP", "flux2"],
