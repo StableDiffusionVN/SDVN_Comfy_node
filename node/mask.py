@@ -184,7 +184,7 @@ class inpaint_crop:
                 "image": ("IMAGE",),
                 "crop_size": ([512,768,896,1024,1280,1408,1536,1664,1792,1920,2048], {"default": 1024}),
                 "extend": ("FLOAT", {"default": 1.2, "min": 0, "max": 100}),
-                "target_size":("BOOLEAN", {"default": False, "tooltip": "Giữ kích thước đầu ra giống đầu vào"}),
+                "target_size":("BOOLEAN", {"default": True, "tooltip": "Giữ kích thước đầu ra giống đầu vào"}),
             },
             "optional": {
                 "mask": ("MASK", {"tooltip": "Mask đầu vào"}),
@@ -196,7 +196,7 @@ class inpaint_crop:
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
     FUNCTION = "inpaint"
 
-    def inpaint_crop(self, image,crop_size, extend, target_size, mask = None):
+    def inpaint_crop(self, image, crop_size, extend, target_size, mask = None):
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
@@ -210,8 +210,8 @@ class inpaint_crop:
         input[0]["extend"] = extend
         return input
     
-    def inpaint (s, image, crop_size, extend, mask = None):
-        result = s.inpaint_crop(image, crop_size, extend,  mask)
+    def inpaint (s, image, crop_size, extend, target_size, mask = None):
+        result = s.inpaint_crop(image, crop_size, extend,  target_size, mask)
         image = result[1]
         mask_out = result[2]
         if mask is not None:
