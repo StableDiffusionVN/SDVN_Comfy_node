@@ -184,6 +184,7 @@ class inpaint_crop:
                 "image": ("IMAGE",),
                 "crop_size": ([512,768,896,1024,1280,1408,1536,1664,1792,1920,2048], {"default": 1024}),
                 "extend": ("FLOAT", {"default": 1.2, "min": 0, "max": 100}),
+                "target_size":("BOOLEAN", {"default": False, "tooltip": "Giữ kích thước đầu ra giống đầu vào"}),
             },
             "optional": {
                 "mask": ("MASK", {"tooltip": "Mask đầu vào"}),
@@ -195,7 +196,7 @@ class inpaint_crop:
     RETURN_NAMES = ("stitcher", "cropped_image", "cropped_mask")
     FUNCTION = "inpaint"
 
-    def inpaint_crop(self, image,crop_size, extend,  mask = None):
+    def inpaint_crop(self, image,crop_size, extend, target_size, mask = None):
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
@@ -203,7 +204,7 @@ class inpaint_crop:
             image = image[..., :3]
         if "InpaintCropImproved" not in ALL_NODE:
             raise Exception("Install node InpaintCrop and update (https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch)")
-        input = ALL_NODE["InpaintCropImproved"]().inpaint_crop(image, "bilinear", "bicubic", False, "ensure minimum resolution", 1024, 1024, 16384, 16384, False, 1, 1, 1, 1, 0.1, True, 0, False, 32, extend, True, crop_size, crop_size, 32, "gpu (much faster)", mask, None)
+        input = ALL_NODE["InpaintCropImproved"]().inpaint_crop(image, "bilinear", "bicubic", False, "ensure minimum resolution", 1024, 1024, 16384, 16384, False, 1, 1, 1, 1, 0.1, True, 0, False, 32, extend, target_size, crop_size, crop_size, 32, "gpu (much faster)", mask, None)
         input[0]["mask"] = mask
         input[0]["crop_size"] = crop_size
         input[0]["extend"] = extend
