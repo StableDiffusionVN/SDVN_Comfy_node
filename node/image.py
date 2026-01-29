@@ -1,5 +1,6 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 import torch, numpy as np, copy, datetime
+import torch.nn.functional as tF
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
 import platform, math, folder_paths, os, subprocess, cv2
 import torchvision.transforms.functional as F
@@ -53,6 +54,171 @@ def tensor2pil(tensor: torch.Tensor) -> Image.Image:
         raise ValueError("Tensor phải có shape [H, W, C] hoặc [1, H, W, C]")
     pil_image = Image.fromarray(np_image)
     return pil_image
+
+def _pad_image_hwc(image, target_w, target_h, mode, value=0.0):
+    h, w, c = image.shape
+    pad_right = max(0, target_w - w)
+    pad_bottom = max(0, target_h - h)
+    if pad_right == 0 and pad_bottom == 0:
+        return image
+    if mode == "edge":
+        pad_mode = "replicate"
+        pad_value = 0.0
+    elif mode == "reflect":
+        pad_mode = "reflect"
+        pad_value = 0.0
+    else:
+        pad_mode = "constant"
+        pad_value = float(value)
+    chw = image.permute(2, 0, 1)
+    padded = tF.pad(chw, (0, pad_right, 0, pad_bottom), mode=pad_mode, value=pad_value)
+    return padded.permute(1, 2, 0)
+
+def _make_weight_mask(tile_h, tile_w, overlap, x, y, canvas_w, canvas_h, device, dtype):
+    if overlap <= 0:
+        return torch.ones((tile_h, tile_w), device=device, dtype=dtype)
+    overlap_x = min(overlap, tile_w - 1)
+    overlap_y = min(overlap, tile_h - 1)
+    wx = torch.ones(tile_w, device=device, dtype=dtype)
+    wy = torch.ones(tile_h, device=device, dtype=dtype)
+    if x > 0 and overlap_x > 0:
+        wx[:overlap_x] = torch.linspace(0.0, 1.0, overlap_x, device=device, dtype=dtype)
+    if x + tile_w < canvas_w and overlap_x > 0:
+        wx[-overlap_x:] = torch.linspace(1.0, 0.0, overlap_x, device=device, dtype=dtype)
+    if y > 0 and overlap_y > 0:
+        wy[:overlap_y] = torch.linspace(0.0, 1.0, overlap_y, device=device, dtype=dtype)
+    if y + tile_h < canvas_h and overlap_y > 0:
+        wy[-overlap_y:] = torch.linspace(1.0, 0.0, overlap_y, device=device, dtype=dtype)
+    return wy[:, None] * wx[None, :]
+
+class SplitTile:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
+                "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
+                "overlap": ("INT", {"default": 64, "min": 0, "max": 4096, "step": 8}),
+                "force_uniform_tiles": ("BOOLEAN", {"default": True}),
+                "pad_mode": (["edge", "reflect", "constant"], {"default": "edge"}),
+                "pad_value": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+            }
+        }
+
+    OUTPUT_IS_LIST = (True, True)
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("IMAGE", "TILE_STITCHER")
+    RETURN_NAMES = ("tiles", "stitchers")
+    FUNCTION = "split"
+    DESCRIPTION = "Chia ảnh thành nhiều tile và tạo thông tin để ghép lại."
+
+    def split(self, image, tile_width, tile_height, overlap, force_uniform_tiles, pad_mode, pad_value):
+        tiles = []
+        stitchers = []
+        for b in range(image.shape[0]):
+            img = image[b]
+            h, w, c = img.shape
+            stride_w = max(1, tile_width - overlap)
+            stride_h = max(1, tile_height - overlap)
+            if w <= tile_width:
+                n_tiles_w = 1
+            else:
+                n_tiles_w = int(math.ceil((w - overlap) / stride_w))
+            if h <= tile_height:
+                n_tiles_h = 1
+            else:
+                n_tiles_h = int(math.ceil((h - overlap) / stride_h))
+            max_x = max(0, w - tile_width)
+            max_y = max(0, h - tile_height)
+            pad_w = max(w, max_x + tile_width)
+            pad_h = max(h, max_y + tile_height)
+            if force_uniform_tiles:
+                img_work = _pad_image_hwc(img, pad_w, pad_h, pad_mode, pad_value)
+            else:
+                img_work = img
+                pad_w, pad_h = w, h
+            total_tiles = n_tiles_w * n_tiles_h
+            index = 0
+            for y_i in range(n_tiles_h):
+                y = min(y_i * stride_h, max_y)
+                for x_i in range(n_tiles_w):
+                    x = min(x_i * stride_w, max_x)
+                    if force_uniform_tiles:
+                        tile = img_work[y:y + tile_height, x:x + tile_width, :]
+                    else:
+                        th = min(tile_height, h - y)
+                        tw = min(tile_width, w - x)
+                        tile = img_work[y:y + th, x:x + tw, :]
+                    tiles.append(tile.unsqueeze(0))
+                    stitchers.append({
+                        "orig_size": (w, h),
+                        "canvas_size": (pad_w, pad_h),
+                        "tile_size": (tile.shape[2], tile.shape[1]),
+                        "overlap": overlap,
+                        "x": x,
+                        "y": y,
+                        "index": index,
+                        "total": total_tiles,
+                        "batch_index": b,
+                    })
+                    index += 1
+        return (tiles, stitchers)
+
+class StitchTile:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "tiles": ("IMAGE",),
+                "stitchers": ("TILE_STITCHER",),
+                "blend": ("BOOLEAN", {"default": True}),
+            }
+        }
+
+    INPUT_IS_LIST = True
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "stitch"
+    DESCRIPTION = "Ghép các tile thành ảnh hoàn chỉnh dựa trên thông tin Stitcher."
+
+    def stitch(self, tiles, stitchers, blend):
+        if isinstance(blend, list):
+            blend = blend[0]
+        if len(tiles) != len(stitchers):
+            raise ValueError("Số lượng tiles và stitchers không khớp.")
+        groups = {}
+        for tile, info in zip(tiles, stitchers):
+            b = info.get("batch_index", 0)
+            groups.setdefault(b, []).append((tile, info))
+        results = []
+        for _, items in sorted(groups.items(), key=lambda kv: kv[0]):
+            first_info = items[0][1]
+            canvas_w, canvas_h = first_info["canvas_size"]
+            orig_w, orig_h = first_info["orig_size"]
+            device = items[0][0].device
+            dtype = items[0][0].dtype
+            canvas = torch.zeros((canvas_h, canvas_w, items[0][0].shape[-1]), device=device, dtype=dtype)
+            weight = torch.zeros((canvas_h, canvas_w, 1), device=device, dtype=dtype)
+            overlap = int(first_info.get("overlap", 0))
+            for tile, info in items:
+                tile_img = tile[0]
+                tile_h, tile_w, _ = tile_img.shape
+                x = int(info["x"])
+                y = int(info["y"])
+                if blend and overlap > 0:
+                    wmask = _make_weight_mask(tile_h, tile_w, overlap, x, y, canvas_w, canvas_h, device, dtype)
+                else:
+                    wmask = torch.ones((tile_h, tile_w), device=device, dtype=dtype)
+                wmask = wmask.unsqueeze(-1)
+                canvas[y:y + tile_h, x:x + tile_w, :] += tile_img * wmask
+                weight[y:y + tile_h, x:x + tile_w, :] += wmask
+            weight = torch.clamp(weight, min=1e-6)
+            merged = canvas / weight
+            merged = merged[:orig_h, :orig_w, :]
+            results.append(merged.unsqueeze(0))
+        return (torch.cat(results, dim=0),)
 
 class img_list_repeat:
     @classmethod
@@ -846,6 +1012,8 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Overlay Images": OverlayImages,
     "SDVN Mask To Transparent Color": MaskToTransparentColor,
     "SDVN Overlay Mask Color Image": OverlayMaskWithHexColor,
+    "SDVN Split Tile": SplitTile,
+    "SDVN Stitch Tile": StitchTile,
     "SDVN Save Image": SaveImageCompare,
 }
 
@@ -869,5 +1037,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Overlay Images": "🧅 Overlay Two Images",
     "SDVN Mask To Transparent Color": "🎭 Mask → Transparent Color",
     "SDVN Overlay Mask Color Image": "🧩 Overlay Mask",
+    "SDVN Split Tile": "🧩 Split Tile",
+    "SDVN Stitch Tile": "🧩 Stitch Tile",
     "SDVN Save Image": "💾 Save Image + Compare",
 }
