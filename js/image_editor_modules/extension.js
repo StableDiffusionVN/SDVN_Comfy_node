@@ -21,7 +21,14 @@ export function registerImageEditorExtension(app, api) {
                     options.push({
                         content: "🎨 Image Editor",
                         callback: () => {
-                            const img = this.imgs[this.imgs.length - 1];
+                            const isSaveCompare =
+                                this.__sdvnSaveCompare ||
+                                this.__sdvnSaveCompareDraw ||
+                                this.type === "SDVN Save Image" ||
+                                this.title === "SDVN Save Image" ||
+                                this.title === "💾 Save Image + Compare";
+                            const imgIndex = isSaveCompare ? 0 : this.imgs.length - 1;
+                            const img = this.imgs[Math.max(0, Math.min(imgIndex, this.imgs.length - 1))];
                             let src = null;
                             if (img && img.src) src = img.src;
                             else if (img && img.image) src = img.image.src;
