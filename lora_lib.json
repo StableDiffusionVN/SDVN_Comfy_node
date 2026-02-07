@@ -9,6 +9,8 @@
     "SDVN_Jewelry_tryon_Klein-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/jewelry_tryon_9b.safetensors",
     "SDVN_Tryon_clothing_Klein-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/tryon_clothing_9b.safetensors",
     "SDVN_Real_swap_Klein-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/real_swap_9b.safetensors",
+    "[SDVN]_Upscale_400_to_2k-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Lora/upscale_400_to_2k_9b.safetensors",
+    "SDVN_Detail_skin_beauty-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/detail_beauty_9b.safetensors",
 
     "SDVN_flux_yuuface.safetensors": "https://huggingface.co/StableDiffusionVN/Flux/blob/main/Lora/SDVN_flux_yuuface.safetensors",
     "SDVN_qwen_edit_real_swap.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap.safetensors",
