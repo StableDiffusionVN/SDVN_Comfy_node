@@ -167,7 +167,15 @@ class MaskRegions:
             return (y_max - y_min + 1 > 50) and (x_max - x_min + 1 > 50)
         
         regions = [r for r in regions if is_large_enough(r)]
-        regions_sorted = sorted(regions, key=s.get_top_left_coords)
+
+        def region_area(region):
+            return float(region.sum().item())
+
+        regions_sorted = sorted(
+            regions,
+            key=lambda r: (region_area(r), s.get_top_left_coords(r)),
+            reverse=True,
+        )
 
         # Nếu không tìm thấy vùng nào, trả về một mask mặc định 64x64 toàn 0
         if len(regions_sorted) == 0:
