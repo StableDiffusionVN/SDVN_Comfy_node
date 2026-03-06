@@ -463,55 +463,6 @@ class API_GPT_image:
             image_ten = pil2tensor(image_pil)
             images.append(image_ten)
         return (images,)
-    
-class Gemini_Flash2_Image:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
-                "max_size_input": ("INT", {"default":0,"min":0,"max":2048,"step":64, "tooltip": "Giới hạn kích thước ảnh"}),
-                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
-                "translate": (lang_list(),{"default":"english", "tooltip": "Ngôn ngữ dịch"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
-            },
-            "optional": {
-                "image": ("IMAGE",)
-            }
-        }
-    INPUT_IS_LIST = True
-    CATEGORY = "📂 SDVN/💬 API"
-
-    RETURN_TYPES = ("IMAGE",)
-    FUNCTION = "api_imagen"
-
-    def api_imagen(self, Gemini_API, max_size_input, prompt, translate, seed, image = None):
-        Gemini_API, max_size_input, seed, prompt, translate = [Gemini_API[0], max_size_input[0], seed[0], prompt[0], translate[0]]
-        if Gemini_API == "":
-            api_list = api_check()
-            Gemini_API =  api_list["Gemini"]
-
-        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
-        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
-        client = genai.Client(api_key=Gemini_API)
-        if image != None:
-            if max_size_input != 0:
-                list_img = [ALL_NODE["SDVN Upscale Image"]().upscale("Maxsize", max_size_input, max_size_input, 1, "None", i)[0] for i in image]
-            list_img = [tensor2pil(i) for i in image]
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-image",
-            contents=[prompt, *list_img] if image != None else prompt,
-            config=types.GenerateContentConfig(
-            response_modalities=['Text', 'Image']
-            )
-        )
-        for part in response.candidates[0].content.parts:
-            if part.text is not None:
-                print(part.text)
-            elif part.inline_data is not None:
-                image = Image.open(BytesIO(part.inline_data.data))              
-        image = pil2tensor(image)
-        return (image,)
 
 class API_Imagen:
     @classmethod
@@ -563,6 +514,55 @@ def i2tensor(i) -> torch.Tensor:
     image = torch.from_numpy(image)[None,]
     return image
     
+class Gemini_Flash2_Image:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
+                "max_size_input": ("INT", {"default":0,"min":0,"max":2048,"step":64, "tooltip": "Giới hạn kích thước ảnh"}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
+                "translate": (lang_list(),{"default":"english", "tooltip": "Ngôn ngữ dịch"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+            },
+            "optional": {
+                "image": ("IMAGE",)
+            }
+        }
+    INPUT_IS_LIST = True
+    CATEGORY = "📂 SDVN/💬 API"
+
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "api_imagen"
+
+    def api_imagen(self, Gemini_API, max_size_input, prompt, translate, seed, image = None):
+        Gemini_API, max_size_input, seed, prompt, translate = [Gemini_API[0], max_size_input[0], seed[0], prompt[0], translate[0]]
+        if Gemini_API == "":
+            api_list = api_check()
+            Gemini_API =  api_list["Gemini"]
+
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
+        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt,translate)[0]
+        client = genai.Client(api_key=Gemini_API)
+        if image != None:
+            if max_size_input != 0:
+                list_img = [ALL_NODE["SDVN Upscale Image"]().upscale("Maxsize", max_size_input, max_size_input, 1, "None", i)[0] for i in image]
+            list_img = [tensor2pil(i) for i in image]
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[prompt, *list_img] if image != None else prompt,
+            config=types.GenerateContentConfig(
+            response_modalities=['Text', 'Image']
+            )
+        )
+        for part in response.candidates[0].content.parts:
+            if part.text is not None:
+                print(part.text)
+            elif part.inline_data is not None:
+                image = Image.open(BytesIO(part.inline_data.data))              
+        image = pil2tensor(image)
+        return (image,)
+
 class Gemini_3_Pro_Image:
     @classmethod
     def INPUT_TYPES(s):
@@ -644,6 +644,130 @@ class Gemini_3_Pro_Image:
                 img = torch.zeros((1, 64, 64, 3))
         return (img, text_output,)
 
+
+class Gemini_3_1_Flash_Image:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
+                "aspect_ratio": (["Auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9", "1:4", "4:1", "1:8", "8:1"], {"default": "Auto", "tooltip": "Tỷ lệ khung hình"}),
+                "resolution": (["0,5K", "1K", "2K", "4K"], {"default": "1K", "tooltip": "Độ phân giải"}),
+                "translate": (lang_list(), {"default": "None", "tooltip": "Ngôn ngữ dịch"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+            },
+            "optional": {
+                "image": ("IMAGE", {"tooltip": "Ảnh tham khảo (Tối đa 14 ảnh)"})
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💬 API"
+    RETURN_TYPES = ("IMAGE", "STRING",)
+    FUNCTION = "api_imagen"
+    INPUT_IS_LIST = True
+    OUTPUT_IS_LIST = (False,)
+
+    def api_imagen(self, Gemini_API, prompt, aspect_ratio, resolution, translate, seed, image=None):
+        Gemini_API, prompt, aspect_ratio, resolution, translate, seed = [
+            Gemini_API[0], prompt[0], aspect_ratio[0], resolution[0], translate[0], seed[0]
+        ]
+
+        if Gemini_API == "":
+            api_list = api_check()
+            Gemini_API = api_list["Gemini"]
+
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
+        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt, translate)[0]
+
+        client = genai.Client(api_key=Gemini_API)
+
+        contents = [prompt]
+        if image is not None:
+            pil_images = []
+            for img_batch in image:
+                for i in range(img_batch.shape[0]):
+                    pil_images.append(tensor2pil(img_batch[i]))
+            pil_images = pil_images[:14]
+            contents.extend(pil_images)
+
+        api_resolution = resolution.replace(",", ".")
+        response = client.models.generate_content(
+            model="gemini-3.1-flash-image-preview",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_modalities=['TEXT', 'IMAGE'],
+                image_config=types.ImageConfig(
+                    aspect_ratio=aspect_ratio if aspect_ratio != "Auto" else None,
+                    image_size=api_resolution
+                ),
+            )
+        )
+        temp_dir = folder_paths.get_temp_directory()
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_path = os.path.join(temp_dir, "gemini-3.1-flash-image-preview.png")
+        if os.path.exists(temp_path):
+            name, ext = os.path.splitext(temp_path)
+            counter = 1
+            while os.path.exists(f"{name}_{counter}{ext}"):
+                counter += 1
+            temp_path = f"{name}_{counter}{ext}"
+
+        for part in response.parts:
+            if part.text is not None:
+                text_output = part.text
+            else:
+                text_output = ""
+            if image := part.as_image():
+                image.save(temp_path)
+                img = Image.open(temp_path)
+                img = i2tensor(img)
+            else:
+                img = torch.zeros((1, 64, 64, 3))
+        return (img, text_output,)
+
+
+class Gemini_Nano_Banana:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
+                "model": (
+                    ["Nano Banana", "Nano Banana Pro", "Nano Banana 2"],
+                    {"default": "gemini-2.5-flash-image", "tooltip": "Chọn model Gemini Image"},
+                ),
+                "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
+                "aspect_ratio": (
+                    ["Auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9", "1:4", "4:1", "1:8", "8:1"],
+                    {"default": "Auto", "tooltip": "Tỷ lệ khung hình"},
+                ),
+                "resolution": (["0,5K", "1K", "2K", "4K"], {"default": "1K", "tooltip": "Độ phân giải"}),
+                "translate": (lang_list(), {"default": "None", "tooltip": "Ngôn ngữ dịch"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
+            },
+            "optional": {
+                "image": ("IMAGE", {"tooltip": "Ảnh tham khảo (Tối đa 14 ảnh)"})
+            }
+        }
+
+    CATEGORY = "📂 SDVN/💬 API"
+    RETURN_TYPES = ("IMAGE", "STRING",)
+    FUNCTION = "api_imagen"
+    INPUT_IS_LIST = True
+    OUTPUT_IS_LIST = (False, False)
+
+    def api_imagen(self, Gemini_API, model, prompt, aspect_ratio, resolution, translate, seed, image=None):
+        model_name = model[0] if isinstance(model, list) and len(model) > 0 else model
+        if model_name == "Nano Banana":
+            image_out = Gemini_Flash2_Image().api_imagen(Gemini_API,[0],prompt,translate,seed,image = image)[0]
+            return (image_out, "")
+        elif model_name == "Nano Banana Pro":
+            return Gemini_3_Pro_Image().api_imagen(Gemini_API,prompt,aspect_ratio,resolution,translate,seed,image = image)
+        elif model_name == "Nano Banana 2":
+            return Gemini_3_1_Flash_Image().api_imagen(Gemini_API,prompt,aspect_ratio,resolution,translate,seed,image = image)
+        return (torch.zeros((1, 64, 64, 3)), f"Unsupported model: {model_name}")
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Run Python Code": run_python_code,
     "SDVN API chatbot": API_chatbot,
@@ -652,6 +776,8 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Google Imagen": API_Imagen,
     "SDVN Gemini Flash 2 Image": Gemini_Flash2_Image,
     "SDVN Gemini 3 Pro Image": Gemini_3_Pro_Image,
+    "SDVN Gemini 3.1 Flash Image": Gemini_3_1_Flash_Image,
+    "SDVN Nano Banana": Gemini_Nano_Banana,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -662,4 +788,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Gemini Flash 2 Image": "🎨 Nano Banana (Gemini 2)",
     "SDVN GPT Image": "🎨 GPT Image",
     "SDVN Gemini 3 Pro Image": "🎨 Nano Banana Pro (Gemini 3 Pro)",
+    "SDVN Gemini 3.1 Flash Image": "🎨 Nano Banana 2 (Gemini 3.1)",
+    "SDVN Nano Banana": "🎨 Nano Banana",
 }

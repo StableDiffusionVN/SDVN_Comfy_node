@@ -1,8 +1,16 @@
 import { app } from "/scripts/app.js";
 
-const TARGET_NODE = "SDVN Gemini 3 Pro Image";
+const TARGET_NODES = new Set(["SDVN Gemini 3 Pro Image", "SDVN Nano Banana"]);
 const API_WIDGET_NAME = "Gemini_API";
 const STORAGE_KEY = "sdvn_gemini3_api_key";
+const MODEL_FLASH_VALUES = new Set(["gemini-2.5-flash-image", "Nano Banana"]);
+const MODEL_PRO_VALUES = new Set(["gemini-3-pro-image-preview", "Nano Banana Pro"]);
+const MODEL_FLASH_31_VALUES = new Set(["gemini-3.1-flash-image-preview", "Nano Banana 2"]);
+const PRO_ASPECT_OPTIONS = ["Auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+const FLASH_ASPECT_OPTIONS = ["1:1", "3:4", "4:3", "9:16", "16:9"];
+const FLASH31_ASPECT_OPTIONS = ["Auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9", "1:4", "4:1", "1:8", "8:1"];
+const PRO_RESOLUTION_OPTIONS = ["1K", "2K", "4K"];
+const FLASH31_RESOLUTION_OPTIONS = ["0,5K", "1K", "2K", "4K"];
 
 function hideWidget(widget) {
 	if (!widget || widget.__sdvnHidden) return;
@@ -26,6 +34,85 @@ function hideWidget(widget) {
 		return [targetWidth ?? 160, 24];
 	};
 	widget.hidden = true;
+}
+
+function injectToggleHidden(widget) {
+	if (!widget || widget.__sdvnToggleHidden) return;
+	widget.__sdvnToggleHidden = true;
+	let originalType = widget.type;
+	const originalComputeSize = widget.computeSize;
+	Object.defineProperty(widget, "type", {
+		get() {
+			return this.hidden ? "sdvnhide" : originalType;
+		},
+		set(value) {
+			originalType = value;
+		},
+		configurable: true,
+	});
+	widget.computeSize = function (targetWidth) {
+		if (this.hidden) return [0, -4];
+		if (typeof originalComputeSize === "function") {
+			return originalComputeSize.call(this, targetWidth);
+		}
+		return [targetWidth ?? 160, 24];
+	};
+}
+
+function setAspectOptions(aspectWidget, options, fallbackValue) {
+	if (!aspectWidget) return;
+	if (aspectWidget.options?.values) {
+		aspectWidget.options.values = [...options];
+	} else if (Array.isArray(aspectWidget.options)) {
+		aspectWidget.options = [...options];
+	}
+	if (!options.includes(aspectWidget.value)) {
+		aspectWidget.value = fallbackValue;
+		aspectWidget.callback?.(aspectWidget.value);
+	}
+}
+
+function setComboOptions(widget, options, fallbackValue) {
+	if (!widget) return;
+	if (widget.options?.values) {
+		widget.options.values = [...options];
+	} else if (Array.isArray(widget.options)) {
+		widget.options = [...options];
+	}
+	if (!options.includes(widget.value)) {
+		widget.value = fallbackValue;
+		widget.callback?.(widget.value);
+	}
+}
+
+function applyModelRules(node, state) {
+	const modelWidget = state.modelWidget;
+	const aspectWidget = state.aspectWidget;
+	const resolutionWidget = state.resolutionWidget;
+	if (!modelWidget || !aspectWidget || !resolutionWidget) return;
+
+	const selectedModel = modelWidget.value;
+	const isFlash = MODEL_FLASH_VALUES.has(selectedModel);
+	const isFlash31 = MODEL_FLASH_31_VALUES.has(selectedModel);
+	const isPro = MODEL_PRO_VALUES.has(selectedModel);
+	if (isFlash) {
+		setAspectOptions(aspectWidget, FLASH_ASPECT_OPTIONS, "1:1");
+		resolutionWidget.hidden = true;
+	} else if (isFlash31) {
+		setAspectOptions(aspectWidget, FLASH31_ASPECT_OPTIONS, "Auto");
+		setComboOptions(resolutionWidget, FLASH31_RESOLUTION_OPTIONS, "1K");
+		resolutionWidget.hidden = false;
+	} else if (isPro) {
+		setAspectOptions(aspectWidget, PRO_ASPECT_OPTIONS, "Auto");
+		setComboOptions(resolutionWidget, PRO_RESOLUTION_OPTIONS, "1K");
+		resolutionWidget.hidden = false;
+	} else {
+		// Fallback: treat unknown values as Pro-like behavior.
+		setAspectOptions(aspectWidget, PRO_ASPECT_OPTIONS, "Auto");
+		setComboOptions(resolutionWidget, PRO_RESOLUTION_OPTIONS, "1K");
+		resolutionWidget.hidden = false;
+	}
+	node.setDirtyCanvas(true, true);
 }
 
 function centerDialog(dialog) {
@@ -184,12 +271,34 @@ function setupNode(node) {
 	hideWidget(apiWidget);
 	applyStoredValue(apiWidget);
 	ensureButton(node, state);
+
+	if (node.comfyClass === "SDVN Nano Banana") {
+		const modelWidget = node.widgets.find((w) => w.name === "model");
+		const aspectWidget = node.widgets.find((w) => w.name === "aspect_ratio");
+		const resolutionWidget = node.widgets.find((w) => w.name === "resolution");
+		if (modelWidget && aspectWidget && resolutionWidget) {
+			state.modelWidget = modelWidget;
+			state.aspectWidget = aspectWidget;
+			state.resolutionWidget = resolutionWidget;
+			injectToggleHidden(resolutionWidget);
+			if (!modelWidget.__sdvnModelPatched) {
+				modelWidget.__sdvnModelPatched = true;
+				const originalCallback = modelWidget.callback;
+				modelWidget.callback = function () {
+					const result = originalCallback?.apply(this, arguments);
+					applyModelRules(node, state);
+					return result;
+				};
+			}
+			applyModelRules(node, state);
+		}
+	}
 }
 
 app.registerExtension({
 	name: "SDVN.Gemini3ProImage.Settings",
 	async beforeRegisterNodeDef(nodeType, nodeData) {
-		if (nodeData?.name !== TARGET_NODE) return;
+		if (!TARGET_NODES.has(nodeData?.name)) return;
 		const onNodeCreated = nodeType.prototype.onNodeCreated;
 		nodeType.prototype.onNodeCreated = function () {
 			const res = onNodeCreated?.apply(this, arguments);
