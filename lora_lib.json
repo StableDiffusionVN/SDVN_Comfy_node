@@ -5,7 +5,6 @@
     "[SDVN]_oy_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_oyface_nn.safetensors",
     "[SDVN]_Detail_skin_Klein-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/thanhthanh_detail_skin_9b.safetensors",
     "[SDVN]_Fashion_detail_Z.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/resolve/main/Z-Image/fashion_detail_z.safetensors",
-    "[SDVN]_Upscale_400_to_2k-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/upscale_400_to_2k_9b.safetensors",
     "[SDVN]_Upscale_200_to_2k-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/upscale_200_to_2k_9b.safetensors",
     "[SDVN]_Make_cosplay_Klein-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/make_cosplay_9b.safetensors",
     "[SDVN]_Swap_face_Klein-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/swapface_9b.safetensors",
@@ -20,6 +19,7 @@
     "SDVN_qwen_edit_real_swap_2509.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap_2509.safetensors",
     "SDVN_qwen_edit_real_swap_2511.safetensors": "https://huggingface.co/StableDiffusionVN/QwenImage/blob/main/Lora/qwen_edit_real_swap_2511.safetensors",
     "SDVN_haneface_z_base.safetensors": "https://huggingface.co/StableDiffusionVN/Z_turbo/blob/main/Lora/Z_haneface_base.safetensors",
+    "SDVN_Upscale_400_to_2k-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/upscale_400_to_2k_9b.safetensors",
 
     "Flux_Turbo_8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Flux_Turbo_8steps.safetensors",
     "Hyper-SD15-8steps.safetensors": "https://huggingface.co/StableDiffusionVN/clone/blob/main/Lora/StepLora/Hyper-SD15-8steps.safetensors",
