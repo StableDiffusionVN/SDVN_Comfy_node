@@ -74,24 +74,17 @@ def _pad_image_hwc(image, target_w, target_h, mode, value=0.0):
     padded = tF.pad(chw, (0, pad_right, 0, pad_bottom), mode=pad_mode, value=pad_value)
     return padded.permute(1, 2, 0)
 
-AUTO_OVERLAP = -1
-DEFAULT_OVERLAP_RATIO = 0.125
+DEFAULT_OVERLAP = 64
 
-def _resolve_overlap_dims(tile_width, tile_height, overlap_width, overlap_height):
-    default_overlap = round(max(tile_width, tile_height) * DEFAULT_OVERLAP_RATIO)
-    default_overlap = max(0, min(default_overlap, max(tile_width, tile_height) // 2))
+def _resolve_overlap_dims(tile_width, tile_height, overlap):
+    overlap = max(0, int(overlap))
 
-    if overlap_width == AUTO_OVERLAP and overlap_height == AUTO_OVERLAP:
-        if tile_width >= tile_height:
-            overlap_width = default_overlap
-            overlap_height = round(default_overlap * tile_height / tile_width)
-        else:
-            overlap_height = default_overlap
-            overlap_width = round(default_overlap * tile_width / tile_height)
-    elif overlap_width == AUTO_OVERLAP:
-        overlap_width = round(overlap_height * tile_width / tile_height)
-    elif overlap_height == AUTO_OVERLAP:
-        overlap_height = round(overlap_width * tile_height / tile_width)
+    if tile_width >= tile_height:
+        overlap_width = overlap
+        overlap_height = round(overlap * tile_height / tile_width)
+    else:
+        overlap_height = overlap
+        overlap_width = round(overlap * tile_width / tile_height)
 
     overlap_width = max(0, min(int(overlap_width), tile_width - 1))
     overlap_height = max(0, min(int(overlap_height), tile_height - 1))
@@ -122,8 +115,7 @@ class SplitTile:
                 "image": ("IMAGE",),
                 "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
                 "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
-                "overlap_width": ("INT", {"default": AUTO_OVERLAP, "min": AUTO_OVERLAP, "max": 4096, "step": 8}),
-                "overlap_height": ("INT", {"default": AUTO_OVERLAP, "min": AUTO_OVERLAP, "max": 4096, "step": 8}),
+                "overlap": ("INT", {"default": DEFAULT_OVERLAP, "min": 0, "max": 4096, "step": 8}),
                 "force_uniform_tiles": ("BOOLEAN", {"default": True}),
                 "pad_mode": (["edge", "reflect", "constant"], {"default": "edge"}),
                 "pad_value": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -137,10 +129,10 @@ class SplitTile:
     FUNCTION = "split"
     DESCRIPTION = "Chia ảnh thành nhiều tile và tạo thông tin để ghép lại."
 
-    def split(self, image, tile_width, tile_height, overlap_width, overlap_height, force_uniform_tiles, pad_mode, pad_value):
+    def split(self, image, tile_width, tile_height, overlap, force_uniform_tiles, pad_mode, pad_value):
         tiles = []
         stitchers = []
-        overlap_width, overlap_height = _resolve_overlap_dims(tile_width, tile_height, overlap_width, overlap_height)
+        overlap_width, overlap_height = _resolve_overlap_dims(tile_width, tile_height, overlap)
         for b in range(image.shape[0]):
             img = image[b]
             h, w, c = img.shape
