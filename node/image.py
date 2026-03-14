@@ -74,11 +74,34 @@ def _pad_image_hwc(image, target_w, target_h, mode, value=0.0):
     padded = tF.pad(chw, (0, pad_right, 0, pad_bottom), mode=pad_mode, value=pad_value)
     return padded.permute(1, 2, 0)
 
-def _make_weight_mask(tile_h, tile_w, overlap, x, y, canvas_w, canvas_h, device, dtype):
-    if overlap <= 0:
+AUTO_OVERLAP = -1
+DEFAULT_OVERLAP_RATIO = 0.125
+
+def _resolve_overlap_dims(tile_width, tile_height, overlap_width, overlap_height):
+    default_overlap = round(max(tile_width, tile_height) * DEFAULT_OVERLAP_RATIO)
+    default_overlap = max(0, min(default_overlap, max(tile_width, tile_height) // 2))
+
+    if overlap_width == AUTO_OVERLAP and overlap_height == AUTO_OVERLAP:
+        if tile_width >= tile_height:
+            overlap_width = default_overlap
+            overlap_height = round(default_overlap * tile_height / tile_width)
+        else:
+            overlap_height = default_overlap
+            overlap_width = round(default_overlap * tile_width / tile_height)
+    elif overlap_width == AUTO_OVERLAP:
+        overlap_width = round(overlap_height * tile_width / tile_height)
+    elif overlap_height == AUTO_OVERLAP:
+        overlap_height = round(overlap_width * tile_height / tile_width)
+
+    overlap_width = max(0, min(int(overlap_width), tile_width - 1))
+    overlap_height = max(0, min(int(overlap_height), tile_height - 1))
+    return overlap_width, overlap_height
+
+def _make_weight_mask(tile_h, tile_w, overlap_width, overlap_height, x, y, canvas_w, canvas_h, device, dtype):
+    if overlap_width <= 0 and overlap_height <= 0:
         return torch.ones((tile_h, tile_w), device=device, dtype=dtype)
-    overlap_x = min(overlap, tile_w - 1)
-    overlap_y = min(overlap, tile_h - 1)
+    overlap_x = min(overlap_width, tile_w - 1)
+    overlap_y = min(overlap_height, tile_h - 1)
     wx = torch.ones(tile_w, device=device, dtype=dtype)
     wy = torch.ones(tile_h, device=device, dtype=dtype)
     if x > 0 and overlap_x > 0:
@@ -99,7 +122,8 @@ class SplitTile:
                 "image": ("IMAGE",),
                 "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
                 "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
-                "overlap": ("INT", {"default": 64, "min": 0, "max": 4096, "step": 8}),
+                "overlap_width": ("INT", {"default": AUTO_OVERLAP, "min": AUTO_OVERLAP, "max": 4096, "step": 8}),
+                "overlap_height": ("INT", {"default": AUTO_OVERLAP, "min": AUTO_OVERLAP, "max": 4096, "step": 8}),
                 "force_uniform_tiles": ("BOOLEAN", {"default": True}),
                 "pad_mode": (["edge", "reflect", "constant"], {"default": "edge"}),
                 "pad_value": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -113,22 +137,23 @@ class SplitTile:
     FUNCTION = "split"
     DESCRIPTION = "Chia ảnh thành nhiều tile và tạo thông tin để ghép lại."
 
-    def split(self, image, tile_width, tile_height, overlap, force_uniform_tiles, pad_mode, pad_value):
+    def split(self, image, tile_width, tile_height, overlap_width, overlap_height, force_uniform_tiles, pad_mode, pad_value):
         tiles = []
         stitchers = []
+        overlap_width, overlap_height = _resolve_overlap_dims(tile_width, tile_height, overlap_width, overlap_height)
         for b in range(image.shape[0]):
             img = image[b]
             h, w, c = img.shape
-            stride_w = max(1, tile_width - overlap)
-            stride_h = max(1, tile_height - overlap)
+            stride_w = max(1, tile_width - overlap_width)
+            stride_h = max(1, tile_height - overlap_height)
             if w <= tile_width:
                 n_tiles_w = 1
             else:
-                n_tiles_w = int(math.ceil((w - overlap) / stride_w))
+                n_tiles_w = int(math.ceil((w - overlap_width) / stride_w))
             if h <= tile_height:
                 n_tiles_h = 1
             else:
-                n_tiles_h = int(math.ceil((h - overlap) / stride_h))
+                n_tiles_h = int(math.ceil((h - overlap_height) / stride_h))
             max_x = max(0, w - tile_width)
             max_y = max(0, h - tile_height)
             pad_w = max(w, max_x + tile_width)
@@ -155,7 +180,8 @@ class SplitTile:
                         "orig_size": (w, h),
                         "canvas_size": (pad_w, pad_h),
                         "tile_size": (tile.shape[2], tile.shape[1]),
-                        "overlap": overlap,
+                        "overlap_width": overlap_width,
+                        "overlap_height": overlap_height,
                         "x": x,
                         "y": y,
                         "index": index,
@@ -201,14 +227,19 @@ class StitchTile:
             dtype = items[0][0].dtype
             canvas = torch.zeros((canvas_h, canvas_w, items[0][0].shape[-1]), device=device, dtype=dtype)
             weight = torch.zeros((canvas_h, canvas_w, 1), device=device, dtype=dtype)
-            overlap = int(first_info.get("overlap", 0))
+            overlap_width = first_info.get("overlap_width")
+            overlap_height = first_info.get("overlap_height")
+            if overlap_width is None or overlap_height is None:
+                overlap = int(first_info.get("overlap", 0))
+                overlap_width = overlap
+                overlap_height = overlap
             for tile, info in items:
                 tile_img = tile[0]
                 tile_h, tile_w, _ = tile_img.shape
                 x = int(info["x"])
                 y = int(info["y"])
-                if blend and overlap > 0:
-                    wmask = _make_weight_mask(tile_h, tile_w, overlap, x, y, canvas_w, canvas_h, device, dtype)
+                if blend and (overlap_width > 0 or overlap_height > 0):
+                    wmask = _make_weight_mask(tile_h, tile_w, overlap_width, overlap_height, x, y, canvas_w, canvas_h, device, dtype)
                 else:
                     wmask = torch.ones((tile_h, tile_w), device=device, dtype=dtype)
                 wmask = wmask.unsqueeze(-1)
