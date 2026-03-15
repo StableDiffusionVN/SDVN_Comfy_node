@@ -735,7 +735,7 @@ class Gemini_Nano_Banana:
                 "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
                 "model": (
                     ["Nano Banana", "Nano Banana Pro", "Nano Banana 2"],
-                    {"default": "gemini-2.5-flash-image", "tooltip": "Chọn model Gemini Image"},
+                    {"default": "Nano Banana 2", "tooltip": "Chọn model Gemini Image"},
                 ),
                 "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Prompt", "tooltip": "Nội dung yêu cầu"}),
                 "aspect_ratio": (
