@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update support API Nano Banana 2"
-version = "2.03.06"   
+description = "Update support API Gemini 3.1"
+version = "2.03.20"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 

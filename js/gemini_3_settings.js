@@ -1,8 +1,91 @@
 import { app } from "/scripts/app.js";
 
-const TARGET_NODES = new Set(["SDVN Gemini 3 Pro Image", "SDVN Nano Banana"]);
-const API_WIDGET_NAME = "Gemini_API";
-const STORAGE_KEY = "sdvn_gemini3_api_key";
+const STORAGE_KEYS = {
+	gemini: "sdvn_api_key_gemini",
+	openai: "sdvn_api_key_openai",
+	huggingface: "sdvn_api_key_huggingface",
+	deepseek: "sdvn_api_key_deepseek",
+};
+
+const API_LINKS = {
+	gemini: "https://aistudio.google.com/apikey",
+	openai: "https://platform.openai.com/settings/organization/api-keys",
+	huggingface: "https://huggingface.co/settings/tokens",
+	deepseek: "https://platform.deepseek.com/api_keys",
+};
+
+const TARGET_NODES = new Set([
+	"SDVN API chatbot",
+	"SDVN DALL-E Generate Image",
+	"SDVN GPT Image",
+	"SDVN Google Imagen",
+	"SDVN Gemini Flash 2 Image",
+	"SDVN Gemini 3 Pro Image",
+	"SDVN Gemini 3.1 Flash Image",
+	"SDVN Nano Banana",
+]);
+
+const NODE_CONFIG = {
+	"SDVN API chatbot": {
+		apiWidgetName: "APIkey",
+		title: "API Key",
+		description: "Nhập API key theo nhà cung cấp đang chọn ở node Chatbot.",
+		resolveService(node) {
+			const chatbotWidget = node.widgets?.find((w) => w.name === "chatbot");
+			const value = chatbotWidget?.value ?? "";
+			if (String(value).includes("HuggingFace")) return "huggingface";
+			if (String(value).includes("OpenAI")) return "openai";
+			if (String(value).includes("Deepseek")) return "deepseek";
+			return "gemini";
+		},
+		serviceLabel(service) {
+			return serviceName(service);
+		},
+	},
+	"SDVN DALL-E Generate Image": {
+		apiWidgetName: "OpenAI_API",
+		service: "openai",
+		title: "OpenAI API",
+		description: "Nhập OpenAI API key dùng cho node DALL-E 3.",
+	},
+	"SDVN GPT Image": {
+		apiWidgetName: "OpenAI_API",
+		service: "openai",
+		title: "OpenAI API",
+		description: "Nhập OpenAI API key dùng cho node GPT Image.",
+	},
+	"SDVN Google Imagen": {
+		apiWidgetName: "Gemini_API",
+		service: "gemini",
+		title: "Gemini API",
+		description: "Nhập Gemini API key dùng cho node Google Imagen.",
+	},
+	"SDVN Gemini Flash 2 Image": {
+		apiWidgetName: "Gemini_API",
+		service: "gemini",
+		title: "Gemini API",
+		description: "Nhập Gemini API key dùng cho node Gemini Flash 2 Image.",
+	},
+	"SDVN Gemini 3 Pro Image": {
+		apiWidgetName: "Gemini_API",
+		service: "gemini",
+		title: "Gemini API",
+		description: "Nhập Gemini API key dùng cho node Gemini 3 Pro Image.",
+	},
+	"SDVN Gemini 3.1 Flash Image": {
+		apiWidgetName: "Gemini_API",
+		service: "gemini",
+		title: "Gemini API",
+		description: "Nhập Gemini API key dùng cho node Gemini 3.1 Flash Image.",
+	},
+	"SDVN Nano Banana": {
+		apiWidgetName: "Gemini_API",
+		service: "gemini",
+		title: "Gemini API",
+		description: "Nhập Gemini API key dùng cho node Nano Banana.",
+	},
+};
+
 const MODEL_FLASH_VALUES = new Set(["gemini-2.5-flash-image", "Nano Banana"]);
 const MODEL_PRO_VALUES = new Set(["gemini-3-pro-image-preview", "Nano Banana Pro"]);
 const MODEL_FLASH_31_VALUES = new Set(["gemini-3.1-flash-image-preview", "Nano Banana 2"]);
@@ -11,6 +94,38 @@ const FLASH_ASPECT_OPTIONS = ["1:1", "3:4", "4:3", "9:16", "16:9"];
 const FLASH31_ASPECT_OPTIONS = ["Auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9", "1:4", "4:1", "1:8", "8:1"];
 const PRO_RESOLUTION_OPTIONS = ["1K", "2K", "4K"];
 const FLASH31_RESOLUTION_OPTIONS = ["0,5K", "1K", "2K", "4K"];
+
+function escapeHtml(value) {
+	return String(value ?? "").replace(/[&<>"']/g, (char) => {
+		switch (char) {
+			case "&":
+				return "&amp;";
+			case "<":
+				return "&lt;";
+			case ">":
+				return "&gt;";
+			case '"':
+				return "&quot;";
+			case "'":
+				return "&#39;";
+			default:
+				return char;
+		}
+	});
+}
+
+function serviceName(service) {
+	switch (service) {
+		case "openai":
+			return "OpenAI";
+		case "huggingface":
+			return "HuggingFace";
+		case "deepseek":
+			return "Deepseek";
+		default:
+			return "Gemini";
+	}
+}
 
 function hideWidget(widget) {
 	if (!widget || widget.__sdvnHidden) return;
@@ -107,7 +222,6 @@ function applyModelRules(node, state) {
 		setComboOptions(resolutionWidget, PRO_RESOLUTION_OPTIONS, "1K");
 		resolutionWidget.hidden = false;
 	} else {
-		// Fallback: treat unknown values as Pro-like behavior.
 		setAspectOptions(aspectWidget, PRO_ASPECT_OPTIONS, "Auto");
 		setComboOptions(resolutionWidget, PRO_RESOLUTION_OPTIONS, "1K");
 		resolutionWidget.hidden = false;
@@ -124,38 +238,65 @@ function centerDialog(dialog) {
 	dialog.style.margin = "0";
 }
 
+function getNodeConfig(node) {
+	return NODE_CONFIG[node?.comfyClass] ?? null;
+}
+
+function resolveService(node, state) {
+	const config = getNodeConfig(node);
+	if (!config) return "gemini";
+	if (typeof config.resolveService === "function") {
+		return config.resolveService(node, state);
+	}
+	return config.service ?? "gemini";
+}
+
+function getStorageKey(service) {
+	return STORAGE_KEYS[service] ?? STORAGE_KEYS.gemini;
+}
+
+function getStoredValue(service) {
+	try {
+		return window.localStorage.getItem(getStorageKey(service)) ?? "";
+	} catch (err) {
+		console.warn("SDVN API settings: cannot access localStorage", err);
+		return "";
+	}
+}
+
+function setStoredValue(service, value) {
+	try {
+		window.localStorage.setItem(getStorageKey(service), value);
+	} catch (err) {
+		console.warn("SDVN API settings: cannot write localStorage", err);
+	}
+}
+
 function setApiValue(apiWidget, value) {
 	if (!apiWidget) return;
 	apiWidget.value = value ?? "";
 	apiWidget.callback?.(apiWidget.value);
 }
 
-function applyStoredValue(apiWidget) {
+function syncStoredValue(node, state) {
+	const apiWidget = state.apiWidget;
 	if (!apiWidget) return;
-	try {
-		const stored = window.localStorage.getItem(STORAGE_KEY);
-		if (stored && apiWidget.value !== stored) {
-			setApiValue(apiWidget, stored);
-		}
-	} catch (err) {
-		console.warn("SDVN Gemini 3 Pro Image: cannot access localStorage", err);
+	const service = resolveService(node, state);
+	const stored = getStoredValue(service);
+	if (apiWidget.value !== stored) {
+		setApiValue(apiWidget, stored);
 	}
+	state.updateButton?.();
 }
 
-function openApiDialog(node, state) {
-	const apiWidget = state.apiWidget;
-	if (!apiWidget || !app?.canvas?.createDialog) return;
+function buildDialogContent(node, state, service) {
+	const config = getNodeConfig(node);
+	const label = config?.serviceLabel?.(service, node, state) ?? serviceName(service);
+	const title = config?.title ?? `${label} API`;
+	const description = config?.description ?? `Nhập API key dùng cho ${label}.`;
+	const link = API_LINKS[service];
 
-	let cached = "";
-	try {
-		cached = window.localStorage.getItem(STORAGE_KEY) ?? apiWidget.value ?? "";
-	} catch {
-		cached = apiWidget.value ?? "";
-	}
-
-	state.dialog?.close?.();
-	const dialog = app.canvas.createDialog(
-		`
+	return `
 		<div style="
 			min-width: 320px;
 			max-width: 70vw;
@@ -168,13 +309,16 @@ function openApiDialog(node, state) {
 		">
 			<div style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; margin-bottom: 8px;">
 				<span>🔑</span>
-				Gemini 3 Pro API
+				${escapeHtml(title)}
 			</div>
-			<div style="font-size: 12px; opacity: 0.78; margin-bottom: 10px;">
-				Nhập API key dùng cho node Gemini 3 Pro Image.
+			<div style="font-size: 12px; opacity: 0.78; margin-bottom: 6px;">
+				${escapeHtml(description)}
+			</div>
+			<div style="font-size: 12px; opacity: 0.72; margin-bottom: 10px;">
+				Provider hiện tại: <strong>${escapeHtml(label)}</strong>
 			</div>
 			<div>
-				<input class="sdvn-gemini3-input" type="password" placeholder="Gemini API key" style="
+				<input class="sdvn-api-input" type="password" placeholder="${escapeHtml(label)} API key" style="
 					width: 100%;
 					box-sizing: border-box;
 					border-radius: 6px;
@@ -185,16 +329,27 @@ function openApiDialog(node, state) {
 					font-size: 13px;
 				" />
 			</div>
+			${link ? `<div style="font-size: 12px; opacity: 0.72; margin-top: 10px; word-break: break-all;">Get API: <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link)}</a></div>` : ""}
 			<div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 14px;">
-				<button class="comfy-btn comfy-btn-secondary sdvn-gemini3-cancel">Cancel</button>
-				<button class="comfy-btn comfy-btn-primary sdvn-gemini3-save">Save</button>
+				<button class="comfy-btn comfy-btn-secondary sdvn-api-cancel">Cancel</button>
+				<button class="comfy-btn comfy-btn-primary sdvn-api-save">Save</button>
 			</div>
 		</div>
-	`
-	);
+	`;
+}
 
+function openApiDialog(node, state) {
+	const apiWidget = state.apiWidget;
+	if (!apiWidget || !app?.canvas?.createDialog) return;
+
+	const service = resolveService(node, state);
+	const cached = getStoredValue(service) || apiWidget.value || "";
+
+	state.dialog?.close?.();
+	const dialog = app.canvas.createDialog(buildDialogContent(node, state, service));
 	centerDialog(dialog);
-	const input = dialog.querySelector(".sdvn-gemini3-input");
+
+	const input = dialog.querySelector(".sdvn-api-input");
 	if (input) {
 		input.value = cached;
 		setTimeout(() => input.focus(), 0);
@@ -208,26 +363,18 @@ function openApiDialog(node, state) {
 	};
 
 	const commitValue = () => {
-		if (!input) {
-			closeDialog();
-			return;
-		}
-		const newValue = input.value?.trim() ?? "";
-		try {
-			window.localStorage.setItem(STORAGE_KEY, newValue);
-		} catch (err) {
-			console.warn("SDVN Gemini 3 Pro Image: cannot write localStorage", err);
-		}
+		const newValue = input?.value?.trim() ?? "";
+		setStoredValue(service, newValue);
 		setApiValue(apiWidget, newValue);
 		state.updateButton?.();
 		closeDialog();
 	};
 
-	dialog.querySelector(".sdvn-gemini3-save")?.addEventListener("click", (event) => {
+	dialog.querySelector(".sdvn-api-save")?.addEventListener("click", (event) => {
 		event?.preventDefault?.();
 		commitValue();
 	});
-	dialog.querySelector(".sdvn-gemini3-cancel")?.addEventListener("click", (event) => {
+	dialog.querySelector(".sdvn-api-cancel")?.addEventListener("click", (event) => {
 		event?.preventDefault?.();
 		closeDialog();
 	});
@@ -254,7 +401,48 @@ function ensureButton(node, state) {
 	});
 	if (!button) return;
 	state.button = button;
-	button.tooltip = "Mở hộp thoại nhập Gemini API key";
+	state.updateButton = () => {
+		const service = resolveService(node, state);
+		button.name = `⚙ ${serviceName(service)} Settings`;
+		button.tooltip = `Mở hộp thoại nhập ${serviceName(service)} API key`;
+		node.setDirtyCanvas(true, true);
+	};
+	state.updateButton();
+}
+
+function setupNanoBanana(node, state) {
+	const modelWidget = node.widgets.find((w) => w.name === "model");
+	const aspectWidget = node.widgets.find((w) => w.name === "aspect_ratio");
+	const resolutionWidget = node.widgets.find((w) => w.name === "resolution");
+	if (!modelWidget || !aspectWidget || !resolutionWidget) return;
+
+	state.modelWidget = modelWidget;
+	state.aspectWidget = aspectWidget;
+	state.resolutionWidget = resolutionWidget;
+	injectToggleHidden(resolutionWidget);
+	if (!modelWidget.__sdvnModelPatched) {
+		modelWidget.__sdvnModelPatched = true;
+		const originalCallback = modelWidget.callback;
+		modelWidget.callback = function () {
+			const result = originalCallback?.apply(this, arguments);
+			applyModelRules(node, state);
+			return result;
+		};
+	}
+	applyModelRules(node, state);
+}
+
+function setupChatbot(node, state) {
+	const chatbotWidget = node.widgets.find((w) => w.name === "chatbot");
+	if (!chatbotWidget || chatbotWidget.__sdvnApiPatched) return;
+
+	chatbotWidget.__sdvnApiPatched = true;
+	const originalCallback = chatbotWidget.callback;
+	chatbotWidget.callback = function () {
+		const result = originalCallback?.apply(this, arguments);
+		syncStoredValue(node, state);
+		return result;
+	};
 }
 
 function setupNode(node) {
@@ -262,41 +450,30 @@ function setupNode(node) {
 		requestAnimationFrame(() => setupNode(node));
 		return;
 	}
-	const apiWidget = node.widgets.find((w) => w.name === API_WIDGET_NAME);
+
+	const config = getNodeConfig(node);
+	if (!config) return;
+
+	const apiWidget = node.widgets.find((w) => w.name === config.apiWidgetName);
 	if (!apiWidget) return;
 
-	const state = (node.__sdvnGemini3State ||= {});
+	const state = (node.__sdvnApiSettingsState ||= {});
 	state.apiWidget = apiWidget;
 
 	hideWidget(apiWidget);
-	applyStoredValue(apiWidget);
 	ensureButton(node, state);
+	syncStoredValue(node, state);
 
+	if (node.comfyClass === "SDVN API chatbot") {
+		setupChatbot(node, state);
+	}
 	if (node.comfyClass === "SDVN Nano Banana") {
-		const modelWidget = node.widgets.find((w) => w.name === "model");
-		const aspectWidget = node.widgets.find((w) => w.name === "aspect_ratio");
-		const resolutionWidget = node.widgets.find((w) => w.name === "resolution");
-		if (modelWidget && aspectWidget && resolutionWidget) {
-			state.modelWidget = modelWidget;
-			state.aspectWidget = aspectWidget;
-			state.resolutionWidget = resolutionWidget;
-			injectToggleHidden(resolutionWidget);
-			if (!modelWidget.__sdvnModelPatched) {
-				modelWidget.__sdvnModelPatched = true;
-				const originalCallback = modelWidget.callback;
-				modelWidget.callback = function () {
-					const result = originalCallback?.apply(this, arguments);
-					applyModelRules(node, state);
-					return result;
-				};
-			}
-			applyModelRules(node, state);
-		}
+		setupNanoBanana(node, state);
 	}
 }
 
 app.registerExtension({
-	name: "SDVN.Gemini3ProImage.Settings",
+	name: "SDVN.Api.Settings",
 	async beforeRegisterNodeDef(nodeType, nodeData) {
 		if (!TARGET_NODES.has(nodeData?.name)) return;
 		const onNodeCreated = nodeType.prototype.onNodeCreated;

@@ -7,6 +7,7 @@ from googletrans import LANGUAGES
 from PIL import Image, ImageOps
 from google.genai import types
 from io import BytesIO
+from comfy_api_nodes.util.conversions import audio_to_base64_string, video_to_base64_string
 
 DEFAULT_FUNCTION_TEMPLATE = textwrap.dedent("""\
 def function(input_value, extra_value=None):
@@ -209,11 +210,11 @@ class run_python_code:
         return ([*output],)
 
 model_list = {
+    "Gemini | 3.1 Flash Lite": "gemini-3.1-flash-lite-preview",
     "Gemini | 2.5 Flash": "gemini-2.5-flash",
     "Gemini | 2.5 Flash Lite": "gemini-2.5-flash-lite",
     "Gemini | 2.5 Pro": "gemini-2.5-pro",
     "Gemini | 3 Flash": "gemini-3-flash-preview",
-    "Gemini | 3.1 Flash Lite": "gemini-3.1-flash-lite-preview",
     "Gemini | 3 Pro": "gemini-3.1-pro-preview",
     "OpenAI | GPT 5": "gpt-5",
     "OpenAI | GPT 5-mini": "gpt-5-mini",
@@ -231,6 +232,112 @@ preset_prompt = {
         {"role": "user", "content": "Send the description on demand, limit 100 words, only send me the answer" }
     ]
 }
+
+GEMINI_MAX_INPUT_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+
+
+def gemini_input_file_list():
+    input_dir = folder_paths.get_input_directory()
+    input_files = [
+        f.name
+        for f in os.scandir(input_dir)
+        if f.is_file()
+        and (f.name.endswith(".txt") or f.name.endswith(".pdf"))
+        and f.stat().st_size < GEMINI_MAX_INPUT_FILE_SIZE
+    ]
+    input_files = sorted(input_files)
+    return ["None"] + input_files
+
+
+def create_gemini_video_parts(video_input):
+    video_inputs = video_input if isinstance(video_input, list) else [video_input]
+    video_parts = []
+    for video_item in video_inputs:
+        if video_item is None:
+            continue
+        video_base64 = video_to_base64_string(video_item)
+        video_parts.append(
+            types.Part(
+                inlineData=types.Blob(
+                    data=base64.b64decode(video_base64),
+                    mimeType="video/mp4",
+                )
+            )
+        )
+    return video_parts
+
+
+def create_gemini_audio_parts(audio_input):
+    audio_parts = []
+    audio_inputs = audio_input if isinstance(audio_input, list) else [audio_input]
+    for audio_item in audio_inputs:
+        if audio_item is None:
+            continue
+        for batch_index in range(audio_item["waveform"].shape[0]):
+            audio_at_index = {
+                "waveform": audio_item["waveform"][batch_index].unsqueeze(0),
+                "sample_rate": audio_item["sample_rate"],
+            }
+            audio_base64 = audio_to_base64_string(
+                audio_at_index,
+                container_format="mp3",
+                codec_name="libmp3lame",
+            )
+            audio_parts.append(
+                types.Part(
+                    inlineData=types.Blob(
+                        data=base64.b64decode(audio_base64),
+                        mimeType="audio/mp3",
+                    )
+                )
+            )
+    return audio_parts
+
+
+def create_gemini_file_part(file_name):
+    if not file_name or file_name == "None":
+        return None
+
+    file_path = folder_paths.get_annotated_filepath(file_name)
+    mime_type = "application/pdf" if file_path.endswith(".pdf") else "text/plain"
+    with open(file_path, "rb") as f:
+        file_content = f.read()
+    return types.Part(
+        inlineData=types.Blob(
+            data=file_content,
+            mimeType=mime_type,
+        )
+    )
+
+
+def collect_pil_images(image, image_limit=0):
+    if image is None:
+        return []
+
+    pil_images = []
+
+    def _append_from_tensor(img_tensor):
+        if img_tensor is None:
+            return
+        if not isinstance(img_tensor, torch.Tensor):
+            raise ValueError("Đầu vào image không đúng định dạng tensor.")
+        if img_tensor.ndim == 4:
+            for idx in range(img_tensor.shape[0]):
+                pil_images.append(tensor2pil(img_tensor[idx]))
+        elif img_tensor.ndim == 3:
+            pil_images.append(tensor2pil(img_tensor))
+        else:
+            raise ValueError("Tensor image phải có shape [H, W, C] hoặc [N, H, W, C].")
+
+    if isinstance(image, list):
+        for item in image:
+            _append_from_tensor(item)
+    else:
+        _append_from_tensor(image)
+
+    if image_limit > 0:
+        pil_images = pil_images[:image_limit]
+    return pil_images
 
 class API_chatbot:
     @classmethod
@@ -250,7 +357,10 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
                 "translate": (lang_list(), {"tooltip": "Ngôn ngữ của phản hồi."}),
             },
             "optional": {
-                "image": ("IMAGE", {"tooltip": "The for gemini model"})
+                "image": ("IMAGE", {"tooltip": "Ảnh ngữ cảnh cho Gemini hoặc OpenAI."}),
+                "audio": ("AUDIO", {"tooltip": "Audio ngữ cảnh cho Gemini."}),
+                "video": ("VIDEO", {"tooltip": "Video ngữ cảnh cho Gemini."}),
+                "file": (gemini_input_file_list(), {"default": "None", "tooltip": "File TXT/PDF từ thư mục input cho Gemini."}),
             }
         }
 
@@ -258,10 +368,16 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
 
     RETURN_TYPES = ("STRING",)
     FUNCTION = "api_chatbot"
+    INPUT_IS_LIST = True
     DESCRIPTION = "Gọi API chatbot để trả lời bằng văn bản."
     OUTPUT_TOOLTIPS = ("Phản hồi từ chatbot.",)
 
-    def api_chatbot(self, chatbot, preset, APIkey, seed, main_prompt, sub_prompt, translate, image=None):
+    def api_chatbot(self, chatbot, preset, APIkey, seed, main_prompt, sub_prompt, translate, image=None, audio=None, video=None, file="None"):
+        chatbot, preset, APIkey, seed, main_prompt, sub_prompt, translate = [
+            chatbot[0], preset[0], APIkey[0], seed[0], main_prompt[0], sub_prompt[0], translate[0]
+        ]
+        file = file[0] if file else "None"
+
         if APIkey == "":
             api_list = api_check()
             if api_check() != None:
@@ -283,15 +399,22 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
         if 'Gemini' in chatbot:
             prompt += preset_prompt[preset][0]["content"] if preset != "None" else ""
             client = genai.Client(api_key=APIkey)
-            if image == None:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=[prompt])
-            else:
-                image = tensor2pil(image)
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=[prompt, image])
+            contents = [types.Part.from_text(text=prompt)]
+            for pil_image in collect_pil_images(image, image_limit=14):
+                image_buffer = BytesIO()
+                pil_image.save(image_buffer, format="PNG")
+                contents.append(types.Part.from_bytes(data=image_buffer.getvalue(), mime_type="image/png"))
+            if audio is not None:
+                contents.extend(create_gemini_audio_parts(audio))
+            if video is not None:
+                contents.extend(create_gemini_video_parts(video))
+            file_part = create_gemini_file_part(file)
+            if file_part is not None:
+                contents.append(file_part)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=types.Content(role="user", parts=contents),
+            )
             answer = response.text
         if "HuggingFace" in chatbot:
             answer = ""
@@ -314,10 +437,14 @@ Get API HugggingFace: https://huggingface.co/settings/tokens
         if "OpenAI" in chatbot:
             answer = ""
             client = OpenAI(api_key=APIkey)
-            if image != None:
-                image = encode_image(image)
-                prompt = [{"type": "input_text", "text": prompt, },
-                          {"type": "input_image", "image_url": f"data:image/jpeg;base64,{image}"},]
+            if image is not None:
+                prompt_parts = [{"type": "input_text", "text": prompt}]
+                for pil_image in collect_pil_images(image, image_limit=20):
+                    image_buffer = BytesIO()
+                    pil_image.save(image_buffer, format="PNG")
+                    encoded_image = base64.b64encode(image_buffer.getvalue()).decode("utf-8")
+                    prompt_parts.append({"type": "input_image", "image_url": f"data:image/png;base64,{encoded_image}"})
+                prompt = prompt_parts
             messages = [
                 {"role": "user", "content": prompt}
             ]
