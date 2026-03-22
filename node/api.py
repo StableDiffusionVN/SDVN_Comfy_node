@@ -800,6 +800,7 @@ class API_GPT_image:
         return {
             "required": {
                 "OpenAI_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://platform.openai.com/settings/organization/api-keys"}),
+                "model": (["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"], {"default": "gpt-image-1", "tooltip": "Chọn model GPT Image"}),
                 "size": (["auto",'1024x1024', '1536x1024', '1024x1536'],{"default": "auto", "tooltip": "Kích thước"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "The random seed"}),
                 "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Get API: https://platform.openai.com/settings/organization/api-keys", "tooltip": "Mô tả ảnh"}),
@@ -821,8 +822,9 @@ class API_GPT_image:
     OUTPUT_IS_LIST = (True,)
     FUNCTION = "API_GPT_image"
 
-    def API_GPT_image(self, OpenAI_API, size, seed, prompt, quality, background, n, translate, image = None, mask = None):
+    def API_GPT_image(self, OpenAI_API, model, size, seed, prompt, quality, background, n, translate, image = None, mask = None):
         OpenAI_API = OpenAI_API[0]
+        model = model[0]
         size = size[0]
         seed = seed[0]
         prompt = prompt[0]
@@ -843,7 +845,7 @@ class API_GPT_image:
         )
         if image == None:
             result = client.images.generate(
-                model="gpt-image-1",
+                model=model,
                 prompt=prompt,
                 size = size,
                 quality = quality,
@@ -853,7 +855,7 @@ class API_GPT_image:
             )
         elif mask == None:
             result = client.images.edit(
-                model="gpt-image-1",
+                model=model,
                 prompt=prompt,
                 size = size,
                 quality = quality,
@@ -862,7 +864,7 @@ class API_GPT_image:
             )
         else:
             result = client.images.edit(
-                model="gpt-image-1",
+                model=model,
                 prompt=prompt,
                 size = size,
                 quality = quality,

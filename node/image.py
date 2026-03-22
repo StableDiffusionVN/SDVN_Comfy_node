@@ -76,6 +76,13 @@ def _pad_image_hwc(image, target_w, target_h, mode, value=0.0):
 
 DEFAULT_OVERLAP = 64
 
+def _align_to_multiple(value, multiple=16, minimum=None):
+    value = int(value)
+    aligned = max(multiple, ((value + (multiple // 2)) // multiple) * multiple)
+    if minimum is not None:
+        aligned = max(int(minimum), aligned)
+    return aligned
+
 def _resolve_overlap_dims(tile_width, tile_height, overlap):
     overlap = max(0, int(overlap))
 
@@ -113,8 +120,8 @@ class SplitTile:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
-                "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 8}),
+                "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 16}),
+                "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 16}),
                 "overlap": ("INT", {"default": DEFAULT_OVERLAP, "min": 0, "max": 4096, "step": 8}),
                 "force_uniform_tiles": ("BOOLEAN", {"default": True}),
                 "pad_mode": (["edge", "reflect", "constant"], {"default": "edge"}),
@@ -130,6 +137,8 @@ class SplitTile:
     DESCRIPTION = "Chia ảnh thành nhiều tile và tạo thông tin để ghép lại."
 
     def split(self, image, tile_width, tile_height, overlap, force_uniform_tiles, pad_mode, pad_value):
+        tile_width = _align_to_multiple(tile_width, multiple=16, minimum=16)
+        tile_height = _align_to_multiple(tile_height, multiple=16, minimum=16)
         tiles = []
         stitchers = []
         overlap_width, overlap_height = _resolve_overlap_dims(tile_width, tile_height, overlap)
