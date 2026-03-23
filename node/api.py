@@ -11,6 +11,13 @@ from io import BytesIO
 from comfy_api_nodes.util.conversions import audio_to_base64_string, video_to_base64_string
 import server
 from aiohttp import web
+from .style_store import (
+    delete_custom_style,
+    load_custom_styles,
+    load_default_styles,
+    save_custom_style,
+    style_names,
+)
 
 prompt_server = server.PromptServer.instance
 
@@ -348,6 +355,10 @@ def image_preset_list():
     return list(DEFAULT_IMAGE_PRESETS.keys()) + list(load_custom_image_presets().keys())
 
 
+def style_widget_list():
+    return ["None"] + style_names()
+
+
 def get_image_preset_text(preset_name):
     custom_presets = load_custom_image_presets()
     if preset_name in custom_presets:
@@ -452,6 +463,70 @@ async def sdvn_get_gemini_image_presets(request):
             "defaults": DEFAULT_IMAGE_PRESETS,
             "custom": custom_presets,
             "names": list(DEFAULT_IMAGE_PRESETS.keys()) + list(custom_presets.keys()),
+        }
+    )
+
+
+@prompt_server.routes.get("/sdvn/styles")
+async def sdvn_get_styles(request):
+    default_styles = load_default_styles()
+    custom_styles = load_custom_styles()
+    return web.json_response(
+        {
+            "defaults": default_styles,
+            "custom": custom_styles,
+            "names": style_widget_list(),
+        }
+    )
+
+
+@prompt_server.routes.post("/sdvn/styles/save")
+async def sdvn_save_style(request):
+    try:
+        payload = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON payload."}, status=400)
+
+    name = str(payload.get("name", "")).strip()
+    previous_name = str(payload.get("previous_name", "")).strip()
+    positive_prompt = payload.get("positive_prompt", "")
+    negative_prompt = payload.get("negative_prompt", "")
+
+    try:
+        custom_styles = save_custom_style(name, positive_prompt, negative_prompt, previous_name)
+    except ValueError as exc:
+        return web.json_response({"status": "error", "message": str(exc)}, status=400)
+
+    return web.json_response(
+        {
+            "status": "ok",
+            "name": name,
+            "custom": custom_styles,
+            "names": style_widget_list(),
+        }
+    )
+
+
+@prompt_server.routes.post("/sdvn/styles/delete")
+async def sdvn_delete_style(request):
+    try:
+        payload = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON payload."}, status=400)
+
+    name = str(payload.get("name", "")).strip()
+
+    try:
+        custom_styles = delete_custom_style(name)
+    except ValueError as exc:
+        status = 404 if "không tồn tại" in str(exc) else 400
+        return web.json_response({"status": "error", "message": str(exc)}, status=status)
+
+    return web.json_response(
+        {
+            "status": "ok",
+            "custom": custom_styles,
+            "names": style_widget_list(),
         }
     )
 

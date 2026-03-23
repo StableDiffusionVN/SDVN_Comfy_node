@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update support API Gemini 3.1, preset prompt for SDVN Comfy Node"
-version = "2.03.21"   
+description = "Update support style preset edit and add more features"
+version = "2.03.23"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 

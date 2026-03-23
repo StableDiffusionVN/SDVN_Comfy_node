@@ -1,10 +1,11 @@
-import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, csv, random as rd, urllib.parse, shutil
+import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
 import folder_paths, comfy.utils, server
 from PIL import Image, ImageOps
 from googletrans import LANGUAGES
 from aiohttp import web
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
+from .style_store import get_style_prompts, style_list
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 import node_helpers
 
@@ -22,22 +23,6 @@ class AnyType(str):
 
 any = AnyType("*")
 
-def style_list():
-    file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"styles.csv")
-    with open(file_path, mode="r", encoding="utf-8") as file:
-        reader = csv.reader(file)
-        data_list = [row for row in reader]
-    my_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"my_styles.csv")
-    if os.path.exists(my_path):
-            with open(my_path, mode="r", encoding="utf-8") as file:
-                reader = csv.reader(file)
-                my_data_list = [row for row in reader]
-            data_list = my_data_list + data_list
-    card_list = []
-    for i in data_list:
-        card_list += [i[0]]
-    return (card_list,data_list)
-    
 def lang_list():
     lang_list = ["None"]
     for i in LANGUAGES.items():
@@ -824,8 +809,9 @@ class CLIPTextEncode:
 
     def encode(self, clip, positive, negative, style, translate, seed):
         if style != "None":
-            positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
-            negative = f"{negative}, {style_list()[1][style_list()[0].index(style)][2]}" if len(style_list()[1][style_list()[0].index(style)]) > 2 else ""
+            style_positive, style_negative = get_style_prompts(style)
+            positive = f"{positive}, {style_positive}" if style_positive else positive
+            negative = f"{negative}, {style_negative}" if style_negative else negative
 
         positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
         negative = ALL_NODE["SDVN Random Prompt"]().get_prompt(negative, 1, seed)[0][0]
@@ -864,7 +850,8 @@ class CLIPTextEncodeSimple:
 
     def encode(self, clip, positive, style, translate, seed):
         if style != "None":
-            positive = f"{positive}, {style_list()[1][style_list()[0].index(style)][1]}"
+            style_positive, _ = get_style_prompts(style)
+            positive = f"{positive}, {style_positive}" if style_positive else positive
 
         positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
         positive = ALL_NODE["SDVN Translate"]().ggtranslate(positive,translate)[0]
@@ -902,8 +889,9 @@ class StyleLoad:
         print(kargs)
         for i in kargs:
             if kargs[i] != "None":
-                positive = f"{positive}, {style_list()[1][style_list()[0].index(kargs[i])][1]}"
-                negative = f"{negative}, {style_list()[1][style_list()[0].index(kargs[i])][2]}" if len(style_list()[1][style_list()[0].index(kargs[i])]) > 2 else ""
+                style_positive, style_negative = get_style_prompts(kargs[i])
+                positive = f"{positive}, {style_positive}" if style_positive else positive
+                negative = f"{negative}, {style_negative}" if style_negative else negative
 
         positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
         negative = ALL_NODE["SDVN Random Prompt"]().get_prompt(negative, 1, seed)[0][0]
