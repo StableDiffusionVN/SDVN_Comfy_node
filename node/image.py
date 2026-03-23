@@ -97,21 +97,58 @@ def _resolve_overlap_dims(tile_width, tile_height, overlap):
     overlap_height = max(0, min(int(overlap_height), tile_height - 1))
     return overlap_width, overlap_height
 
-def _make_weight_mask(tile_h, tile_w, overlap_width, overlap_height, x, y, canvas_w, canvas_h, device, dtype):
-    if overlap_width <= 0 and overlap_height <= 0:
+def _compute_tile_positions(full_size, tile_size, overlap):
+    tile_size = max(1, int(tile_size))
+    overlap = max(0, min(int(overlap), tile_size - 1))
+
+    if full_size <= tile_size:
+        return [0]
+
+    stride = max(1, tile_size - overlap)
+    max_pos = max(0, full_size - tile_size)
+    n_tiles = int(math.ceil((full_size - overlap) / stride))
+    positions = []
+    for index in range(max(1, n_tiles)):
+        pos = min(index * stride, max_pos)
+        pos = max(0, min(int(pos), max_pos))
+        if not positions or pos != positions[-1]:
+            positions.append(pos)
+    return positions or [0]
+
+def _compute_side_overlaps(positions, tile_size, full_size):
+    result = []
+    count = len(positions)
+    for index, pos in enumerate(positions):
+        prev_pos = positions[index - 1] if index > 0 else None
+        next_pos = positions[index + 1] if index + 1 < count else None
+        left = max(0, (prev_pos + tile_size) - pos) if prev_pos is not None else 0
+        right = max(0, (pos + tile_size) - next_pos) if next_pos is not None else 0
+        left = min(left, tile_size - 1)
+        right = min(right, tile_size - 1)
+        if pos <= 0:
+            left = 0
+        if pos + tile_size >= full_size:
+            right = 0
+        result.append((left, right))
+    return result
+
+def _make_weight_mask(tile_h, tile_w, overlap_left, overlap_right, overlap_top, overlap_bottom, device, dtype):
+    if overlap_left <= 0 and overlap_right <= 0 and overlap_top <= 0 and overlap_bottom <= 0:
         return torch.ones((tile_h, tile_w), device=device, dtype=dtype)
-    overlap_x = min(overlap_width, tile_w - 1)
-    overlap_y = min(overlap_height, tile_h - 1)
     wx = torch.ones(tile_w, device=device, dtype=dtype)
     wy = torch.ones(tile_h, device=device, dtype=dtype)
-    if x > 0 and overlap_x > 0:
-        wx[:overlap_x] = torch.linspace(0.0, 1.0, overlap_x, device=device, dtype=dtype)
-    if x + tile_w < canvas_w and overlap_x > 0:
-        wx[-overlap_x:] = torch.linspace(1.0, 0.0, overlap_x, device=device, dtype=dtype)
-    if y > 0 and overlap_y > 0:
-        wy[:overlap_y] = torch.linspace(0.0, 1.0, overlap_y, device=device, dtype=dtype)
-    if y + tile_h < canvas_h and overlap_y > 0:
-        wy[-overlap_y:] = torch.linspace(1.0, 0.0, overlap_y, device=device, dtype=dtype)
+    overlap_left = min(max(0, int(overlap_left)), tile_w - 1)
+    overlap_right = min(max(0, int(overlap_right)), tile_w - 1)
+    overlap_top = min(max(0, int(overlap_top)), tile_h - 1)
+    overlap_bottom = min(max(0, int(overlap_bottom)), tile_h - 1)
+    if overlap_left > 0:
+        wx[:overlap_left] = torch.linspace(0.0, 1.0, overlap_left, device=device, dtype=dtype)
+    if overlap_right > 0:
+        wx[-overlap_right:] = torch.linspace(1.0, 0.0, overlap_right, device=device, dtype=dtype)
+    if overlap_top > 0:
+        wy[:overlap_top] = torch.linspace(0.0, 1.0, overlap_top, device=device, dtype=dtype)
+    if overlap_bottom > 0:
+        wy[-overlap_bottom:] = torch.linspace(1.0, 0.0, overlap_bottom, device=device, dtype=dtype)
     return wy[:, None] * wx[None, :]
 
 class SplitTile:
@@ -145,20 +182,16 @@ class SplitTile:
         for b in range(image.shape[0]):
             img = image[b]
             h, w, c = img.shape
-            stride_w = max(1, tile_width - overlap_width)
-            stride_h = max(1, tile_height - overlap_height)
-            if w <= tile_width:
-                n_tiles_w = 1
-            else:
-                n_tiles_w = int(math.ceil((w - overlap_width) / stride_w))
-            if h <= tile_height:
-                n_tiles_h = 1
-            else:
-                n_tiles_h = int(math.ceil((h - overlap_height) / stride_h))
-            max_x = max(0, w - tile_width)
-            max_y = max(0, h - tile_height)
+            x_positions = _compute_tile_positions(w, tile_width, overlap_width)
+            y_positions = _compute_tile_positions(h, tile_height, overlap_height)
+            n_tiles_w = len(x_positions)
+            n_tiles_h = len(y_positions)
+            max_x = x_positions[-1]
+            max_y = y_positions[-1]
             pad_w = max(w, max_x + tile_width)
             pad_h = max(h, max_y + tile_height)
+            x_side_overlaps = _compute_side_overlaps(x_positions, tile_width, pad_w)
+            y_side_overlaps = _compute_side_overlaps(y_positions, tile_height, pad_h)
             if force_uniform_tiles:
                 img_work = _pad_image_hwc(img, pad_w, pad_h, pad_mode, pad_value)
             else:
@@ -166,10 +199,10 @@ class SplitTile:
                 pad_w, pad_h = w, h
             total_tiles = n_tiles_w * n_tiles_h
             index = 0
-            for y_i in range(n_tiles_h):
-                y = min(y_i * stride_h, max_y)
-                for x_i in range(n_tiles_w):
-                    x = min(x_i * stride_w, max_x)
+            for y_i, y in enumerate(y_positions):
+                overlap_top, overlap_bottom = y_side_overlaps[y_i]
+                for x_i, x in enumerate(x_positions):
+                    overlap_left, overlap_right = x_side_overlaps[x_i]
                     if force_uniform_tiles:
                         tile = img_work[y:y + tile_height, x:x + tile_width, :]
                     else:
@@ -183,6 +216,10 @@ class SplitTile:
                         "tile_size": (tile.shape[2], tile.shape[1]),
                         "overlap_width": overlap_width,
                         "overlap_height": overlap_height,
+                        "overlap_left": overlap_left,
+                        "overlap_right": overlap_right,
+                        "overlap_top": overlap_top,
+                        "overlap_bottom": overlap_bottom,
                         "x": x,
                         "y": y,
                         "index": index,
@@ -240,7 +277,20 @@ class StitchTile:
                 x = int(info["x"])
                 y = int(info["y"])
                 if blend and (overlap_width > 0 or overlap_height > 0):
-                    wmask = _make_weight_mask(tile_h, tile_w, overlap_width, overlap_height, x, y, canvas_w, canvas_h, device, dtype)
+                    overlap_left = info.get("overlap_left", overlap_width if x > 0 else 0)
+                    overlap_right = info.get("overlap_right", overlap_width if x + tile_w < canvas_w else 0)
+                    overlap_top = info.get("overlap_top", overlap_height if y > 0 else 0)
+                    overlap_bottom = info.get("overlap_bottom", overlap_height if y + tile_h < canvas_h else 0)
+                    wmask = _make_weight_mask(
+                        tile_h,
+                        tile_w,
+                        overlap_left,
+                        overlap_right,
+                        overlap_top,
+                        overlap_bottom,
+                        device,
+                        dtype,
+                    )
                 else:
                     wmask = torch.ones((tile_h, tile_w), device=device, dtype=dtype)
                 wmask = wmask.unsqueeze(-1)
