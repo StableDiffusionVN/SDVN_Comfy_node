@@ -34,6 +34,9 @@ def none2list(folderlist):
     list += folderlist
     return list
 
+def sorted_none_first(folderlist):
+    return ["None"] + sorted(item for item in folderlist if item != "None")
+
 
 def i2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
@@ -316,7 +319,7 @@ class LoadImage:
             "required": {
                 "Load_url": ("BOOLEAN", {"default": True, "tooltip": "Bật tắt chức năng load ảnh từ URL"},),
                 "Url": ("STRING", {"default": "", "multiline": False, "tooltip": "Tải ảnh từ Url bất kỳ, dò trực tiếp được Pinterest, Insta"},),
-                "image": (sorted(none2list(file_list)), {"image_upload": True, "default": "None", "tooltip": "Tải ảnh từ thư mục input, đọc cây thư mục, có thể upload ảnh từ máy tính của bạn."}),
+                "image": (sorted_none_first(file_list), {"image_upload": True, "default": "None", "tooltip": "Tải ảnh từ thư mục input, đọc cây thư mục, có thể upload ảnh từ máy tính của bạn."}),
             }
         }
 
@@ -534,7 +537,7 @@ class LoadImageUltimate:
         return {"required": {
             "mode": (["Input folder", "Custom folder", "Url", "Pintrest", "Insta"], {"tooltip": "Chọn chế độ tải ảnh: từ thư mục input, thư mục tùy chỉnh, Url, Pinterest hoặc Instagram."}),
             #Input_folder
-            "image": (sorted(none2list(file_list)), {"image_upload": True, "default": "None", "tooltip": "Tải ảnh từ thư mục input, đọc cây thư mục, có thể upload ảnh từ máy tính của bạn."}),
+            "image": (sorted_none_first(file_list), {"image_upload": True, "default": "None", "tooltip": "Tải ảnh từ thư mục input, đọc cây thư mục, có thể upload ảnh từ máy tính của bạn."}),
             #Custom_folder
             "folder_path": ("STRING", {"default": "", "multiline": False, "tooltip": "Đường dẫn đến thư mục chứa ảnh tuỳ chỉnh."}),
             "number_img": ("INT", {"default": 1, "min": -1 , "tooltip": "Số lượng ảnh cần tải, chuyển sang -1 để load toàn bộ ảnh."}),
