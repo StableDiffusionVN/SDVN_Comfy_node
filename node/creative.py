@@ -763,9 +763,12 @@ class filter_list:
     FUNCTION = "filter_list"
 
     def filter_list(s, start, end, input, boolean = None):
-        start = start[0]
+        if len(input) == 0:
+            return ([],)
+
+        start = max(0, min(start[0], len(input) - 1))
         end = end[0]
-        end = len(input) if end == -1 else end
+        end = len(input) if end == -1 else max(0, min(end, len(input)))
         if end != 0 and start <= end:
             n_input = []
             for i in range(len(input)):
