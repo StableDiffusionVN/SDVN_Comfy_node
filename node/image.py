@@ -6,6 +6,77 @@ import platform, math, folder_paths, os, subprocess, cv2
 import torchvision.transforms.functional as F
 os_name = platform.system()
 
+def _calc_mean_std(feat, eps=1e-5):
+    size = feat.size()
+    if len(size) != 4:
+        raise ValueError("Tensor dau vao phai co 4 chieu [B, C, H, W].")
+    b, c = size[:2]
+    feat_var = feat.reshape(b, c, -1).var(dim=2, unbiased=False) + eps
+    feat_std = feat_var.sqrt().reshape(b, c, 1, 1)
+    feat_mean = feat.reshape(b, c, -1).mean(dim=2).reshape(b, c, 1, 1)
+    return feat_mean, feat_std
+
+def _adaptive_instance_normalization(content_feat, style_feat):
+    size = content_feat.size()
+    style_mean, style_std = _calc_mean_std(style_feat)
+    content_mean, content_std = _calc_mean_std(content_feat)
+    normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
+    return normalized_feat * style_std.expand(size) + style_mean.expand(size)
+
+def _wavelet_blur(image, radius):
+    kernel = torch.tensor(
+        [
+            [0.0625, 0.125, 0.0625],
+            [0.125, 0.25, 0.125],
+            [0.0625, 0.125, 0.0625],
+        ],
+        dtype=image.dtype,
+        device=image.device,
+    )[None, None]
+    kernel = kernel.repeat(image.shape[1], 1, 1, 1)
+    padded = tF.pad(image, (radius, radius, radius, radius), mode="replicate")
+    return tF.conv2d(padded, kernel, groups=image.shape[1], dilation=radius)
+
+def _wavelet_decomposition(image, levels=5):
+    high_freq = torch.zeros_like(image)
+    low_freq = image
+    for i in range(levels):
+        radius = 2 ** i
+        low_freq = _wavelet_blur(low_freq, radius)
+        high_freq = high_freq + (image - low_freq)
+        image = low_freq
+    return high_freq, low_freq
+
+def _wavelet_color_fix_tensor(target, source):
+    if target.shape[-2:] != source.shape[-2:]:
+        source = tF.interpolate(source, size=target.shape[-2:], mode="bilinear", align_corners=False)
+    target_high, _ = _wavelet_decomposition(target)
+    _, source_low = _wavelet_decomposition(source)
+    return target_high + source_low
+
+def _resolve_reference_image(ref_image, index, batch_size):
+    ref_batch = ref_image.shape[0]
+    if ref_batch == 1:
+        return ref_image[0:1]
+    if ref_batch != batch_size:
+        raise ValueError("Color Match chi ho tro 1 anh ref hoac batch ref co cung so luong voi image.")
+    return ref_image[index:index + 1]
+
+def _color_match_color_matcher(image, ref_image, method):
+    try:
+        from color_matcher import ColorMatcher
+    except ImportError as exc:
+        raise ImportError("Thieu package 'color-matcher'. Hay cai dependency cua SDVN_Comfy_node.") from exc
+
+    matcher = ColorMatcher()
+    image_np = image.detach().cpu().numpy()
+    ref_np = ref_image.detach().cpu().numpy()
+    matched = matcher.transfer(src=image_np, ref=ref_np, method=method)
+    matched = np.asarray(matched, dtype=np.float32)
+    matched = np.nan_to_num(matched, nan=0.0, posinf=1.0, neginf=0.0)
+    matched = np.clip(matched, 0.0, 1.0)
+    return torch.from_numpy(matched)
+
 def create_image_with_text(text, image_size=(1200, 100), font_size=40, align = "left"):
     image = Image.new('RGB', image_size, color=(255, 255, 255))
     draw = ImageDraw.Draw(image)
@@ -560,6 +631,50 @@ class white_balance:
         image = torch.clamp(image, 0, 1)
         return (image,)
 
+class color_match:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "ref_image": ("IMAGE",),
+                "method": (["wavelet", "adain", "mkl", "hm", "reinhard", "mvgd", "hm-mvgd-hm", "hm-mkl-hm"], {"default": "wavelet"}),
+                "blend": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "color_match"
+    DESCRIPTION = "Can bang mau cua image theo ref_image, tham chieu tu node Image Color Match cua ComfyUI-Easy-Use."
+
+    def color_match(self, image, ref_image, method, blend):
+        batch_size = image.shape[0]
+        output = []
+
+        for i in range(batch_size):
+            target = image[i:i + 1]
+            ref = _resolve_reference_image(ref_image, i, batch_size)
+
+            if method == "wavelet":
+                target_chw = target.permute(0, 3, 1, 2)
+                ref_chw = ref.permute(0, 3, 1, 2)
+                matched = _wavelet_color_fix_tensor(target_chw, ref_chw).permute(0, 2, 3, 1)
+            elif method == "adain":
+                target_chw = target.permute(0, 3, 1, 2)
+                ref_chw = ref.permute(0, 3, 1, 2)
+                matched = _adaptive_instance_normalization(target_chw, ref_chw).permute(0, 2, 3, 1)
+            else:
+                matched = _color_match_color_matcher(target[0], ref[0], method).unsqueeze(0)
+
+            matched = torch.clamp(matched.to(dtype=image.dtype), 0.0, 1.0)
+            if blend < 1.0:
+                matched = torch.lerp(target, matched, blend)
+            output.append(matched)
+
+        return (torch.cat(output, dim=0),)
+
 class img_adj:
     @classmethod
     def INPUT_TYPES(s):
@@ -1082,6 +1197,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Image Layout": image_layout,
     "SDVN Image Film Grain": film_grain,
     "SDVN Image White Balance": white_balance,
+    "SDVN Image Color Match": color_match,
     "SDVN Image Adjust": img_adj,
     "SDVN Image HSL": hls_adj,
     "SDVN Flip Image": FlipImage,
@@ -1107,6 +1223,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Image Layout": "🪄 Image Layout",
     "SDVN Image Film Grain": "🪄 Film Grain",
     "SDVN Image White Balance": "🪄 White Balance",
+    "SDVN Image Color Match": "🎨 Color Match",
     "SDVN Image Adjust": "🪄 Image Adjust",
     "SDVN Image HSL": "🪄 HSL Adjust",
     "SDVN Flip Image": "🔄 Flip Image",
