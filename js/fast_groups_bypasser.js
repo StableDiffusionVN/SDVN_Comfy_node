@@ -4,6 +4,9 @@ const TARGET_NODE = "SDVN Fast Groups Bypasser";
 const MODE_ALWAYS = LiteGraph.ALWAYS ?? 0;
 const MODE_BYPASS = 4;
 const PROPERTY_SORT = "sort";
+const MIN_NODE_WIDTH = 240;
+const CONTENT_PADDING_Y = 10;
+const SPACER_WIDGET_NAME = "SDVN_FAST_GROUPS_SPACER";
 
 function fitString(ctx, text, maxWidth) {
 	if (!text) return "";
@@ -55,10 +58,59 @@ function changeModeOfNodes(nodes, mode) {
 	}
 }
 
+function getNodeBounds(node) {
+	let bounds = node?.getBounding?.();
+	if (Array.isArray(bounds) && bounds.length === 4) {
+		const hasVisibleSize = bounds[2] !== 0 || bounds[3] !== 0;
+		if (hasVisibleSize) {
+			return bounds;
+		}
+	}
+	const pos = node?.pos || [0, 0];
+	const size = node?.size || [0, 0];
+	return [pos[0] || 0, pos[1] || 0, size[0] || 0, size[1] || 0];
+}
+
+function recomputeInsideNodesForGroup(group) {
+	if (!group?.graph) return [];
+	const nodes = group.graph.nodes || group.graph._nodes || [];
+	const groupBounds = group._bounding || [group.pos?.[0] || 0, group.pos?.[1] || 0, group.size?.[0] || 0, group.size?.[1] || 0];
+	const inside = [];
+	for (const node of nodes) {
+		if (!node || typeof node.mode !== "number") continue;
+		const bounds = getNodeBounds(node);
+		const centerX = bounds[0] + bounds[2] * 0.5;
+		const centerY = bounds[1] + bounds[3] * 0.5;
+		if (
+			centerX >= groupBounds[0] &&
+			centerX < groupBounds[0] + groupBounds[2] &&
+			centerY >= groupBounds[1] &&
+			centerY < groupBounds[1] + groupBounds[3]
+		) {
+			inside.push(node);
+		}
+	}
+	if (group._children?.clear) {
+		group._children.clear();
+		for (const node of inside) {
+			group._children.add(node);
+		}
+	}
+	if (Array.isArray(group._nodes)) {
+		group._nodes.length = 0;
+		group._nodes.push(...inside);
+	}
+	if (Array.isArray(group.nodes)) {
+		group.nodes.length = 0;
+		group.nodes.push(...inside);
+	}
+	return inside;
+}
+
 function getGroupNodes(group) {
 	if (!group) return [];
 	if (!app.canvas?.selected_group_moving) {
-		group.recomputeInsideNodes?.();
+		return recomputeInsideNodesForGroup(group);
 	}
 	if (group._children) {
 		return Array.from(group._children).filter((child) => child && typeof child.mode === "number");
@@ -70,10 +122,25 @@ function getCurrentGraph() {
 	return app.canvas?.getCurrentGraph?.() || app.graph || null;
 }
 
+function getWorkflowGraphs() {
+	const rootGraph = app.graph || getCurrentGraph();
+	const graphs = [];
+	if (rootGraph) {
+		graphs.push(rootGraph);
+	}
+	const subgraphs = rootGraph?.subgraphs?.values?.();
+	if (subgraphs) {
+		let subgraph;
+		while ((subgraph = subgraphs.next().value)) {
+			graphs.push(subgraph);
+		}
+	}
+	return graphs;
+}
+
 function isGroupAlive(group) {
 	if (!group) return false;
-	const graph = group.graph || getCurrentGraph();
-	return !!graph?._groups?.includes(group);
+	return getWorkflowGraphs().some((graph) => graph?._groups?.includes(group));
 }
 
 class FastGroupsService {
@@ -131,8 +198,10 @@ class FastGroupsService {
 	}
 
 	getGroups(sort = "position") {
-		const graph = getCurrentGraph();
-		const groups = [...(graph?._groups || [])];
+		const groups = [];
+		for (const graph of getWorkflowGraphs()) {
+			groups.push(...(graph?._groups || []));
+		}
 		if (sort === "alphanumeric" || sort === "abc") {
 			return groups.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
 		}
@@ -181,7 +250,7 @@ class FastGroupsToggleRowWidget {
 
 	doModeChange(force) {
 		if (!isGroupAlive(this.group)) {
-			this.node?.refreshWidgets?.();
+			SERVICE.scheduleRun(8);
 			return;
 		}
 		this.group.recomputeInsideNodes?.();
@@ -196,7 +265,7 @@ class FastGroupsToggleRowWidget {
 
 	draw(ctx, node, width, posY, height) {
 		if (!isGroupAlive(this.group)) {
-			this.node?.refreshWidgets?.();
+			SERVICE.scheduleRun(8);
 			return;
 		}
 		this.groupName = this.group?.title || this.groupName;
@@ -226,12 +295,26 @@ class FastGroupsToggleRowWidget {
 	mouse(event, pos, node) {
 		if (event.type !== "pointerdown") return true;
 		if (!isGroupAlive(this.group)) {
-			this.node?.refreshWidgets?.();
+			SERVICE.scheduleRun(8);
 			return true;
 		}
 		this.doModeChange();
 		return true;
 	}
+}
+
+class FastGroupsSpacerWidget {
+	constructor() {
+		this.name = SPACER_WIDGET_NAME;
+		this.type = "custom";
+		this.options = { serialize: false };
+	}
+
+	computeSize(width) {
+		return [width, CONTENT_PADDING_Y];
+	}
+
+	draw() {}
 }
 
 function setupFastGroupsBypasser(node) {
@@ -245,25 +328,48 @@ function setupFastGroupsBypasser(node) {
 
 	node.refreshWidgets = function () {
 		const groups = SERVICE.getGroups(this.properties?.[PROPERTY_SORT] || "alphanumeric");
-		const groupNames = new Set(groups.map((group) => group?.title || ""));
+		const ensureSpacers = () => {
+			let topSpacer = this.widgets?.[0];
+			if (!(topSpacer instanceof FastGroupsSpacerWidget)) {
+				topSpacer = this.addCustomWidget(new FastGroupsSpacerWidget());
+				if (this.widgets?.length > 1) {
+					const index = this.widgets.findIndex((w) => w === topSpacer);
+					if (index > 0) {
+						this.widgets.splice(0, 0, this.widgets.splice(index, 1)[0]);
+					}
+				}
+			}
+
+			let bottomSpacer = this.widgets?.[this.widgets.length - 1];
+			if (!(bottomSpacer instanceof FastGroupsSpacerWidget) || bottomSpacer === topSpacer) {
+				bottomSpacer = this.addCustomWidget(new FastGroupsSpacerWidget());
+				const index = this.widgets.findIndex((w) => w === bottomSpacer);
+				if (index > -1 && index !== this.widgets.length - 1) {
+					this.widgets.push(this.widgets.splice(index, 1)[0]);
+				}
+			}
+
+			return { topSpacer, bottomSpacer };
+		};
+
+		const { topSpacer, bottomSpacer } = ensureSpacers();
 		if (Array.isArray(this.widgets)) {
 			for (let i = this.widgets.length - 1; i >= 0; i--) {
 				const widget = this.widgets[i];
 				if (
 					widget instanceof FastGroupsToggleRowWidget &&
-					(!groups.includes(widget.group) || !groupNames.has(widget.groupName || widget.group?.title || ""))
+					!groups.includes(widget.group)
 				) {
-					this.removeWidget(i);
+					this.removeWidget(widget);
 				}
 			}
 		}
-		let index = 0;
+		let index = 1;
 		for (const group of groups) {
 			group.sdvn_hasAnyActiveNode = getGroupNodes(group).some((n) => n.mode === MODE_ALWAYS);
 			let widget = this.widgets?.find((w) => w instanceof FastGroupsToggleRowWidget && w.group === group);
 			let isDirty = false;
 			if (!widget) {
-				this.tempSize = [...this.size];
 				widget = this.addCustomWidget(new FastGroupsToggleRowWidget(group, this));
 				this.setSize(this.computeSize());
 				isDirty = true;
@@ -291,28 +397,41 @@ function setupFastGroupsBypasser(node) {
 			index++;
 		}
 
+		if (this.widgets?.[index] !== bottomSpacer) {
+			const bottomSpacerIndex = this.widgets?.findIndex((w) => w === bottomSpacer) ?? -1;
+			if (bottomSpacerIndex > -1) {
+				this.widgets.splice(index, 0, this.widgets.splice(bottomSpacerIndex, 1)[0]);
+			}
+		}
+		index++;
+
 		while ((this.widgets || [])[index]) {
-			this.removeWidget(index++);
+			const widget = this.widgets[index];
+			if (widget === topSpacer || widget === bottomSpacer) {
+				index++;
+				continue;
+			}
+			this.removeWidget(widget);
+		}
+
+		const nextSize = this.computeSize();
+		if (this.size?.[0] !== nextSize[0] || this.size?.[1] !== nextSize[1]) {
+			this.setSize(nextSize);
 		}
 	};
 
 	const originalComputeSize = node.computeSize;
 	node.computeSize = function (out) {
 		const originalSize = originalComputeSize ? originalComputeSize.call(this, out) : [Math.max(this.size?.[0] || 240, 240), 0];
-		const widgetHeight = LiteGraph.NODE_WIDGET_HEIGHT || 28;
 		const titleHeight = LiteGraph.NODE_TITLE_HEIGHT || 30;
-		const contentHeight = (this.widgets?.length || 0) * widgetHeight;
+		const contentHeight = (this.widgets || []).reduce((total, widget) => {
+			const widgetSize = widget?.computeSize?.(originalSize[0] || MIN_NODE_WIDTH);
+			return total + (Array.isArray(widgetSize) ? widgetSize[1] || 0 : 0);
+		}, 0);
 		let size = [
-			Math.max(this.size?.[0] || 240, originalSize[0] || 0, 240),
-			titleHeight + contentHeight + 2,
+			Math.max(originalSize[0] || 0, MIN_NODE_WIDTH),
+			titleHeight + contentHeight,
 		];
-		if (this.tempSize) {
-			size[0] = Math.max(this.tempSize[0], size[0]);
-			clearTimeout(this.__sdvnTempSizeDebounce);
-			this.__sdvnTempSizeDebounce = setTimeout(() => {
-				this.tempSize = null;
-			}, 32);
-		}
 		setTimeout(() => {
 			this.graph?.setDirtyCanvas?.(true, true);
 		}, 16);
@@ -361,7 +480,6 @@ app.registerExtension({
 	},
 	loadedGraphNode(node) {
 		if (node.type === TARGET_NODE) {
-			node.tempSize = [...node.size];
 			setupFastGroupsBypasser(node);
 		}
 	},
