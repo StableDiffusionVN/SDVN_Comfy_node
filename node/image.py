@@ -464,6 +464,7 @@ class image_layout:
                 "label": ("STRING",),
                 "font_size": ("INT",{"default":40,"min":0}),
                 "align": (["left","center","right"],),
+                "sort": (["Left-Right","Right-Left"], {"default":"Left-Right"}),
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -480,10 +481,11 @@ class image_layout:
     RETURN_NAMES = ("image",)
     FUNCTION = "layout"
 
-    def layout(self, mode, max_size, label, align, font_size, image1 = None, image2 = None, image3 = None, image4 = None, image5 = None, image6 = None):
+    def layout(self, mode, sort, max_size, label, align, font_size, image1 = None, image2 = None, image3 = None, image4 = None, image5 = None, image6 = None):
         list_img = []
         full_img = []
         mode = mode[0]
+        sort = sort[0]
         max_size = max_size[0]
         align = align[0]
         font_size = font_size[0]
@@ -517,11 +519,15 @@ class image_layout:
                             r_label = label[index].strip()
                         except:
                             r_label = " "
-                        new_list += [self.layout(["row"], [max_size], [r_label], [align], [font_size], [list_img[index]])[0]]
+                        new_list += [self.layout(["row"], ["Left-Right"], [max_size], [r_label], [align], [font_size], [list_img[index]])[0]]
                     list_img = new_list
+                if sort == "Right-Left":
+                    list_img = list(reversed(list_img))
                 list_img = [tensor.squeeze(0) for tensor in list_img]
                 img_layout = torch.cat(list_img, dim=1)
             elif mode == "column":
+                if sort == "Right-Left":
+                    list_img = list(reversed(list_img))
                 list_img = [tensor.squeeze(0) for tensor in list_img]
                 img_layout = torch.cat(list_img, dim=0)
             r = img_layout.unsqueeze(0)
@@ -530,10 +536,13 @@ class image_layout:
             if len(full_img) % c <= c/2 and len(full_img) % c != 0:
                 c = c + 1
             new_list = [full_img[i:i + c] for i in range(0, len(full_img), c)]
+            if sort == "Right-Left":
+                new_list = [list(reversed(i)) for i in new_list]
+                new_list = list(reversed(new_list))
             for i in new_list:
-                list_img += [self.layout(["row"], [max_size], [""], ["left"], [font_size], i)[0]]
+                list_img += [self.layout(["row"], ["Left-Right"], [max_size], [""], ["left"], [font_size], i)[0]]
             if len(list_img) >1:
-                r = self.layout(["column"], [max_size], [""], ["left"], [font_size], list_img)[0]
+                r = self.layout(["column"], ["Left-Right"], [max_size], [""], ["left"], [font_size], list_img)[0]
             else:
                 r = list_img[0]
         if ( mode != "row") or ( len(label) == 1 and mode == "row" and ',' not in label[0]):
