@@ -7,6 +7,7 @@ const PROPERTY_SORT = "sort";
 const MIN_NODE_WIDTH = 240;
 const CONTENT_PADDING_Y = 10;
 const SPACER_WIDGET_NAME = "SDVN_FAST_GROUPS_SPACER";
+const DEFAULT_NODE_HEIGHT = 120;
 
 function fitString(ctx, text, maxWidth) {
 	if (!text) return "";
@@ -326,6 +327,15 @@ function setupFastGroupsBypasser(node) {
 	node.properties ||= {};
 	node.properties[PROPERTY_SORT] ??= "alphanumeric";
 
+	node.getRequiredHeight = function () {
+		const titleHeight = LiteGraph.NODE_TITLE_HEIGHT || 30;
+		const contentHeight = (this.widgets || []).reduce((total, widget) => {
+			const widgetSize = widget?.computeSize?.(this.size?.[0] || MIN_NODE_WIDTH);
+			return total + (Array.isArray(widgetSize) ? widgetSize[1] || 0 : 0);
+		}, 0);
+		return titleHeight + contentHeight;
+	};
+
 	node.refreshWidgets = function () {
 		const groups = SERVICE.getGroups(this.properties?.[PROPERTY_SORT] || "alphanumeric");
 		const ensureSpacers = () => {
@@ -371,7 +381,6 @@ function setupFastGroupsBypasser(node) {
 			let isDirty = false;
 			if (!widget) {
 				widget = this.addCustomWidget(new FastGroupsToggleRowWidget(group, this));
-				this.setSize(this.computeSize());
 				isDirty = true;
 			}
 			const widgetLabel = `${group.title}`;
@@ -414,28 +423,23 @@ function setupFastGroupsBypasser(node) {
 			this.removeWidget(widget);
 		}
 
-		const nextSize = this.computeSize();
-		if (this.size?.[0] !== nextSize[0] || this.size?.[1] !== nextSize[1]) {
-			this.setSize(nextSize);
+		const requiredHeight = this.getRequiredHeight();
+		const targetHeight = Math.max(requiredHeight, DEFAULT_NODE_HEIGHT);
+		const currentHeight = this.size?.[1] || DEFAULT_NODE_HEIGHT;
+		if (currentHeight < targetHeight) {
+			this.setSize([Math.max(this.size?.[0] || MIN_NODE_WIDTH, MIN_NODE_WIDTH), targetHeight]);
 		}
 	};
 
 	const originalComputeSize = node.computeSize;
 	node.computeSize = function (out) {
-		const originalSize = originalComputeSize ? originalComputeSize.call(this, out) : [Math.max(this.size?.[0] || 240, 240), 0];
-		const titleHeight = LiteGraph.NODE_TITLE_HEIGHT || 30;
-		const contentHeight = (this.widgets || []).reduce((total, widget) => {
-			const widgetSize = widget?.computeSize?.(originalSize[0] || MIN_NODE_WIDTH);
-			return total + (Array.isArray(widgetSize) ? widgetSize[1] || 0 : 0);
-		}, 0);
-		let size = [
+		const originalSize = originalComputeSize ? originalComputeSize.call(this, out) : [Math.max(this.size?.[0] || MIN_NODE_WIDTH, MIN_NODE_WIDTH), DEFAULT_NODE_HEIGHT];
+		const requiredHeight = this.getRequiredHeight();
+		const targetHeight = Math.max(requiredHeight, DEFAULT_NODE_HEIGHT);
+		return [
 			Math.max(originalSize[0] || 0, MIN_NODE_WIDTH),
-			titleHeight + contentHeight,
+			targetHeight,
 		];
-		setTimeout(() => {
-			this.graph?.setDirtyCanvas?.(true, true);
-		}, 16);
-		return size;
 	};
 
 	const originalOnAdded = node.onAdded;
