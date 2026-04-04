@@ -5,10 +5,10 @@
     "[SDVN]_oy_face.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/flux_oyface_nn.safetensors",
     "[SDVN]_Detail_skin_Klein-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/thanhthanh_detail_skin_9b.safetensors",
     "[SDVN]_Fashion_detail_Z.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/resolve/main/Z-Image/fashion_detail_z.safetensors",
-    "[SDVN]_Upscale_200_to_2k-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/upscale_200_to_2k_9b.safetensors",
-    "[SDVN]_Upscale_200_to_2k-9b_v2.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/upscale_200_to_2k_9b_v2.safetensors",
-    "[SDVN]_Make_cosplay_Klein-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/make_cosplay_9b.safetensors",
     "[SDVN]_Swap_face_Klein-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/blob/main/Klein-9b/swapface_9b.safetensors",
+
+    "[SDVN]_Make_cosplay_Klein-9b_v1.safetensors": "https://huggingface.co/phamhungd/sell-model/blob/main/Lora/%5BSDVN%5D-Make_cosplay_klein_9b_v1.safetensors",
+    "[SDVN]_Upscale_Klein-9b_v1.safetensors": "https://huggingface.co/phamhungd/sell-model/blob/main/Lora/%5BSDVN%5D-Upscale_klein_9b_v1.safetensors",
 
     "SDVN_Jewelry_tryon_Klein-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/jewelry_tryon_9b.safetensors",
     "SDVN_Tryon_clothing_Klein-9b.safetensors": "https://huggingface.co/StableDiffusionVN/Flux2/blob/main/Lora/tryon_clothing_9b.safetensors",
