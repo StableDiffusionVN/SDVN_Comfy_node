@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update Group Switch Node, Image Chooser Node"
-version = "2.04.04"   
+description = "Update Group Switch Node, Image Chooser Node and fix bug"
+version = "2.04.09"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 
