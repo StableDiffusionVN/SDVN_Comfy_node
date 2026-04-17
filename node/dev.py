@@ -1,3 +1,7 @@
+import threading
+import time
+
+
 class SDVNGoogleColabDisconnect:
     @classmethod
     def INPUT_TYPES(cls):
@@ -39,21 +43,11 @@ class SDVNGoogleColabDisconnect:
             raise RuntimeError("Node này chỉ hoạt động trong môi trường Google Colab.") from exc
         return runtime
 
-    @staticmethod
-    def _schedule_disconnect_in_notebook(delay_seconds: float):
-        try:
-            from IPython.display import Javascript, display
-        except ImportError as exc:
-            raise RuntimeError("Không tìm thấy IPython display để hẹn giờ ngắt Colab.") from exc
-
-        delay_ms = max(int(delay_seconds * 1000), 0)
-        js_code = f"""
-        setTimeout(() => {{
-            console.log("⛔ Auto disconnect Google Colab...");
-            google.colab.kernel.disconnect();
-        }}, {delay_ms});
-        """
-        display(Javascript(js_code))
+    @classmethod
+    def _disconnect_after_delay(cls, delay_seconds: float):
+        time.sleep(delay_seconds)
+        print("⛔ Auto disconnect Google Colab...")
+        cls._get_colab_runtime().unassign()
 
     def disconnect(self, mode, delay_minutes):
         highlight_msg = "Bạn đang sử dụng workflow độc quyền được thiết kế bởi Phạm Hưng, truy cập hungdiffusion.com để ủng hộ tác giả và nhận những hỗ trợ tốt nhất"
@@ -65,7 +59,11 @@ class SDVNGoogleColabDisconnect:
             return ("Đã gửi lệnh ngắt kết nối Google Colab ngay lập tức.",)
 
         delay_seconds = max(float(delay_minutes), 0.0) * 60.0
-        self._schedule_disconnect_in_notebook(delay_seconds)
+        threading.Thread(
+            target=self._disconnect_after_delay,
+            args=(delay_seconds,),
+            daemon=True,
+        ).start()
         return (f"Đã lên lịch ngắt Google Colab sau {float(delay_minutes):.1f} phút.",)
 
 
