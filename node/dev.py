@@ -3,6 +3,8 @@ import time
 
 
 class SDVNGoogleColabDisconnect:
+    NODE_LABEL = "SDVNGoogleColabDisconnect"
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -46,19 +48,31 @@ class SDVNGoogleColabDisconnect:
     @classmethod
     def _disconnect_after_delay(cls, delay_seconds: float):
         time.sleep(delay_seconds)
+        delay_minutes = max(delay_seconds, 0.0) / 60.0
+        print(
+            f"\033[43m\033[30m [WARNING] Node {cls.NODE_LABEL} đang ngắt Google Colab sau {delay_minutes:.1f} phút chờ. \033[0m"
+        )
         print("⛔ Auto disconnect Google Colab...")
         cls._get_colab_runtime().unassign()
 
     def disconnect(self, mode, delay_minutes):
-        highlight_msg = "Bạn đang sử dụng workflow độc quyền được thiết kế bởi Phạm Hưng, truy cập hungdiffusion.com để ủng hộ tác giả và nhận những hỗ trợ tốt nhất"
-        print(f"\033[43m\033[30m {highlight_msg} \033[0m")
+        delay_minutes = max(float(delay_minutes), 0.0)
+        print(
+            f"\033[43m\033[30m [WARNING] Node {self.NODE_LABEL} đã chạy với mode={mode}, thời gian ngắt={delay_minutes:.1f} phút. \033[0m"
+        )
 
         if mode == "disconnect_now":
+            print(
+                f"\033[43m\033[30m [WARNING] Node {self.NODE_LABEL} sẽ ngắt Google Colab ngay lập tức (0.0 phút). \033[0m"
+            )
             print("⛔ Disconnect Google Colab ngay bây giờ...")
             self._get_colab_runtime().unassign()
             return ("Đã gửi lệnh ngắt kết nối Google Colab ngay lập tức.",)
 
-        delay_seconds = max(float(delay_minutes), 0.0) * 60.0
+        delay_seconds = delay_minutes * 60.0
+        print(
+            f"\033[43m\033[30m [WARNING] Node {self.NODE_LABEL} đã được lên lịch ngắt sau {delay_minutes:.1f} phút. \033[0m"
+        )
         threading.Thread(
             target=self._disconnect_after_delay,
             args=(delay_seconds,),
