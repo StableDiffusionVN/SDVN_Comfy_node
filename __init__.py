@@ -87,6 +87,7 @@ from .node.mask import NODE_CLASS_MAPPINGS as mask_node, NODE_DISPLAY_NAME_MAPPI
 from .node.image_gallery import NODE_CLASS_MAPPINGS as image_gallery_node, NODE_DISPLAY_NAME_MAPPINGS as image_gallery_dis
 from .node.group_tools import NODE_CLASS_MAPPINGS as group_tools_node, NODE_DISPLAY_NAME_MAPPINGS as group_tools_dis
 from .node.chooser import NODE_CLASS_MAPPINGS as chooser_node, NODE_DISPLAY_NAME_MAPPINGS as chooser_dis
+from .node.dev import NODE_CLASS_MAPPINGS as dev_node, NODE_DISPLAY_NAME_MAPPINGS as dev_dis
 
 NODE_CLASS_MAPPINGS = {
     **load_node,
@@ -99,7 +100,8 @@ NODE_CLASS_MAPPINGS = {
     **mask_node,
     **image_gallery_node,
     **group_tools_node,
-    **chooser_node
+    **chooser_node,
+    **dev_node
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     **load_dis,
@@ -112,7 +114,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **mask_dis,
     **image_gallery_dis,
     **group_tools_dis,
-    **chooser_dis
+    **chooser_dis,
+    **dev_dis
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
