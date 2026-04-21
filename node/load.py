@@ -906,7 +906,7 @@ ModelType_list = {
     "SD 1.5": [7.0, "euler_ancestral", "normal"],
     "SDXL": [9.0, "dpmpp_2m_sde", "karras"],
     "Flux": [1.0, "euler", "simple"],
-    "Flux2": [1.0, "euler_ancestral_cfg_pp", "sgm_uniform"],
+    "Flux2": [1.0, "euler", "simple"],
     "SD 1.5 Hyper": [1.0, "euler_ancestral", "sgm_uniform"],
     "SDXL Hyper": [1.0, "euler_ancestral", "sgm_uniform"],
     "SDXL Lightning": [1.0, "dpmpp_2m_sde", "sgm_uniform"],
