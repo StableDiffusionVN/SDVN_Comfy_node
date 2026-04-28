@@ -61,7 +61,6 @@ Install with simple commands:
 
 Also you should install the following nodes to be able to use all functions:
 - [Dynamicprompts](https://github.com/adieyal/comfyui-dynamicprompts)
-- [Inpaint crop](https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch)
 - [TiledDiffusion](https://github.com/shiimizu/ComfyUI-TiledDiffusion)
 - [IPAdapter_plus](https://github.com/cubiq/ComfyUI_IPAdapter_plus)
 - [Controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux)
@@ -509,7 +508,7 @@ Nodes that support both basic and advanced mask processing and inpainting.
 
 **⚡️ Crop Inpaint | 🔄 Loop Inpaint Stitch**
 
-- These 2 nodes are built based on the (https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch) node set, and you need to install that set first in order to use them.
+- These 2 nodes include their own crop/stitch implementation inside SDVN, so the external Inpaint-CropAndStitch node set is no longer required.
 - The Loop Inpaint Stitch node is used to iteratively inpaint multiple regions when the input is a list. It stitches the results together and returns a single image, ideal for inpainting multiple areas in one pass.
 
 ![](preview/inpaint_loop.jpg)

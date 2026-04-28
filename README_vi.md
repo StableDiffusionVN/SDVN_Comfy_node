@@ -60,7 +60,6 @@ Cài đặt với các lệnh đơn giản:
 
 Bạn cũng nên cài đặt các node sau để có thể sử dụng đầy đủ các chức năng:
 - [Dynamicprompts](https://github.com/adieyal/comfyui-dynamicprompts)
-- [Inpaint crop](https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch)
 - [TiledDiffusion](https://github.com/shiimizu/ComfyUI-TiledDiffusion)
 - [IPAdapter_plus](https://github.com/cubiq/ComfyUI_IPAdapter_plus)
 - [Controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux)
@@ -505,7 +504,7 @@ Bộ node hỗ trợ xử lý mask cơ bản và nâng cao, cũng như inpaintin
 
 **⚡️ Crop Inpaint | 🔄 Loop Inpaint Stitch**
 
-- Hai node này được xây dựng dựa trên bộ node (https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch), bạn cần cài đặt bộ node này trước khi sử dụng.
+- Hai node này đã có sẵn phần xử lý crop/stitch trực tiếp trong SDVN, không còn cần cài thêm bộ node Inpaint-CropAndStitch bên ngoài.
 - Node Loop Inpaint Stitch dùng để inpaint nhiều vùng liên tục khi đầu vào là list. Nó ghép kết quả lại thành một ảnh duy nhất, lý tưởng cho việc inpaint nhiều vùng chỉ trong một lần chạy.
 
 ![](preview/inpaint_loop.jpg)

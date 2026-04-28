@@ -6,6 +6,7 @@ import torch
 from PIL import Image, ImageOps
 from torch.hub import download_url_to_file
 import torch.nn.functional as FF
+from .inpaint_cropandstitch import InpaintCropImproved, InpaintStitchImproved
 
 yolo_model_list = ["face_yolov8n-seg2_60.pt", "face_yolov8m-seg_60.pt",
                     "skin_yolov8n-seg_800.pt", "skin_yolov8n-seg_400.pt", "skin_yolov8m-seg_400.pt",
@@ -210,12 +211,11 @@ class inpaint_crop:
                 mask = None
         if image.shape[-1] == 4:
             image = image[..., :3]
-        if "InpaintCropImproved" not in ALL_NODE:
-            raise Exception("Install node InpaintCrop and update (https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch)")
-        input = ALL_NODE["InpaintCropImproved"]().inpaint_crop(image, "bilinear", "bicubic", False, "ensure minimum resolution", 1024, 1024, 16384, 16384, False, 1, 1, 1, 1, 0.1, True, 0, False, 32, extend, target_size, crop_size, crop_size, 32, "gpu (much faster)", mask, None)
+        input = InpaintCropImproved().inpaint_crop(image, "bilinear", "bicubic", False, "ensure minimum resolution", 1024, 1024, 16384, 16384, False, 1, 1, 1, 1, 0.1, True, 0, False, 32, extend, target_size, crop_size, crop_size, 32, "gpu (much faster)", mask, None)
         input[0]["mask"] = mask
         input[0]["crop_size"] = crop_size
         input[0]["extend"] = extend
+        input[0]["target_size"] = target_size
         return input
     
     def inpaint (s, image, crop_size, extend, target_size, mask = None):
@@ -253,11 +253,11 @@ class LoopInpaintStitch:
         for inpainted_image in inpainted_images:
             print(f'Vòng lặp {index}')
             stitchers[stit_index]['canvas_image'] = canva
-            image = ALL_NODE["InpaintStitchImproved"]().inpaint_stitch(stitchers[stit_index], inpainted_image)[0]
+            image = InpaintStitchImproved().inpaint_stitch(stitchers[stit_index], inpainted_image)[0]
             index += 1
             if index < len(inpainted_images):
                 stit_index = index if index <= len(stitchers) - 1 else len(stitchers) - 1
-                canva = ALL_NODE["SDVN Inpaint Crop"]().inpaint_crop(image,  stitchers[stit_index]["crop_size"], stitchers[stit_index]["extend"], stitchers[stit_index]["mask"])[0]["canvas_image"]
+                canva = ALL_NODE["SDVN Inpaint Crop"]().inpaint_crop(image, stitchers[stit_index]["crop_size"], stitchers[stit_index]["extend"], stitchers[stit_index].get("target_size", True), stitchers[stit_index]["mask"])[0]["canvas_image"]
         return (image,)
     
 class GetMaskSize:
