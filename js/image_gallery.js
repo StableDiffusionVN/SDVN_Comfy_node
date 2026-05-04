@@ -23,7 +23,7 @@ const ICONS = {
 };
 
 const LIGHTBOX_ID = "sdvn-gallery-lightbox";
-const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp"];
+const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".tif", ".tiff", ".apng", ".svg"];
 
 const buildViewUrl = (path) => {
 	const cacheBust = Date.now();

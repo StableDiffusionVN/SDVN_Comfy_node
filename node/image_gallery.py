@@ -14,12 +14,12 @@ import shutil
 import requests
 from comfy.utils import common_upscale
 import folder_paths
-from .load import run_gallery_dl
+from .load import SDVN_IMAGE_DOT_EXTENSIONS, run_gallery_dl
 
 NODE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_FILE = os.path.join(NODE_DIR, "config.json")
 METADATA_FILE = os.path.join(NODE_DIR, "metadata.json")
-SUPPORTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp']
+SUPPORTED_IMAGE_EXTENSIONS = sorted(SDVN_IMAGE_DOT_EXTENSIONS | {'.gif'})
 DEFAULT_PER_PAGE = 80
 GALLERY_TEMP_FOLDER = os.path.join(folder_paths.get_temp_directory(), "sdvn_gallery_downloads")
 REMOTE_FORMAT_EXTENSIONS = {
@@ -29,6 +29,7 @@ REMOTE_FORMAT_EXTENSIONS = {
     "WEBP": ".webp",
     "BMP": ".bmp",
     "GIF": ".gif",
+    "TIFF": ".tiff",
 }
 
 os.makedirs(GALLERY_TEMP_FOLDER, exist_ok=True)
@@ -621,6 +622,13 @@ async def get_thumbnail(request):
     if not filepath or ".." in filepath: return web.Response(status=400)
     filepath = urllib.parse.unquote(filepath)
     if not os.path.exists(filepath): return web.Response(status=404)
+    if os.path.splitext(filepath)[1].lower() == ".svg":
+        try:
+            with open(filepath, "rb") as f:
+                return web.Response(body=f.read(), content_type="image/svg+xml")
+        except Exception as e:
+            print(f"LocalImageGallery: Error serving SVG thumbnail for {filepath}: {e}")
+            return web.Response(status=500)
     try:
         img = Image.open(filepath)
         has_alpha = img.mode == 'RGBA' or (img.mode == 'P' and 'transparency' in img.info)

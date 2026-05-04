@@ -10,6 +10,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "co
 import node_helpers
 
 prompt_server = server.PromptServer.instance
+SDVN_IMAGE_EXTENSIONS = {"jpeg", "jpg", "png", "webp", "bmp", "tif", "tiff", "apng", "svg"}
+SDVN_IMAGE_DOT_EXTENSIONS = {f".{ext}" for ext in SDVN_IMAGE_EXTENSIONS}
 
 class AnyType(str):
     """A special class that is always equal in not equal comparisons. Credit to pythongosssss"""
@@ -68,7 +70,7 @@ def run_gallery_dl(url):
         index = 0
     if 'http' not in url:
         type_name = url.split('.')[-1].lower()
-        if type_name in ["jpeg", "webp", "png", "jpg", "bmp"]:
+        if type_name in SDVN_IMAGE_EXTENSIONS:
             path = url
         else:
             path = LoadImageFolder().list_img_by_path(url.strip())[index]
@@ -97,7 +99,7 @@ def _sdvn_cache_preview_file(resolved_path):
     temp_root = os.path.abspath(folder_paths.get_temp_directory())
     preview_dir = os.path.join(temp_root, "sdvn_url_preview")
     os.makedirs(preview_dir, exist_ok=True)
-    allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+    allowed_exts = SDVN_IMAGE_DOT_EXTENSIONS
 
     if resolved_path.startswith("http"):
         parsed = urllib.parse.urlparse(resolved_path)
@@ -312,7 +314,7 @@ class LoadImage:
                 # so the filename is processed correctly in widgets.js
                 file_path = file_path.replace("\\", "/")
                 img_type = file_path.split('.')[-1].lower()
-                if img_type in ["jpeg", "webp", "png", "jpg", "bmp"]:
+                if img_type in SDVN_IMAGE_EXTENSIONS:
                     file_list.append(file_path)
 
         return {
@@ -409,7 +411,7 @@ class LoadImageFolder:
                 list_img.extend(s.list_img_by_path(file_full_path))
             elif os.path.isfile(file_full_path):
                 type_name = file.split('.')[-1].lower()
-                if type_name in ["jpeg", "webp", "png", "jpg", "bmp"]:
+                if type_name in SDVN_IMAGE_EXTENSIONS:
                     list_img.append(file_full_path)
         return list_img
 
@@ -531,7 +533,7 @@ class LoadImageUltimate:
                 # so the filename is processed correctly in widgets.js
                 file_path = file_path.replace("\\", "/")
                 img_type = file_path.split('.')[-1].lower()
-                if img_type in ["jpeg", "webp", "png", "jpg", "bmp"]:
+                if img_type in SDVN_IMAGE_EXTENSIONS:
                     file_list.append(file_path)
 
         return {"required": {
