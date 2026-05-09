@@ -207,6 +207,10 @@ class inpaint_crop:
 
     def inpaint_crop(self, image, crop_size, extend, target_size, mask = None):
         if mask is not None:
+            img_h, img_w = image.shape[1], image.shape[2]
+            mask_h, mask_w = mask.shape[-2], mask.shape[-1]
+            if mask_h != img_h or mask_w != img_w:
+                mask = FF.interpolate(mask.unsqueeze(1).float(), size=(img_h, img_w), mode='bilinear', align_corners=False).squeeze(1)
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
         if image.shape[-1] == 4:
