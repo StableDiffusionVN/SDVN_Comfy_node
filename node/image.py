@@ -180,6 +180,47 @@ def _sdvn_paste_transformed(source: Image.Image, canvas_size, offset_x, offset_y
     canvas.paste(source.crop((crop_x0, crop_y0, crop_x1, crop_y1)), (paste_x0, paste_y0))
     return canvas
 
+def _sdvn_edge_fill_canvas(source: Image.Image, canvas_size, offset_x, offset_y):
+    canvas_w, canvas_h = canvas_size
+    source_array = np.asarray(source)
+    src_h, src_w = source_array.shape[:2]
+    dst_x0 = int(round(offset_x))
+    dst_y0 = int(round(offset_y))
+    x_indexes = np.arange(canvas_w) - dst_x0
+    y_indexes = np.arange(canvas_h) - dst_y0
+    x_indexes = np.clip(x_indexes, 0, src_w - 1)
+    y_indexes = np.clip(y_indexes, 0, src_h - 1)
+    canvas_array = source_array[y_indexes[:, None], x_indexes[None, :]]
+    return Image.fromarray(canvas_array, mode=source.mode)
+
+def _sdvn_paste_image_with_fill(source: Image.Image, canvas_size, offset_x, offset_y, fill_mode):
+    if fill_mode == "edge_nearest":
+        canvas = _sdvn_edge_fill_canvas(source, canvas_size, offset_x, offset_y)
+        return _sdvn_paste_transformed_on_canvas(canvas, source, offset_x, offset_y)
+    return _sdvn_paste_transformed(source, canvas_size, offset_x, offset_y, (255, 255, 255))
+
+def _sdvn_paste_transformed_on_canvas(canvas: Image.Image, source: Image.Image, offset_x, offset_y):
+    canvas_w, canvas_h = canvas.size
+    src_w, src_h = source.size
+    dst_x0 = int(round(offset_x))
+    dst_y0 = int(round(offset_y))
+    dst_x1 = dst_x0 + src_w
+    dst_y1 = dst_y0 + src_h
+
+    paste_x0 = max(0, dst_x0)
+    paste_y0 = max(0, dst_y0)
+    paste_x1 = min(canvas_w, dst_x1)
+    paste_y1 = min(canvas_h, dst_y1)
+    if paste_x1 <= paste_x0 or paste_y1 <= paste_y0:
+        return canvas
+
+    crop_x0 = paste_x0 - dst_x0
+    crop_y0 = paste_y0 - dst_y0
+    crop_x1 = crop_x0 + (paste_x1 - paste_x0)
+    crop_y1 = crop_y0 + (paste_y1 - paste_y0)
+    canvas.paste(source.crop((crop_x0, crop_y0, crop_x1, crop_y1)), (paste_x0, paste_y0))
+    return canvas
+
 def _pad_image_hwc(image, target_w, target_h, mode, value=0.0):
     h, w, c = image.shape
     pad_right = max(0, target_w - w)
@@ -1193,6 +1234,7 @@ class MaskLayoutFit:
                 "margin_left": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
                 "margin_right": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
                 "max_output_side": ("INT", {"default": 1024, "min": 1, "max": 16384, "step": 1}),
+                "fill_mode": (["white", "edge_nearest"], {"default": "white"}),
             }
         }
 
@@ -1211,7 +1253,7 @@ class MaskLayoutFit:
             out_w = max(1, int(round(width * max_output_side / height)))
         return out_w, out_h
 
-    def _fit_one(self, image_tensor, mask_tensor, margins, max_output_side):
+    def _fit_one(self, image_tensor, mask_tensor, margins, max_output_side, fill_mode):
         img_h, img_w = int(image_tensor.shape[0]), int(image_tensor.shape[1])
         out_w, out_h = self._output_size(img_w, img_h, max_output_side)
         top, bottom, left, right = margins
@@ -1247,11 +1289,11 @@ class MaskLayoutFit:
         image_pil = _sdvn_image_tensor_to_pil(image_tensor)
         image_resized = image_pil.resize((target_w, target_h), Image.LANCZOS)
         mask_resized = mask_pil.resize((target_w, target_h), Image.BILINEAR)
-        out_image = _sdvn_paste_transformed(image_resized, (out_w, out_h), offset_x, offset_y, (255, 255, 255))
+        out_image = _sdvn_paste_image_with_fill(image_resized, (out_w, out_h), offset_x, offset_y, fill_mode)
         out_mask = _sdvn_paste_transformed(mask_resized, (out_w, out_h), offset_x, offset_y, 0)
         return out_image, out_mask
 
-    def fit_layout(self, image, mask, margin_top, margin_bottom, margin_left, margin_right, max_output_side):
+    def fit_layout(self, image, mask, margin_top, margin_bottom, margin_left, margin_right, max_output_side, fill_mode="white"):
         image_device = image.device
         mask_device = mask.device
         batch_size = int(image.shape[0])
@@ -1266,7 +1308,7 @@ class MaskLayoutFit:
             image_tensor = image[index]
             mask_index = index if mask_batch > 1 else 0
             mask_tensor = mask[mask_index]
-            out_image, out_mask = self._fit_one(image_tensor, mask_tensor, margins, max_output_side)
+            out_image, out_mask = self._fit_one(image_tensor, mask_tensor, margins, max_output_side, fill_mode)
             images.append(_sdvn_pil_image_to_tensor(out_image, image_device))
             masks.append(_sdvn_pil_mask_to_tensor(out_mask, mask_device))
 
