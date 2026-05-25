@@ -126,6 +126,60 @@ def tensor2pil(tensor: torch.Tensor) -> Image.Image:
     pil_image = Image.fromarray(np_image)
     return pil_image
 
+def _sdvn_image_tensor_to_pil(tensor: torch.Tensor) -> Image.Image:
+    tensor = tensor.detach().cpu().clamp(0, 1)
+    if tensor.shape[-1] == 4:
+        tensor = tensor[..., :3]
+    array = (tensor.numpy() * 255).astype(np.uint8)
+    return Image.fromarray(array, mode="RGB")
+
+def _sdvn_mask_tensor_to_pil(mask: torch.Tensor, width: int, height: int) -> Image.Image:
+    mask = mask.detach().cpu().float()
+    if mask.ndim == 3:
+        mask = mask[0]
+    array = (mask.clamp(0, 1).numpy() * 255).astype(np.uint8)
+    pil_mask = Image.fromarray(array, mode="L")
+    if pil_mask.size != (width, height):
+        pil_mask = pil_mask.resize((width, height), Image.BILINEAR)
+    return pil_mask
+
+def _sdvn_pil_image_to_tensor(image: Image.Image, device=None) -> torch.Tensor:
+    array = np.asarray(image.convert("RGB")).astype(np.float32) / 255.0
+    tensor = torch.from_numpy(array)
+    if device is not None:
+        tensor = tensor.to(device)
+    return tensor
+
+def _sdvn_pil_mask_to_tensor(mask: Image.Image, device=None) -> torch.Tensor:
+    array = np.asarray(mask.convert("L")).astype(np.float32) / 255.0
+    tensor = torch.from_numpy(array)
+    if device is not None:
+        tensor = tensor.to(device)
+    return tensor
+
+def _sdvn_paste_transformed(source: Image.Image, canvas_size, offset_x, offset_y, fill):
+    canvas_w, canvas_h = canvas_size
+    canvas = Image.new(source.mode, canvas_size, fill)
+    src_w, src_h = source.size
+    dst_x0 = int(round(offset_x))
+    dst_y0 = int(round(offset_y))
+    dst_x1 = dst_x0 + src_w
+    dst_y1 = dst_y0 + src_h
+
+    paste_x0 = max(0, dst_x0)
+    paste_y0 = max(0, dst_y0)
+    paste_x1 = min(canvas_w, dst_x1)
+    paste_y1 = min(canvas_h, dst_y1)
+    if paste_x1 <= paste_x0 or paste_y1 <= paste_y0:
+        return canvas
+
+    crop_x0 = paste_x0 - dst_x0
+    crop_y0 = paste_y0 - dst_y0
+    crop_x1 = crop_x0 + (paste_x1 - paste_x0)
+    crop_y1 = crop_y0 + (paste_y1 - paste_y0)
+    canvas.paste(source.crop((crop_x0, crop_y0, crop_x1, crop_y1)), (paste_x0, paste_y0))
+    return canvas
+
 def _pad_image_hwc(image, target_w, target_h, mode, value=0.0):
     h, w, c = image.shape
     pad_right = max(0, target_w - w)
@@ -1127,6 +1181,97 @@ class OverlayMaskWithHexColor(OverlayImages, MaskToTransparentColor):
         colored_mask = self.convert(mask, color_hex)[0]
         return self.overlay_images(colored_mask, base_image, opacity)
 
+class MaskLayoutFit:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "margin_top": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
+                "margin_bottom": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
+                "margin_left": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
+                "margin_right": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
+                "max_output_side": ("INT", {"default": 1024, "min": 1, "max": 16384, "step": 1}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🏞️ Image"
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "mask")
+    FUNCTION = "fit_layout"
+    DESCRIPTION = "Resize va di chuyen anh theo bbox mask de mask nam gon trong vung layout tru le."
+
+    def _output_size(self, width, height, max_output_side):
+        if width >= height:
+            out_w = max_output_side
+            out_h = max(1, int(round(height * max_output_side / width)))
+        else:
+            out_h = max_output_side
+            out_w = max(1, int(round(width * max_output_side / height)))
+        return out_w, out_h
+
+    def _fit_one(self, image_tensor, mask_tensor, margins, max_output_side):
+        img_h, img_w = int(image_tensor.shape[0]), int(image_tensor.shape[1])
+        out_w, out_h = self._output_size(img_w, img_h, max_output_side)
+        top, bottom, left, right = margins
+        inner_w = max(1, out_w - left - right)
+        inner_h = max(1, out_h - top - bottom)
+
+        mask_pil = _sdvn_mask_tensor_to_pil(mask_tensor, img_w, img_h)
+        mask_np = np.asarray(mask_pil, dtype=np.uint8)
+        coords = np.argwhere(mask_np > 127)
+
+        if coords.size == 0:
+            scale = min(out_w / img_w, out_h / img_h)
+            target_w = max(1, int(round(img_w * scale)))
+            target_h = max(1, int(round(img_h * scale)))
+            offset_x = (out_w - target_w) / 2
+            offset_y = (out_h - target_h) / 2
+        else:
+            y_min, x_min = coords.min(axis=0)
+            y_max, x_max = coords.max(axis=0)
+            mask_w = max(1, int(x_max - x_min + 1))
+            mask_h = max(1, int(y_max - y_min + 1))
+            scale = min(inner_w / mask_w, inner_h / mask_h)
+            target_w = max(1, int(round(img_w * scale)))
+            target_h = max(1, int(round(img_h * scale)))
+
+            scaled_mask_w = mask_w * scale
+            scaled_mask_h = mask_h * scale
+            target_mask_x = left + (inner_w - scaled_mask_w) / 2
+            target_mask_y = top + (inner_h - scaled_mask_h) / 2
+            offset_x = target_mask_x - (x_min * scale)
+            offset_y = target_mask_y - (y_min * scale)
+
+        image_pil = _sdvn_image_tensor_to_pil(image_tensor)
+        image_resized = image_pil.resize((target_w, target_h), Image.LANCZOS)
+        mask_resized = mask_pil.resize((target_w, target_h), Image.BILINEAR)
+        out_image = _sdvn_paste_transformed(image_resized, (out_w, out_h), offset_x, offset_y, (255, 255, 255))
+        out_mask = _sdvn_paste_transformed(mask_resized, (out_w, out_h), offset_x, offset_y, 0)
+        return out_image, out_mask
+
+    def fit_layout(self, image, mask, margin_top, margin_bottom, margin_left, margin_right, max_output_side):
+        image_device = image.device
+        mask_device = mask.device
+        batch_size = int(image.shape[0])
+        mask_batch = int(mask.shape[0]) if mask.ndim >= 3 else 1
+        if mask_batch not in (1, batch_size):
+            raise ValueError("Mask Layout Fit chi ho tro 1 mask dung chung hoac batch mask co cung so luong voi image.")
+        margins = (margin_top, margin_bottom, margin_left, margin_right)
+        images = []
+        masks = []
+
+        for index in range(batch_size):
+            image_tensor = image[index]
+            mask_index = index if mask_batch > 1 else 0
+            mask_tensor = mask[mask_index]
+            out_image, out_mask = self._fit_one(image_tensor, mask_tensor, margins, max_output_side)
+            images.append(_sdvn_pil_image_to_tensor(out_image, image_device))
+            masks.append(_sdvn_pil_mask_to_tensor(out_mask, mask_device))
+
+        return (torch.stack(images, dim=0), torch.stack(masks, dim=0))
+
 class SaveImageCompare:
     @classmethod
     def INPUT_TYPES(cls):
@@ -1219,6 +1364,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Overlay Images": OverlayImages,
     "SDVN Mask To Transparent Color": MaskToTransparentColor,
     "SDVN Overlay Mask Color Image": OverlayMaskWithHexColor,
+    "SDVN Mask Layout Fit": MaskLayoutFit,
     "SDVN Split Tile": SplitTile,
     "SDVN Stitch Tile": StitchTile,
     "SDVN Save Image": SaveImageCompare,
@@ -1245,6 +1391,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Overlay Images": "🧅 Overlay Two Images",
     "SDVN Mask To Transparent Color": "🎭 Mask → Transparent Color",
     "SDVN Overlay Mask Color Image": "🧩 Overlay Mask",
+    "SDVN Mask Layout Fit": "🧭 Mask Layout Fit",
     "SDVN Split Tile": "🧩 Split Tile",
     "SDVN Stitch Tile": "🧩 Stitch Tile",
     "SDVN Save Image": "💾 Save Image + Compare",
