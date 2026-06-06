@@ -249,6 +249,16 @@ def _align_to_multiple(value, multiple=16, minimum=None):
         aligned = max(int(minimum), aligned)
     return aligned
 
+def _resize_hwc_to_multiple(image, multiple=8):
+    h, w, _ = image.shape
+    target_w = _align_to_multiple(w, multiple=multiple, minimum=multiple)
+    target_h = _align_to_multiple(h, multiple=multiple, minimum=multiple)
+    if target_w == w and target_h == h:
+        return image
+    chw = image.permute(2, 0, 1).unsqueeze(0)
+    resized = tF.interpolate(chw, size=(target_h, target_w), mode="bilinear", align_corners=False)
+    return resized.squeeze(0).permute(1, 2, 0)
+
 def _resolve_overlap_dims(tile_width, tile_height, overlap):
     overlap = max(0, int(overlap))
 
@@ -340,13 +350,13 @@ class SplitTile:
     DESCRIPTION = "Chia ảnh thành nhiều tile và tạo thông tin để ghép lại."
 
     def split(self, image, tile_width, tile_height, overlap, force_uniform_tiles, pad_mode, pad_value):
-        tile_width = _align_to_multiple(tile_width, multiple=16, minimum=16)
-        tile_height = _align_to_multiple(tile_height, multiple=16, minimum=16)
+        tile_width = _align_to_multiple(tile_width, multiple=8, minimum=16)
+        tile_height = _align_to_multiple(tile_height, multiple=8, minimum=16)
         tiles = []
         stitchers = []
         overlap_width, overlap_height = _resolve_overlap_dims(tile_width, tile_height, overlap)
         for b in range(image.shape[0]):
-            img = image[b]
+            img = _resize_hwc_to_multiple(image[b], multiple=8)
             h, w, c = img.shape
             x_positions = _compute_tile_positions(w, tile_width, overlap_width)
             y_positions = _compute_tile_positions(h, tile_height, overlap_height)
