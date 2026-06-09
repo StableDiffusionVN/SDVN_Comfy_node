@@ -1808,6 +1808,26 @@ class UpscaleModelDownload:
         download_model(Download_url, Url_name, "upscale_models")
         return ALL_NODE["UpscaleModelLoader"]().load_model(Url_name)
 
+class LatentUpscaleModelDownload:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { 
+                    "Download_url": ("STRING", {"default": "", "multiline": False},),
+                    "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
+                             }}
+    RETURN_TYPES = ("LATENT_UPSCALE_MODEL",)
+    FUNCTION = "download"
+
+    CATEGORY = "📂 SDVN/📥 Download"
+
+    def download(self, Download_url, Url_name):
+        download_model(Download_url, Url_name, "latent_upscale_models")
+        loader = ALL_NODE["LatentUpscaleModelLoader"]()
+        if hasattr(loader, "load_model"):
+            return loader.load_model(Url_name)
+        output = loader.execute(Url_name)
+        return output.result if hasattr(output, "result") else output
+
 class VAEDownload:
     @classmethod
     def INPUT_TYPES(s):
@@ -1963,6 +1983,40 @@ class DualClipDownload:
         download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
         return ALL_NODE["DualCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, type, device="default")
     
+class LTXAVTextEncoderDownload:
+    checkpoint_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
+    clip_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
+    with open(checkpoint_lib_path, 'r') as json_file:
+        checkpointlist = json.load(json_file)
+    with open(clip_lib_path, 'r') as json_file:
+        cliplist = json.load(json_file)
+    list_checkpoint = list(checkpointlist)
+    list_clip = []
+    for key, value in cliplist.items():
+        if value[1] == "CLIP" and len(value) > 2 and value[2] == "ltxv":
+            list_clip.append(key)
+    if not list_clip:
+        for key, value in cliplist.items():
+            if value[1] == "CLIP":
+                list_clip.append(key)
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { 
+                    "Ckpt_name": (s.list_checkpoint,),
+                    "CLIP_name": (s.list_clip,),
+                             }}
+    RETURN_TYPES = ("CLIP",)
+    FUNCTION = "download"
+
+    CATEGORY = "📂 SDVN/📥 Download"
+
+    def download(s, Ckpt_name, CLIP_name):
+        download_model(s.checkpointlist[Ckpt_name], Ckpt_name, "checkpoints")
+        download_model(s.cliplist[CLIP_name][0], CLIP_name, "text_encoders")
+        output = ALL_NODE["LTXAVTextEncoderLoader"]().execute(CLIP_name, Ckpt_name, device="default")
+        return output.result if hasattr(output, "result") else output
+    
 class QuadrupleCLIPDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
     with open(model_lib_path, 'r') as json_file:
@@ -2019,6 +2073,8 @@ class AnyDownloadList:
             r = ALL_NODE["SDVN CLIPVision Download"]().download(download_link, model_name)[0]
         if Type == "UpscaleModel":
             r = ALL_NODE["SDVN UpscaleModel Download"]().download(download_link, model_name)[0]
+        if Type == "LatentUpscaleModel":
+            r = ALL_NODE["SDVN LatentUpscaleModel Download"]().download(download_link, model_name)[0]
         if Type == "VAE":
             r = ALL_NODE["SDVN VAE Download"]().download(download_link, model_name)[0]
         if Type == "UNET/Diffusion":
@@ -2063,6 +2119,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Lora Download": LoraDownload,
     "SDVN CLIPVision Download":CLIPVisionDownload,
     "SDVN UpscaleModel Download":UpscaleModelDownload,
+    "SDVN LatentUpscaleModel Download":LatentUpscaleModelDownload,
     "SDVN VAE Download":VAEDownload,
     "SDVN ControlNet Download":ControlNetDownload,
     "SDVN UNET Download":UNETDownload,
@@ -2075,6 +2132,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN InstantIDModel Download": InstantIDModelDownload,
     "SDVN AnyDownload List": AnyDownloadList,
     "SDVN DualCLIP Download": DualClipDownload,
+    "SDVN LTXAVTextEncoder Download": LTXAVTextEncoderDownload,
     "SDVN QuadrupleCLIP Download": QuadrupleCLIPDownload,
     "SDVN ModelPatch Download": ModelPatchDownload,
 }
@@ -2109,6 +2167,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Lora Download": "📥 Lora Download",
     "SDVN CLIPVision Download": "📥 CLIPVision Download",
     "SDVN UpscaleModel Download": "📥 UpscaleModel Download",
+    "SDVN LatentUpscaleModel Download": "📥 LatentUpscaleModel Download",
     "SDVN VAE Download": "📥 VAE Download",
     "SDVN ControlNet Download": "📥 ControlNet Download",
     "SDVN UNET Download": "📥 UNET Download",
@@ -2118,6 +2177,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN InstantIDModel Download": "📥  InstantIDModel Download",
     "SDVN AnyDownload List": "📥  AnyDownload List",
     "SDVN DualCLIP Download": "📥  DualCLIP Download",
+    "SDVN LTXAVTextEncoder Download": "📥  LTXAVTextEncoder Download",
     "SDVN QuadrupleCLIP Download": "📥  QuadrupleCLIP Download",
     "SDVN ModelPatch Download": "📥  ModelPatch Download",
 }

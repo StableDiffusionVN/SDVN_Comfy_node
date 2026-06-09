@@ -115,6 +115,7 @@
     "8x_RealESRGAN.pth": ["https://huggingface.co/tomjackson2023/upscale_models/blob/main/8x_RealESRGAN.pth","UpscaleModel"],
     "RealESRGAN_x2plus.pth": ["https://huggingface.co/tomjackson2023/upscale_models/blob/main/RealESRGAN_x2plus.pth","UpscaleModel"],
     "RealESRGANv2-animevideo-xsx2.pth": ["https://huggingface.co/tomjackson2023/upscale_models/blob/main/RealESRGANv2-animevideo-xsx2.pth","UpscaleModel"],
+    "ltx-2.3-spatial-upscaler-x2-1.1.safetensors": ["https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors","LatentUpscaleModel"],
     
     "clip_l_hidream.safetensors": ["https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/blob/main/split_files/text_encoders/clip_l_hidream.safetensors","CLIP","sd3"],
     "clip_g_hidream.safetensors": ["https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/blob/main/split_files/text_encoders/clip_g_hidream.safetensors","CLIP","sd3"],
@@ -195,5 +196,7 @@
     "z_image_turbo_bf16.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors", "UNET/Diffusion", "default"],
     "z_image_turbo_nvfp4.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/diffusion_models/z_image_turbo_nvfp4.safetensors", "UNET/Diffusion", "default"],
     "qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "lumina2"],
-    "z_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors","VAE"]
+    "z_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors","VAE"],
+
+    "gemma_3_12B_it_fp4_mixed.safetensors": ["https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors","CLIP", "ltxv"]
 }

@@ -93,5 +93,8 @@
     "Qwen-Edit-White-to-scene.safetensors": "https://huggingface.co/dx8152/Qwen-Image-Edit-2509-White_to_Scene/blob/main/%E7%99%BD%E5%BA%95%E5%9B%BE%E8%BD%AC%E5%9C%BA%E6%99%AF.safetensors",
     "Qwen-Edit-Film-to-render.safetensors": "https://huggingface.co/dx8152/Qwen-Image-Edit-2509-White_film_to_rendering/blob/main/%E7%99%BD%E8%86%9C%E8%BD%AC%E6%9D%90%E8%B4%A8.safetensors",
     "Qwen-Edit-Eigen-Banana.safetensors": "https://huggingface.co/eigen-ai-labs/eigen-banana-qwen-image-edit/blob/main/eigen-banana-qwen-image-edit-2509-fp16-lora.safetensors",
-    "Qwen-Edit-2511-Multiple-Angles.safetensors": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/blob/main/qwen-image-edit-2511-multiple-angles-lora.safetensors"
+    "Qwen-Edit-2511-Multiple-Angles.safetensors": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/blob/main/qwen-image-edit-2511-multiple-angles-lora.safetensors",
+
+    "ltx-2.3-22b-distilled-lora-384.safetensors": "https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-distilled-lora-384.safetensors",
+    "gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors": "https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors"
 }
