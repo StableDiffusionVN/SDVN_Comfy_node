@@ -249,7 +249,7 @@ def _align_to_multiple(value, multiple=16, minimum=None):
         aligned = max(int(minimum), aligned)
     return aligned
 
-def _resize_hwc_to_multiple(image, multiple=8):
+def _resize_hwc_to_multiple(image, multiple=16):
     h, w, _ = image.shape
     target_w = _align_to_multiple(w, multiple=multiple, minimum=multiple)
     target_h = _align_to_multiple(h, multiple=multiple, minimum=multiple)
@@ -335,7 +335,7 @@ class SplitTile:
                 "image": ("IMAGE",),
                 "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 16}),
                 "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 16}),
-                "overlap": ("INT", {"default": DEFAULT_OVERLAP, "min": 0, "max": 4096, "step": 8}),
+                "overlap": ("INT", {"default": DEFAULT_OVERLAP, "min": 0, "max": 4096, "step": 16}),
                 "force_uniform_tiles": ("BOOLEAN", {"default": True}),
                 "pad_mode": (["edge", "reflect", "constant"], {"default": "edge"}),
                 "pad_value": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
@@ -350,13 +350,14 @@ class SplitTile:
     DESCRIPTION = "Chia ảnh thành nhiều tile và tạo thông tin để ghép lại."
 
     def split(self, image, tile_width, tile_height, overlap, force_uniform_tiles, pad_mode, pad_value):
-        tile_width = _align_to_multiple(tile_width, multiple=8, minimum=16)
-        tile_height = _align_to_multiple(tile_height, multiple=8, minimum=16)
+        tile_width = _align_to_multiple(tile_width, multiple=16, minimum=16)
+        tile_height = _align_to_multiple(tile_height, multiple=16, minimum=16)
         tiles = []
         stitchers = []
         overlap_width, overlap_height = _resolve_overlap_dims(tile_width, tile_height, overlap)
         for b in range(image.shape[0]):
-            img = _resize_hwc_to_multiple(image[b], multiple=8)
+            source_h, source_w, _ = image[b].shape
+            img = _resize_hwc_to_multiple(image[b], multiple=16)
             h, w, c = img.shape
             x_positions = _compute_tile_positions(w, tile_width, overlap_width)
             y_positions = _compute_tile_positions(h, tile_height, overlap_height)
@@ -387,7 +388,8 @@ class SplitTile:
                         tile = img_work[y:y + th, x:x + tw, :]
                     tiles.append(tile.unsqueeze(0))
                     stitchers.append({
-                        "orig_size": (w, h),
+                        "orig_size": (source_w, source_h),
+                        "rounded_size": (w, h),
                         "canvas_size": (pad_w, pad_h),
                         "tile_size": (tile.shape[2], tile.shape[1]),
                         "overlap_width": overlap_width,
@@ -437,6 +439,7 @@ class StitchTile:
             first_info = items[0][1]
             canvas_w, canvas_h = first_info["canvas_size"]
             orig_w, orig_h = first_info["orig_size"]
+            rounded_w, rounded_h = first_info.get("rounded_size", (orig_w, orig_h))
             device = items[0][0].device
             dtype = items[0][0].dtype
             canvas = torch.zeros((canvas_h, canvas_w, items[0][0].shape[-1]), device=device, dtype=dtype)
@@ -474,7 +477,11 @@ class StitchTile:
                 weight[y:y + tile_h, x:x + tile_w, :] += wmask
             weight = torch.clamp(weight, min=1e-6)
             merged = canvas / weight
-            merged = merged[:orig_h, :orig_w, :]
+            merged = merged[:rounded_h, :rounded_w, :]
+            if (rounded_w, rounded_h) != (orig_w, orig_h):
+                chw = merged.permute(2, 0, 1).unsqueeze(0)
+                merged = tF.interpolate(chw, size=(orig_h, orig_w), mode="bilinear", align_corners=False)
+                merged = merged.squeeze(0).permute(1, 2, 0)
             results.append(merged.unsqueeze(0))
         return (torch.cat(results, dim=0),)
 
