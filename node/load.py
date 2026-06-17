@@ -39,6 +39,19 @@ def none2list(folderlist):
 def sorted_none_first(folderlist):
     return ["None"] + sorted(item for item in folderlist if item != "None")
 
+def sdvn_get_node_combo_options(node_name, input_name):
+    input_types = ALL_NODE[node_name].INPUT_TYPES()
+    spec = input_types.get("required", {}).get(input_name) or input_types.get("optional", {}).get(input_name)
+    if not spec:
+        return []
+    if isinstance(spec[0], (list, tuple)):
+        return list(spec[0])
+    if len(spec) > 1 and isinstance(spec[1], dict):
+        options = spec[1].get("options")
+        if isinstance(options, (list, tuple)):
+            return list(options)
+    return []
+
 
 def i2tensor(i) -> torch.Tensor:
     i = ImageOps.exif_transpose(i)
@@ -1866,7 +1879,7 @@ class UNETDownload:
         return {"required": { 
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
-                    "weight_dtype": (["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"],)
+                    "weight_dtype": (sdvn_get_node_combo_options("UNETLoader", "weight_dtype"),)
                              }}
     RETURN_TYPES = ("MODEL",)
     FUNCTION = "download"
@@ -1883,7 +1896,7 @@ class CLIPDownload:
         return {"required": { 
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
-                    "type": (["stable_diffusion", "stable_cascade", "sd3", "flux2", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream", "chroma", "ace", "omnigen2", "qwen_image"],)
+                    "type": (sdvn_get_node_combo_options("CLIPLoader", "type"),)
                              }}
     RETURN_TYPES = ("CLIP",)
     FUNCTION = "download"
@@ -1971,17 +1984,20 @@ class DualClipDownload:
         return {"required": { 
                     "CLIP_name1": (s.list_clip,),
                     "CLIP_name2": (s.list_clip,),
-                    "type": (["sdxl", "sd3", "flux", "hunyuan_video", "hidream"], ),
+                    "type": (sdvn_get_node_combo_options("DualCLIPLoader", "type"), )
+                             },
+                "optional": {
+                    "device": (sdvn_get_node_combo_options("DualCLIPLoader", "device"), {"default": "default", "advanced": True}),
                              }}
     RETURN_TYPES = ("CLIP",)
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
-    def download(s, CLIP_name1, CLIP_name2, type):
+    def download(s, CLIP_name1, CLIP_name2, type, device="default"):
         download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
         download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
-        return ALL_NODE["DualCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, type, device="default")
+        return ALL_NODE["DualCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, type, device=device)
     
 class LTXAVTextEncoderDownload:
     checkpoint_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
@@ -2005,17 +2021,22 @@ class LTXAVTextEncoderDownload:
         return {"required": { 
                     "Ckpt_name": (s.list_checkpoint,),
                     "CLIP_name": (s.list_clip,),
+                             },
+                "optional": {
+                    "device": (sdvn_get_node_combo_options("LTXAVTextEncoderLoader", "device"), {"default": "default", "advanced": True}),
                              }}
     RETURN_TYPES = ("CLIP",)
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
-    def download(s, Ckpt_name, CLIP_name):
+    def download(s, Ckpt_name, CLIP_name, device="default"):
         download_model(s.checkpointlist[Ckpt_name], Ckpt_name, "checkpoints")
         download_model(s.cliplist[CLIP_name][0], CLIP_name, "text_encoders")
-        output = ALL_NODE["LTXAVTextEncoderLoader"]().execute(CLIP_name, Ckpt_name, device="default")
-        return output.result if hasattr(output, "result") else output
+        output = ALL_NODE["LTXAVTextEncoderLoader"].execute(CLIP_name, Ckpt_name, device=device)
+        if hasattr(output, "result"):
+            return output.result if output.result is not None else output
+        return (output,)
     
 class QuadrupleCLIPDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
