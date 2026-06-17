@@ -198,5 +198,9 @@
     "qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "lumina2"],
     "z_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors","VAE"],
 
-    "gemma_3_12B_it_fp4_mixed.safetensors": ["https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors","CLIP", "ltxv"]
+    "gemma_3_12B_it_fp4_mixed.safetensors": ["https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors","CLIP", "ltxv"],
+    "ideogram4_unconditional_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Ideogram-4/blob/main/diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors", "UNET/Diffusion", "default"], 
+    "ideogram4_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Ideogram-4/blob/main/diffusion_models/ideogram4_fp8_scaled.safetensors", "UNET/Diffusion", "default"],
+    "qwen3vl_8b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Ideogram-4/blob/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors", "CLIP", "ideogram4"]
+
 }
