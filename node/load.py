@@ -303,7 +303,7 @@ def download_model(url, name, type):
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
     if not os.path.isfile(path_model):
-        command = ['aria2c', '-c', '-x', '16', '-s', '16', '-k', '1M']
+        command = ['aria2c', '-c', '-x', '8', '-s', '8', '-k', '1M']
         hf_token = get_hf_token() if "huggingface.co" in url else None
         if hf_token:
             command.append(f'--header=Authorization: Bearer {hf_token}')
