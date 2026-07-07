@@ -933,6 +933,8 @@ ModelType_list = {
     "HunyuanVideo": [1.0, "euler", "simple"],
     "QwenImage": [1, "euler", "simple"],
     "Z-Image": [1, "euler", "simple"],
+    "Boogu": [1, "lcm", "sgm_uniform"],
+    "Krea2": [1, "euler", "simple"],
 }
 
 StepsType_list = {
@@ -1590,6 +1592,8 @@ class BooguEditTextEncoder(io.ComfyNode):
             inputs=[
                 io.String.Input("prompt", multiline=True, dynamic_prompts=True, tooltip="Prompt mô tả nội dung cần chỉnh sửa."),
                 io.Int.Input("maxsize", default=0, min=0, max=4096, step=1, tooltip="Giới hạn cạnh dài của ảnh reference. 0 = giữ kích thước gốc."),
+                io.Combo.Input("translate", lang_list(), tooltip="Ngôn ngữ dịch prompt."),
+                io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, tooltip="Seed ngẫu nhiên cho prompt."),
                 io.Clip.Input("clip", tooltip="Mô hình CLIP/Boogu text encoder dùng để mã hóa prompt và ảnh."),
                 io.Vae.Input("vae", tooltip="Mô hình VAE dùng để tạo reference latent."),
                 io.Autogrow.Input(
@@ -1601,7 +1605,6 @@ class BooguEditTextEncoder(io.ComfyNode):
                     ),
                     tooltip="Reference image(s) to edit. Boogu focuses on one reference per sample; more are allowed.",
                 ),
-                io.Mask.Input("mask", optional=True, tooltip="Mask áp dụng cho latent output của ảnh reference chính."),
             ],
             outputs=[
                 io.Conditioning.Output(display_name="conditioning"),
@@ -1621,10 +1624,9 @@ class BooguEditTextEncoder(io.ComfyNode):
         return (cls.align_to_16(width), cls.align_to_16(height))
 
     @classmethod
-    def execute(cls, prompt, maxsize, clip, vae, images: io.Autogrow.Type = None, mask=None) -> io.NodeOutput:
-        if mask is not None:
-            if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
-                mask = None
+    def execute(cls, prompt, maxsize, translate, seed, clip, vae, images: io.Autogrow.Type = None) -> io.NodeOutput:
+        prompt = ALL_NODE["SDVN Random Prompt"]().get_prompt(prompt, 1, seed)[0][0]
+        prompt = ALL_NODE["SDVN Translate"]().ggtranslate(prompt, translate)[0]
 
         images_vl = []
         ref_latents = []
@@ -1660,9 +1662,6 @@ class BooguEditTextEncoder(io.ComfyNode):
 
         if len(ref_latents) > 0:
             conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
-
-        if mask is not None and first_latent is not None:
-            first_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_latent, mask)[0]
 
         return io.NodeOutput(conditioning, first_width, first_height, first_latent)
 
