@@ -93,6 +93,9 @@
     "Z_Image_turbo_fp16.safetensors": "https://huggingface.co/StableDiffusionVN/Z_turbo/blob/main/Checkpoint/Z_Image_turbo_fp16.safetensors",
     "Z_Image_turbo_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Z_turbo/blob/main/Checkpoint/Z_Image_turbo_fp8.safetensors",
 
+    "Krea2.safetensors": "https://huggingface.co/StableDiffusionVN/Krea2/blob/main/Checkpoint/Krea2.safetensors",
+    "Krea2_fp8.safetensors": "https://huggingface.co/StableDiffusionVN/Krea2/blob/main/Checkpoint/Krea2_fp8.safetensors",
+
     "LTX-2.3-fp8.safetensors": "https://huggingface.co/Lightricks/LTX-2.3-fp8/blob/main/ltx-2.3-22b-distilled-fp8.safetensors",
     "LTX-2.3-dev-fp8.safetensors": "https://huggingface.co/Lightricks/LTX-2.3-fp8/blob/main/ltx-2.3-22b-dev-fp8.safetensors"
     }
