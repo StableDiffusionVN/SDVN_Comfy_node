@@ -5,6 +5,7 @@ from googletrans import LANGUAGES
 from aiohttp import web
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
+from comfy_api.latest import io
 from .style_store import get_style_prompts, style_list
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 import node_helpers
@@ -1579,6 +1580,92 @@ class KontextReference:
         else:
             return (conditioning, img_size, img_size, None)
 
+class BooguEditTextEncoder(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SDVN Boogu Edit TextEncoder",
+            display_name="🔡 Boogu Edit TextEncoder",
+            category="📂 SDVN",
+            inputs=[
+                io.String.Input("prompt", multiline=True, dynamic_prompts=True, tooltip="Prompt mô tả nội dung cần chỉnh sửa."),
+                io.Int.Input("maxsize", default=0, min=0, max=4096, step=1, tooltip="Giới hạn cạnh dài của ảnh reference. 0 = giữ kích thước gốc."),
+                io.Clip.Input("clip", tooltip="Mô hình CLIP/Boogu text encoder dùng để mã hóa prompt và ảnh."),
+                io.Vae.Input("vae", tooltip="Mô hình VAE dùng để tạo reference latent."),
+                io.Autogrow.Input(
+                    "images",
+                    template=io.Autogrow.TemplateNames(
+                        io.Image.Input("image"),
+                        names=[f"image_{i}" for i in range(1, 17)],
+                        min=0,
+                    ),
+                    tooltip="Reference image(s) to edit. Boogu focuses on one reference per sample; more are allowed.",
+                ),
+                io.Mask.Input("mask", optional=True, tooltip="Mask áp dụng cho latent output của ảnh reference chính."),
+            ],
+            outputs=[
+                io.Conditioning.Output(display_name="conditioning"),
+                io.Int.Output(display_name="width"),
+                io.Int.Output(display_name="height"),
+                io.Latent.Output(display_name="latent"),
+            ],
+        )
+
+    @staticmethod
+    def align_to_16(value):
+        return max(16, int(round(value / 16.0)) * 16)
+
+    @classmethod
+    def boogu_image_size(cls, image, maxsize):
+        width, height = ALL_NODE["SDVN Image Size"]().imagesize(image=image, latent=None, maxsize=maxsize)
+        return (cls.align_to_16(width), cls.align_to_16(height))
+
+    @classmethod
+    def execute(cls, prompt, maxsize, clip, vae, images: io.Autogrow.Type = None, mask=None) -> io.NodeOutput:
+        if mask is not None:
+            if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
+                mask = None
+
+        images_vl = []
+        ref_latents = []
+        first_width = maxsize
+        first_height = maxsize
+        first_latent = None
+
+        images = images or {}
+        image_items = sorted(images.items(), key=lambda item: int(item[0].rsplit("_", 1)[-1]))
+        for index, (_, img) in enumerate(image_items):
+            if img is None:
+                continue
+            samples = img.movedim(-1, 1)
+
+            total = int(384 * 384)
+            scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+            vl_width = round(samples.shape[3] * scale_by)
+            vl_height = round(samples.shape[2] * scale_by)
+            vl_image = comfy.utils.common_upscale(samples, vl_width, vl_height, "area", "disabled")
+            images_vl.append(vl_image.movedim(1, -1)[:, :, :, :3])
+
+            width, height = cls.boogu_image_size(img, maxsize)
+            resized_image = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img)[0]
+            latent = ALL_NODE["VAEEncode"]().encode(vae, resized_image[:, :, :, :3])[0]
+            ref_latents.append(latent["samples"])
+
+            if index == 0:
+                first_width = width
+                first_height = height
+                first_latent = latent
+
+        conditioning = clip.encode_from_tokens_scheduled(clip.tokenize(prompt, images=images_vl))
+
+        if len(ref_latents) > 0:
+            conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
+
+        if mask is not None and first_latent is not None:
+            first_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_latent, mask)[0]
+
+        return io.NodeOutput(conditioning, first_width, first_height, first_latent)
+
 class QwenEditTextEncoder:
     @classmethod
     def INPUT_TYPES(s):
@@ -2147,6 +2234,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN CLIP Download":CLIPDownload,
     "SDVN StyleModel Download":StyleModelDownload,
     "SDVN Apply Kontext Reference": KontextReference,
+    "SDVN Boogu Edit TextEncoder": BooguEditTextEncoder,
     "SDVN QwenEdit TextEncoder": QwenEditTextEncoder,
     "SDVN QwenEdit TextEncoder Plus": QwenEditTextEncoderPlus,
     "SDVN IPAdapterModel Download": IPAdapterModelDownload,
@@ -2178,6 +2266,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Inpaint": "👨‍🎨 Inpaint",
     "SDVN Apply Style Model": "🌈 Apply Style Model",
     "SDVN Apply Kontext Reference": "🌈 Apply Reference",
+    "SDVN Boogu Edit TextEncoder": "🔡 Boogu Edit TextEncoder",
     "SDVN QwenEdit TextEncoder": "🔡 QwenEdit TextEncoder",
     "SDVN QwenEdit TextEncoder Plus": "🔡 QwenEdit TextEncoder Plus",
     "SDVN Styles":"🗂️ Prompt Styles",
