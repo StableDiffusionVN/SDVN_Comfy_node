@@ -1,7 +1,7 @@
 [project]
 name = "sdvn_comfy_node"
-description = "Update fix download aria2c"
-version = "2.06.28"   
+description = "Update support Krea2, Boogu-Image"
+version = "2.07.07"   
 license = {file = "LICENSE"}
 dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
 

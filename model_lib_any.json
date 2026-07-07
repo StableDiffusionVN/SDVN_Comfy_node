@@ -201,7 +201,7 @@
     "boogu_image_edit_turbo_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Boogu-Image/blob/main/diffusion_models/boogu_image_edit_turbo_bf16.safetensors", "UNET/Diffusion", "default"],
     "boogu_image_turbo_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Boogu-Image/blob/main/diffusion_models/boogu_image_turbo_fp8_scaled.safetensors", "UNET/Diffusion", "default"],
     "boogu_image_edit_turbo_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/Boogu-Image/blob/main/diffusion_models/boogu_image_edit_turbo_int8_convrot.safetensors", "UNET/Diffusion", "default"],
-    "boogu_qwen3vl_8b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Ideogram-4/blob/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors", "CLIP", "boogu"],
+    "boogu_qwen3vl_8b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Boogu-Image/blob/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors", "CLIP", "boogu"],
 
     "qwen_3_4b.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/text_encoders/qwen_3_4b.safetensors","CLIP", "lumina2"],
     "z_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/z_image_turbo/blob/main/split_files/vae/ae.safetensors","VAE"],
