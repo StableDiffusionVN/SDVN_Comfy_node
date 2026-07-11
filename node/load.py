@@ -272,6 +272,7 @@ def check_link(link):
             return civit_downlink(link)
         else:
             return link
+    return link
 
 
 def token(link):
@@ -298,18 +299,58 @@ def get_hf_token():
             return None
     return None
 
-def download_model(url, name, type):
-    url = url.split("?")[0]
+def download_model(url, name, type, url_type="Custom", custom_token=""):
+    is_hf = "huggingface.co" in url or url_type == "Huggingface"
+    is_civitai = "civitai.com" in url or url_type == "Civitai"
+    
+    if is_hf or is_civitai:
+        url = url.split("?")[0]
+        
     url = check_link(url)
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
     if not os.path.isfile(path_model):
         command = ['aria2c', '-c', '-x', '8', '-s', '8', '-k', '1M']
-        hf_token = get_hf_token() if "huggingface.co" in url else None
+        
+        # Decide HuggingFace token
+        hf_token = None
+        if url_type == "Huggingface" and custom_token:
+            hf_token = custom_token.strip()
+        elif is_hf:
+            if custom_token and custom_token.strip():
+                hf_token = custom_token.strip()
+            else:
+                hf_token = get_hf_token()
+                
         if hf_token:
             command.append(f'--header=Authorization: Bearer {hf_token}')
-        command += [f'{url}{token(url)}', '-d', folder_path, '-o', name]
-        subprocess.run(command, check=True, text=True, capture_output=True)
+            
+        # Decide Civitai token suffix
+        civit_token_suffix = ""
+        if url_type == "Civitai" and custom_token:
+            civit_token_suffix = f'?token={custom_token.strip()}'
+        elif is_civitai:
+            if custom_token and custom_token.strip():
+                civit_token_suffix = f'?token={custom_token.strip()}'
+            else:
+                civit_token_suffix = token(url)
+                
+        download_url = url
+        if civit_token_suffix:
+            if "?" in download_url:
+                download_url = f"{download_url}&{civit_token_suffix.lstrip('?')}"
+            else:
+                download_url = f"{download_url}{civit_token_suffix}"
+                
+        command += [download_url, '-d', folder_path, '-o', name]
+        try:
+            print(f"Running download command: {' '.join(command)}")
+            subprocess.run(command, check=True, text=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Download command failed with exit code {e.returncode}")
+            print(f"Stdout: {e.stdout}")
+            print(f"Stderr: {e.stderr}")
+            raise e
 
 class LoadImage:
     @classmethod
@@ -1856,8 +1897,10 @@ class LoraDownload:
             "required": {
                 "model": ("MODEL", {"tooltip": "Mô hình diffusion sẽ áp dụng LoRA."}),
                 "clip": ("CLIP", {"default": None, "tooltip": "Mô hình CLIP sẽ áp dụng LoRA."}),
+                "url_type": (["Custom", "Huggingface", "Civitai"], {"default": "Custom", "tooltip": "Loại URL nguồn (Custom, Huggingface hoặc Civitai)."}),
                 "Download_url": ("STRING", {"default": "", "multiline": False, "tooltip": "Nhập URL để tải LoRA về máy."},),
                 "Lora_url_name": ("STRING", {"default": "model.safetensors", "multiline": False, "tooltip": "Tên tệp LoRA sẽ lưu trên máy."},),
+                "token": ("STRING", {"default": "", "multiline": False, "tooltip": "Token/API Key cho Huggingface hoặc Civitai (Bắt buộc nếu chọn Huggingface hoặc Civitai)."},),
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "Độ mạnh tác động lên diffusion model. Có thể giá trị âm."}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "Độ mạnh tác động lên CLIP model. Có thể giá trị âm."}),
             },
@@ -1871,8 +1914,10 @@ class LoraDownload:
     CATEGORY = "📂 SDVN/📥 Download"
     DESCRIPTION = "LoRA dùng để điều chỉnh mô hình diffusion và CLIP, thay đổi cách khử nhiễu latent, ví dụ áp dụng style. Có thể kết hợp nhiều node LoRA."
 
-    def load_lora(self, model, clip, Download_url, Lora_url_name, strength_model, strength_clip):
-        download_model(Download_url, Lora_url_name, "loras")
+    def load_lora(self, model, clip, url_type, Download_url, Lora_url_name, token, strength_model, strength_clip):
+        if url_type in ["Huggingface", "Civitai"] and (not token or not token.strip()):
+            raise ValueError(f"Token is mandatory when url_type is {url_type}.")
+        download_model(Download_url, Lora_url_name, "loras", url_type=url_type, custom_token=token)
         return ALL_NODE["LoraLoader"]().load_lora(model, clip, Lora_url_name, strength_model, strength_clip)
 
 class CLIPVisionDownload:
