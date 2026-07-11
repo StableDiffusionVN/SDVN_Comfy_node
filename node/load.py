@@ -310,7 +310,9 @@ def download_model(url, name, type, url_type="Custom", custom_token=""):
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
     if not os.path.isfile(path_model):
-        command = ['aria2c', '-c', '-x', '8', '-s', '8', '-k', '1M']
+        max_conn = '1' if is_hf else '8'
+        split_conn = '1' if is_hf else '8'
+        command = ['aria2c', '-c', '-x', max_conn, '-s', split_conn, '-k', '1M']
         
         # Decide HuggingFace token
         hf_token = None
