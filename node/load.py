@@ -1,5 +1,5 @@
 import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
-import folder_paths, comfy.utils, server
+import folder_paths, comfy.utils, comfy.model_management, server
 from PIL import Image, ImageOps
 from googletrans import LANGUAGES
 from aiohttp import web
@@ -892,6 +892,8 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
                 io.String.Input("positive", multiline=True, dynamic_prompts=True, tooltip="Prompt tích cực mô tả nội dung bạn muốn sinh ra."),
                 io.Combo.Input("style", none2list(style_list()[0]), default="None", tooltip="Chọn style mẫu có sẵn để thêm vào prompt."),
                 io.Combo.Input("translate", lang_list(), tooltip="Ngôn ngữ dịch prompt."),
+                io.Combo.Input("mode", ["max size", "max resolution"], default="max resolution", tooltip="Max size giới hạn cạnh dài như KontextReference; max resolution giữ tổng diện tích như node Qwen Image 2.1 gốc."),
+                io.Int.Input("resolution", default=1024, min=0, max=4096, step=32, tooltip="Kích thước ảnh tham chiếu theo chế độ đã chọn. 0 giữ kích thước ảnh gốc."),
                 io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, tooltip="Seed ngẫu nhiên cho prompt."),
                 io.Autogrow.Input(
                     "images",
@@ -905,12 +907,13 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
             ],
             outputs=[
                 io.Conditioning.Output(display_name="positive"),
+                io.Latent.Output(display_name="latent", tooltip="Latent rỗng có kích thước khớp với ảnh tham chiếu đầu tiên."),
                 io.String.Output(display_name="prompt"),
             ],
         )
 
     @classmethod
-    def execute(cls, clip, positive, style, translate, seed, images: io.Autogrow.Type = None) -> io.NodeOutput:
+    def execute(cls, clip, positive, style, translate, seed, resolution, mode, images: io.Autogrow.Type = None) -> io.NodeOutput:
         if style != "None":
             style_positive, _ = get_style_prompts(style)
             positive = f"{positive}, {style_positive}" if style_positive else positive
@@ -920,26 +923,40 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
         prompt = f"\nPositive: {positive}\n"
 
         images_vl = []
+        latent_w = latent_h = resolution or 1024
         images = images or {}
         for _, image in sorted(images.items(), key=lambda item: int(item[0].rsplit("_", 1)[-1])):
             if image is None:
                 continue
             samples = image[:1].movedim(-1, 1)
-            ratio = samples.shape[3] / samples.shape[2]
-            width = round(math.sqrt(1024 * 1024 * ratio) / 32) * 32
-            height = round(math.sqrt(1024 * 1024 / ratio) / 32) * 32
-            width, height = max(32, width), max(32, height)
-            if (width, height) != (samples.shape[3], samples.shape[2]):
-                samples = comfy.utils.common_upscale(samples, width, height, "lanczos", "disabled")
-            image = samples.movedim(1, -1)
-            if image.shape[-1] > 3:
-                image = image[:, :, :, :3] * image[:, :, :, 3:] + (1.0 - image[:, :, :, 3:])
-            images_vl.append(image)
+            if mode == "max resolution":
+                if resolution > 0:
+                    ratio = samples.shape[3] / samples.shape[2]
+                    width = round(math.sqrt(resolution * resolution * ratio) / 32) * 32
+                    height = round(math.sqrt(resolution * resolution / ratio) / 32) * 32
+                else:
+                    width = round(samples.shape[3] / 32) * 32
+                    height = round(samples.shape[2] / 32) * 32
+                width, height = max(32, width), max(32, height)
+            else:
+                width, height = ALL_NODE["SDVN Image Size"]().imagesize(image=image, latent=None, maxsize=resolution)
+
+            if (width, height) == (samples.shape[3], samples.shape[2]):
+                resized = image[:1]
+            else:
+                resized = comfy.utils.common_upscale(samples, width, height, "lanczos", "disabled").movedim(1, -1)
+            if not images_vl:
+                latent_w, latent_h = width, height
+            rgb = resized[:, :, :, :3]
+            if resized.shape[-1] > 3:
+                rgb = rgb * resized[:, :, :, 3:] + (1.0 - resized[:, :, :, 3:])
+            images_vl.append(rgb)
 
         conditioning = clip.encode_from_tokens_scheduled(
             clip.tokenize(positive, images=images_vl, keep_vision=True, prevent_empty_text=True)
         )
-        return io.NodeOutput(conditioning, prompt)
+        latent = torch.zeros([1, 64, latent_h // 16, latent_w // 16], device=comfy.model_management.intermediate_device())
+        return io.NodeOutput(conditioning, prompt, {"samples": latent})
 
 class StyleLoad:
     @classmethod

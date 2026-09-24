@@ -3,6 +3,7 @@ import { app } from "/scripts/app.js";
 const TARGET_NODES = new Set([
 	"SDVN CLIP Text Encode",
 	"SDVN CLIP Text Encode Simple",
+	"SDVN CLIP Text Encode Qwen Image 2.1",
 ]);
 
 const STYLE_WIDGET_NAME = "style";
