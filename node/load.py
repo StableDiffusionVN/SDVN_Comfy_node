@@ -880,6 +880,67 @@ Positive: {positive}
         token_p = clip.tokenize(positive)
         return (clip.encode_from_tokens_scheduled(token_p), prompt)
 
+class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SDVN CLIP Text Encode Qwen Image 2.1",
+            display_name="🔡 SDVN CLIP Text Encode Qwen Image 2.1",
+            category="📂 SDVN",
+            inputs=[
+                io.Clip.Input("clip", tooltip="CLIP Qwen Image 2.1 dùng để mã hóa prompt."),
+                io.String.Input("positive", multiline=True, dynamic_prompts=True, tooltip="Prompt tích cực mô tả nội dung bạn muốn sinh ra."),
+                io.Combo.Input("style", none2list(style_list()[0]), default="None", tooltip="Chọn style mẫu có sẵn để thêm vào prompt."),
+                io.Combo.Input("translate", lang_list(), tooltip="Ngôn ngữ dịch prompt."),
+                io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, tooltip="Seed ngẫu nhiên cho prompt."),
+                io.Autogrow.Input(
+                    "images",
+                    template=io.Autogrow.TemplateNames(
+                        io.Image.Input("image"),
+                        names=[f"image_{i}" for i in range(1, 17)],
+                        min=0,
+                    ),
+                    tooltip="Ảnh tham chiếu cho Qwen Image 2.1. Nối ảnh để hiện thêm đầu vào ảnh.",
+                ),
+            ],
+            outputs=[
+                io.Conditioning.Output(display_name="positive"),
+                io.String.Output(display_name="prompt"),
+            ],
+        )
+
+    @classmethod
+    def execute(cls, clip, positive, style, translate, seed, images: io.Autogrow.Type = None) -> io.NodeOutput:
+        if style != "None":
+            style_positive, _ = get_style_prompts(style)
+            positive = f"{positive}, {style_positive}" if style_positive else positive
+
+        positive = ALL_NODE["SDVN Random Prompt"]().get_prompt(positive, 1, seed)[0][0]
+        positive = ALL_NODE["SDVN Translate"]().ggtranslate(positive, translate)[0]
+        prompt = f"\nPositive: {positive}\n"
+
+        images_vl = []
+        images = images or {}
+        for _, image in sorted(images.items(), key=lambda item: int(item[0].rsplit("_", 1)[-1])):
+            if image is None:
+                continue
+            samples = image[:1].movedim(-1, 1)
+            ratio = samples.shape[3] / samples.shape[2]
+            width = round(math.sqrt(1024 * 1024 * ratio) / 32) * 32
+            height = round(math.sqrt(1024 * 1024 / ratio) / 32) * 32
+            width, height = max(32, width), max(32, height)
+            if (width, height) != (samples.shape[3], samples.shape[2]):
+                samples = comfy.utils.common_upscale(samples, width, height, "lanczos", "disabled")
+            image = samples.movedim(1, -1)
+            if image.shape[-1] > 3:
+                image = image[:, :, :, :3] * image[:, :, :, 3:] + (1.0 - image[:, :, :, 3:])
+            images_vl.append(image)
+
+        conditioning = clip.encode_from_tokens_scheduled(
+            clip.tokenize(positive, images=images_vl, keep_vision=True, prevent_empty_text=True)
+        )
+        return io.NodeOutput(conditioning, prompt)
+
 class StyleLoad:
     @classmethod
     def INPUT_TYPES(s):
@@ -2212,6 +2273,7 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Load Image Ultimate": LoadImageUltimate,
     "SDVN CLIP Text Encode": CLIPTextEncode,
     "SDVN CLIP Text Encode Simple": CLIPTextEncodeSimple,
+    "SDVN CLIP Text Encode Qwen Image 2.1": SDVNCLIPTextEncodeQwenImage21,
     "SDVN Controlnet Apply": AutoControlNetApply,
     "SDVN DiffsynthControlNet Apply": DiffsynthControlNetApply,
     "SDVN DiffsynthUnionLora Apply": DiffsynthUnionLoraApply,
@@ -2258,6 +2320,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Load Image Ultimate": "🏞️ Load Image Ultimate",
     "SDVN CLIP Text Encode": "🔡 CLIP Text Encode",
     "SDVN CLIP Text Encode Simple": "🔡 CLIP Text Encode Simple",
+    "SDVN CLIP Text Encode Qwen Image 2.1": "🔡 CLIP Text Encode Qwen Image 2.1",
     "SDVN KSampler": "⌛️ KSampler",
     "SDVN Controlnet Apply": "🎚️ Controlnet Apply",
     "SDVN DiffsynthControlNet Apply": "🎚️ DiffsynthControlNet Apply",
