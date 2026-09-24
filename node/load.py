@@ -61,6 +61,15 @@ def i2tensor(i) -> torch.Tensor:
     image = torch.from_numpy(image)[None,]
     return image
 
+def i2tensor_with_alpha(i, image=None) -> torch.Tensor:
+    i = ImageOps.exif_transpose(i)
+    if "A" not in i.getbands() and "transparency" not in i.info:
+        return image if image is not None else i2tensor(i)
+    alpha = np.array(i.convert("RGBA").getchannel("A")).astype(np.float32) / 255.0
+    mask = 1.0 - torch.from_numpy(alpha)
+    image = image if image is not None else i2tensor(i)
+    return ALL_NODE["JoinImageWithAlpha"]().execute(image, mask.unsqueeze(0))[0]
+
 def insta_download(url,index):
     if "index=" in url:
         index = int(url.split('index=')[1])
@@ -341,12 +350,12 @@ class LoadImage:
 
     CATEGORY = "📂 SDVN"
 
-    RETURN_TYPES = ("IMAGE", "MASK", "STRING",)
-    RETURN_NAMES = ("image","mask", "img_path",)
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING")
+    RETURN_NAMES = ("image", "mask", "img_path")
     OUTPUT_TOOLTIPS = (
         "Ảnh được tải về từ Url hoặc thư mục input",
         "Mask tạo từ kênh alpha của ảnh, phải chuột chọn Mask Editor để chỉnh sửa mask.",
-        "Đường dẫn tuyệt đối của ảnh, không hoạt động với ảnh Url",)
+        "Đường dẫn tuyệt đối của ảnh, không hoạt động với ảnh Url")
     FUNCTION = "load_image"
 
     def load_image(self, Load_url, Url, image):
@@ -363,12 +372,13 @@ class LoadImage:
                 return (None, None, None)
             i = Image.open(image_path)
         ii = ImageOps.exif_transpose(i)
-        if 'A' in ii.getbands():
-            mask = np.array(ii.getchannel('A')).astype(np.float32) / 255.0
+        if 'A' in ii.getbands() or 'transparency' in ii.info:
+            mask = np.array(ii.convert('RGBA').getchannel('A')).astype(np.float32) / 255.0
             mask = 1. - torch.from_numpy(mask)
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
         image = i2tensor(i)
+        image = i2tensor_with_alpha(ii, image)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image, mask.unsqueeze(0), image_path)
         if image_path != None:
@@ -446,12 +456,12 @@ class LoadImageFolder:
                 path = list_img[new_index]
             new_list.append(path)
             img = Image.open(path)
-            img = i2tensor(img)
-            image.append(img)
+            rgb = i2tensor(img)
+            image.append(i2tensor_with_alpha(img, rgb))
         ui = {"images":[]}
         for i in image:
             ui["images"].append(ALL_NODE["PreviewImage"]().save_images(i)["ui"]["images"][0])
-        return {"ui":ui, "result":(image,new_list)}
+        return {"ui":ui, "result":(image, new_list)}
     
 class LoadImageUrl:
     @classmethod
@@ -472,7 +482,9 @@ class LoadImageUrl:
             image = Image.open(requests.get(Url, stream=True).raw)
         else:
             image = Image.open(Url)
-        image = i2tensor(image)
+        pil_image = image
+        image = i2tensor(pil_image)
+        image = i2tensor_with_alpha(pil_image, image)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image,)
         return results
@@ -523,12 +535,15 @@ class LoadPinterest:
         else:
             url = f'https://www.pinterest.com/search/pins/?q={url.replace(" ", "%20")}'
         if "/pin/" in url:
-            image = LoadImageUrl().load_image_url(url)["result"][0]
-            image = [image]        
+            loaded = LoadImageUrl().load_image_url(url)
+            image = [loaded["result"][0]]
+            ui = loaded.get("ui")
         else:
             pin_folder = s.pintrest_board_download(url, range)
-        result = LoadImageFolder().load_image(pin_folder, number, random, seed)
-        return result
+            loaded = LoadImageFolder().load_image(pin_folder, number, random, seed)
+            image = loaded["result"][0]
+            ui = loaded.get("ui")
+        return {"ui": ui, "result": (image,)}
 
 class LoadImageUltimate:
     @classmethod
@@ -573,8 +588,8 @@ class LoadImageUltimate:
         }
     
     CATEGORY = "📂 SDVN"
-    RETURN_TYPES = ("IMAGE","MASK")
-    OUTPUT_IS_LIST = (True,False)
+    RETURN_TYPES = ("IMAGE", "MASK")
+    OUTPUT_IS_LIST = (True, False)
     FUNCTION = "load_image"
 
     def load_image(s, mode, image, folder_path, number_img, url, pin_url, range, number, random,  insta_url, index, seed):
@@ -592,23 +607,25 @@ class LoadImageUltimate:
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
         if mode == "Input folder":
-            image = LoadImage().load_image(False, "", image)["result"][0]
-            image = [image]
+            loaded = LoadImage().load_image(False, "", image)["result"]
+            image = [loaded[0]]
         if mode == "Custom folder":
-            image = LoadImageFolder().load_image(folder_path, number_img, False, seed)["result"][0]
+            loaded = LoadImageFolder().load_image(folder_path, number_img, False, seed)["result"]
+            image = loaded[0]
         if mode == "Url":
-            image = LoadImageUrl().load_image_url(url)["result"][0]
-            image = [image]
+            loaded = LoadImageUrl().load_image_url(url)["result"]
+            image = [loaded[0]]
         if mode == "Pintrest":
-            image = LoadPinterest().load_image_url(pin_url, range, number, random, seed)["result"][0]
+            loaded = LoadPinterest().load_image_url(pin_url, range, number, random, seed)["result"]
+            image = loaded[0]
         if mode == "Insta":
             insta_url += f"--{index}"
-            image = LoadImageUrl().load_image_url(insta_url)["result"][0]
-            image = [image]
+            loaded = LoadImageUrl().load_image_url(insta_url)["result"]
+            image = [loaded[0]]
         ui = {"images":[]}
         for i in image:
             ui["images"].append(ALL_NODE["PreviewImage"]().save_images(i)["ui"]["images"][0])
-        return {"ui":ui, "result":(image, mask.unsqueeze(0))}   
+        return {"ui":ui, "result":(image, mask.unsqueeze(0))}
     
     @classmethod
     def IS_CHANGED(self, mode, image, folder_path, number_img, url, pin_url, range, number, random,  insta_url, index, seed):
@@ -908,8 +925,8 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
             ],
             outputs=[
                 io.Conditioning.Output(display_name="positive"),
-                io.String.Output(display_name="prompt"),
                 io.Latent.Output(display_name="latent", tooltip="Latent rỗng có kích thước khớp với ảnh tham chiếu đầu tiên."),
+                io.String.Output(display_name="prompt"),
             ],
         )
 
@@ -963,7 +980,7 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
         if ref_latents:
             conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
         latent = torch.zeros([1, 64, latent_h // 16, latent_w // 16], device=comfy.model_management.intermediate_device())
-        return io.NodeOutput(conditioning, prompt, {"samples": latent})
+        return io.NodeOutput(conditioning, {"samples": latent}, prompt)
 
 class StyleLoad:
     @classmethod
