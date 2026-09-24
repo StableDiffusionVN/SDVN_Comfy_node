@@ -895,6 +895,7 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
                 io.Combo.Input("mode", ["max size", "max resolution"], default="max resolution", tooltip="Max size giới hạn cạnh dài như KontextReference; max resolution giữ tổng diện tích như node Qwen Image 2.1 gốc."),
                 io.Int.Input("resolution", default=1024, min=0, max=4096, step=32, tooltip="Kích thước ảnh tham chiếu theo chế độ đã chọn. 0 giữ kích thước ảnh gốc."),
                 io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, tooltip="Seed ngẫu nhiên cho prompt."),
+                io.Vae.Input("vae", optional=True, tooltip="VAE dùng để mã hóa ảnh tham chiếu thành reference latent."),
                 io.Autogrow.Input(
                     "images",
                     template=io.Autogrow.TemplateNames(
@@ -907,13 +908,13 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
             ],
             outputs=[
                 io.Conditioning.Output(display_name="positive"),
-                io.Latent.Output(display_name="latent", tooltip="Latent rỗng có kích thước khớp với ảnh tham chiếu đầu tiên."),
                 io.String.Output(display_name="prompt"),
+                io.Latent.Output(display_name="latent", tooltip="Latent rỗng có kích thước khớp với ảnh tham chiếu đầu tiên."),
             ],
         )
 
     @classmethod
-    def execute(cls, clip, positive, style, translate, seed, resolution, mode, images: io.Autogrow.Type = None) -> io.NodeOutput:
+    def execute(cls, clip, positive, style, translate, mode, resolution, seed, vae=None, images: io.Autogrow.Type = None) -> io.NodeOutput:
         if style != "None":
             style_positive, _ = get_style_prompts(style)
             positive = f"{positive}, {style_positive}" if style_positive else positive
@@ -923,6 +924,7 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
         prompt = f"\nPositive: {positive}\n"
 
         images_vl = []
+        ref_latents = []
         latent_w = latent_h = resolution or 1024
         images = images or {}
         for _, image in sorted(images.items(), key=lambda item: int(item[0].rsplit("_", 1)[-1])):
@@ -951,10 +953,15 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
             if resized.shape[-1] > 3:
                 rgb = rgb * resized[:, :, :, 3:] + (1.0 - resized[:, :, :, 3:])
             images_vl.append(rgb)
+            if vae is not None:
+                ref_latents.append(vae.encode(resized))
 
+        keep_vision = len(ref_latents) == 0
         conditioning = clip.encode_from_tokens_scheduled(
-            clip.tokenize(positive, images=images_vl, keep_vision=True, prevent_empty_text=True)
+            clip.tokenize(positive, images=images_vl, keep_vision=keep_vision, prevent_empty_text=True)
         )
+        if ref_latents:
+            conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
         latent = torch.zeros([1, 64, latent_h // 16, latent_w // 16], device=comfy.model_management.intermediate_device())
         return io.NodeOutput(conditioning, prompt, {"samples": latent})
 
