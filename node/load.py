@@ -378,7 +378,10 @@ class LoadImage:
         else:
             mask = torch.zeros((64, 64), dtype=torch.float32, device="cpu")
         image = i2tensor(i)
-        image = i2tensor_with_alpha(ii, image)
+        # ComfyUI's Mask Editor stores painted masks in clipspace images. Keep
+        # that mask on the MASK output without also merging its alpha into IMAGE.
+        if image_path is None or "clipspace" not in image_path:
+            image = i2tensor_with_alpha(ii, image)
         results = ALL_NODE["PreviewImage"]().save_images(image)
         results["result"] = (image, mask.unsqueeze(0), image_path)
         if image_path != None:

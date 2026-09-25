@@ -290,12 +290,82 @@ class GetMaskSize:
         height = (y_max - y_min + 1).item()
         return (width, height)
 
+
+class MaskColorOverlay:
+    """Resize a mask to the image size and blend a chosen color through it."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {"tooltip": "Ảnh gốc cần phủ màu"}),
+                "mask": ("MASK", {"tooltip": "Mask xác định vùng phủ màu"}),
+                "color_hex": ("STRING", {"default": "#FF0000", "tooltip": "Màu phủ dạng HEX, ví dụ #FF0000"}),
+                "opacity": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Độ đậm của lớp màu"}),
+            }
+        }
+
+    CATEGORY = "📂 SDVN/🎭 Mask"
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "overlay_mask"
+    DESCRIPTION = "Tự đổi kích thước mask theo ảnh rồi phủ màu lên vùng mask."
+    OUTPUT_TOOLTIPS = ("Ảnh gốc sau khi phủ màu theo mask.",)
+
+    def overlay_mask(self, image, mask, color_hex, opacity):
+        color_hex = color_hex.strip().lstrip("#")
+        if len(color_hex) != 6:
+            raise ValueError("Màu phải có định dạng HEX #RRGGBB.")
+        try:
+            color = [int(color_hex[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+        except ValueError as exc:
+            raise ValueError("Màu phải có định dạng HEX #RRGGBB.") from exc
+
+        image_height, image_width = image.shape[1:3]
+        mask = mask.to(device=image.device, dtype=torch.float32)
+        if mask.ndim == 2:
+            mask = mask.unsqueeze(0)
+        if mask.ndim != 3:
+            raise ValueError("Mask phải có shape [H, W] hoặc [B, H, W].")
+
+        if mask.shape[-2:] != (image_height, image_width):
+            mask = FF.interpolate(
+                mask.unsqueeze(1),
+                size=(image_height, image_width),
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(1)
+
+        image_batch, mask_batch = image.shape[0], mask.shape[0]
+        if mask_batch == 1 and image_batch > 1:
+            mask = mask.expand(image_batch, -1, -1)
+        elif image_batch == 1 and mask_batch > 1:
+            image = image.expand(mask_batch, -1, -1, -1)
+        elif image_batch != mask_batch:
+            raise ValueError(
+                f"Số batch của ảnh ({image_batch}) và mask ({mask_batch}) phải bằng nhau hoặc bằng 1."
+            )
+
+        channels = image.shape[-1]
+        if channels not in (3, 4):
+            raise ValueError("Ảnh đầu vào cần có 3 kênh RGB hoặc 4 kênh RGBA.")
+
+        alpha = (mask.clamp(0.0, 1.0) * float(opacity)).unsqueeze(-1)
+        color_tensor = torch.tensor(color, device=image.device, dtype=image.dtype).view(1, 1, 1, 3)
+        rgb = image[..., :3] * (1.0 - alpha) + color_tensor * alpha
+        if channels == 4:
+            output = torch.cat((rgb, image[..., 3:4]), dim=-1)
+        else:
+            output = rgb
+        return (output.clamp(0.0, 1.0),)
+
 NODE_CLASS_MAPPINGS = {
     "SDVN Yolo8 Seg": yoloseg,
     "SDVN Mask Regions": MaskRegions,
     "SDVN Inpaint Crop": inpaint_crop,
     "SDVN Loop Inpaint Stitch": LoopInpaintStitch,
     "SDVN Get Mask Size": GetMaskSize,
+    "SDVN Mask Color Overlay": MaskColorOverlay,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -304,4 +374,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Inpaint Crop": "⚡️ Crop Inpaint",
     "SDVN Loop Inpaint Stitch": "🔄 Loop Inpaint Stitch",
     "SDVN Get Mask Size": "📐 Mask Size",
+    "SDVN Mask Color Overlay": "🎨 Mask Color Overlay",
 }
