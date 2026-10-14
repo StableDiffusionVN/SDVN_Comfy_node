@@ -117,7 +117,7 @@ def load_groundingdino_model(model_name):
 
     if dino_model_args.text_encoder_type == 'bert-base-uncased':
         dino_model_args.text_encoder_type = get_bert_base_uncased_model_path()
-    
+
     dino = local_groundingdino_build_model(dino_model_args)
     checkpoint = torch.load(
         get_local_filepath(
@@ -394,7 +394,7 @@ class SegmentAnything:
         alpha_image = ALL_NODE["JoinImageWithAlpha"]().execute(image, invert_mask)[0]
         ui = ALL_NODE["PreviewImage"]().save_images(alpha_image)["ui"]
         return {"ui":ui, "result": output}
-    
+
 class InvertMask:
     @classmethod
     def INPUT_TYPES(cls):

@@ -74,14 +74,14 @@ class MaskDecoderHQ(nn.Module):
         self.hf_token = nn.Embedding(1, transformer_dim) # HQ-Ouptput-Token
         self.hf_mlp = MLP(transformer_dim, transformer_dim, transformer_dim // 8, 3) # corresponding new MLP layer for HQ-Ouptput-Token
         self.num_mask_tokens = self.num_mask_tokens + 1
-        
+
         # three conv fusion layers for obtaining HQ-Feature
         self.compress_vit_feat = nn.Sequential(
                                         nn.ConvTranspose2d(vit_dim, transformer_dim, kernel_size=2, stride=2),
                                         LayerNorm2d(transformer_dim),
-                                        nn.GELU(), 
+                                        nn.GELU(),
                                         nn.ConvTranspose2d(transformer_dim, transformer_dim // 8, kernel_size=2, stride=2))
-        
+
         self.embedding_encoder = nn.Sequential(
                                         nn.ConvTranspose2d(transformer_dim, transformer_dim // 4, kernel_size=2, stride=2),
                                         LayerNorm2d(transformer_dim // 4),
@@ -89,7 +89,7 @@ class MaskDecoderHQ(nn.Module):
                                         nn.ConvTranspose2d(transformer_dim // 4, transformer_dim // 8, kernel_size=2, stride=2),
                                     )
         self.embedding_maskfeature = nn.Sequential(
-                                        nn.Conv2d(transformer_dim // 8, transformer_dim // 4, 3, 1, 1), 
+                                        nn.Conv2d(transformer_dim // 8, transformer_dim // 4, 3, 1, 1),
                                         LayerNorm2d(transformer_dim // 4),
                                         nn.GELU(),
                                         nn.Conv2d(transformer_dim // 4, transformer_dim // 8, 3, 1, 1))

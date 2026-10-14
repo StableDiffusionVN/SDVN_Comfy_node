@@ -21,7 +21,7 @@ class SamPredictorHQ(SamPredictor):
         """
         super().__init__(sam_model=sam_model)
         self.is_hq = sam_is_hq
-    
+
 
     @torch.no_grad()
     def set_torch_image(
