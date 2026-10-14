@@ -17,7 +17,8 @@ class GroundingDinoBertTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import torch
-        from transformers import BertConfig, BertModel, BertTokenizer
+        from transformers import BertConfig, BertModel, BertTokenizer, __version__
+        cls.transformers_major = int(__version__.split(".", 1)[0])
         cls.torch = torch
         torch.set_num_threads(2)
         spec = importlib.util.spec_from_file_location('sdvn_segment', PACKAGE / '__init__.py',
@@ -77,10 +78,16 @@ class GroundingDinoBertTests(unittest.TestCase):
         self.assertEqual(output['pred_logits'].shape, (2, 4, 256))
         self.assertTrue(torch.isfinite(output['pred_boxes']).all())
         mask = captured[0]
-        self.assertEqual(mask.ndim, 4)
-        self.assertEqual(mask.shape[1], 1)
-        self.assertTrue((mask == 0).any())
-        self.assertTrue((mask == torch.finfo(model.bert.dtype).min).any())
+        if self.transformers_major < 5:
+            self.assertEqual(mask.ndim, 3)
+            self.assertEqual(mask.dtype, torch.bool)
+            self.assertTrue(mask.any())
+            self.assertTrue((~mask).any())
+        else:
+            self.assertEqual(mask.ndim, 4)
+            self.assertEqual(mask.shape[1], 1)
+            self.assertTrue((mask == 0).any())
+            self.assertTrue((mask == torch.finfo(model.bert.dtype).min).any())
 
     def test_sam_variants_import_without_timm(self):
         module = importlib.import_module('sdvn_segment.sam_hq.build_sam_hq')
@@ -118,8 +125,7 @@ class GroundingDinoBertTests(unittest.TestCase):
         tokens = {'input_ids': torch.tensor([[2, 7, 5, 8, 5, 3]])}
         masks, positions, _ = self.mask_module.generate_masks_with_special_tokens_and_transfer_map(
             tokens, [2, 3, 5, 6], None)
-        additive = torch.zeros(masks.shape, dtype=self.bert.dtype).masked_fill(
-            ~masks, torch.finfo(self.bert.dtype).min).unsqueeze(1)
+        additive = self.mask_module.prepare_text_attention_mask(masks, self.bert.dtype)
         first = self.bert(**tokens, attention_mask=additive, position_ids=positions).last_hidden_state
         changed = tokens['input_ids'].clone()
         changed[0, 3] = 9

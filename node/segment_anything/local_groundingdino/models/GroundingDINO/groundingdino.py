@@ -31,6 +31,7 @@ from ....local_groundingdino.util.misc import (
 from ..registry import MODULE_BUILD_FUNCS
 from .backbone import build_backbone
 from .bertwarper import (
+    prepare_text_attention_mask,
     generate_masks_with_special_tokens_and_transfer_map,
 )
 from .transformer import build_transformer
@@ -240,11 +241,9 @@ class GroundingDINO(nn.Module):
         # extract text embeddings
         if self.sub_sentence_present:
             tokenized_for_encoder = {k: v for k, v in tokenized.items() if k != "attention_mask"}
-            # BERT accepts a prepared additive mask [batch, heads, query, key].
-            attention_mask = torch.zeros(
-                text_self_attention_masks.shape, dtype=self.bert.dtype, device=samples.device
-            ).masked_fill(~text_self_attention_masks, torch.finfo(self.bert.dtype).min)
-            tokenized_for_encoder["attention_mask"] = attention_mask.unsqueeze(1)
+            tokenized_for_encoder["attention_mask"] = prepare_text_attention_mask(
+                text_self_attention_masks, self.bert.dtype
+            )
             tokenized_for_encoder["position_ids"] = position_ids
         else:
             # import ipdb; ipdb.set_trace()

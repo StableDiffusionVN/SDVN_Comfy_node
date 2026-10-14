@@ -5,3 +5,4 @@ SAM / SAM-HQ: Copyright (c) Meta Platforms, Inc. and affiliates.
 Modifications: package-relative imports and integration into SDVN_Comfy_node.
 Additional modifications: native BERT forward and 4D attention masks for transformers 5.18; standard-library config loading.
 Inference-only stochastic depth is now Identity; truncated normal initialization uses PyTorch.
+Attention masks now adapt to the native BERT APIs in Transformers 4.x and 5.x.

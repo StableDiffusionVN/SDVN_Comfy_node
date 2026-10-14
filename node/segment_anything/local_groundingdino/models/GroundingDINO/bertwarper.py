@@ -6,6 +6,16 @@
 # ------------------------------------------------------------------------
 
 import torch
+from transformers import __version__ as transformers_version
+
+
+def prepare_text_attention_mask(attention_mask, dtype):
+    # BERT 4.x consumes a 3D keep mask; 5.x consumes a prepared 4D additive mask.
+    if int(transformers_version.split(".", 1)[0]) < 5:
+        return attention_mask
+    return torch.zeros_like(attention_mask, dtype=dtype).masked_fill(
+        ~attention_mask, torch.finfo(dtype).min
+    ).unsqueeze(1)
 
 
 def generate_masks_with_special_tokens_and_transfer_map(tokenized, special_tokens_list, tokenizer):
