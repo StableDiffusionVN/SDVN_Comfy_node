@@ -532,3 +532,7 @@ ___
 
 **Course**
 - [hungdiffusion.com](https://hungdiffusion.com/)
+
+### Segment Anything tích hợp
+
+Các node `SDVN SegmentAnything`, `SDVN SAMModelLoader`, `SDVN DinoModelLoader`, `SDVN DinoSAMSegment`, `SDVN InvertMask` và `SDVN IsMaskEmpty` đã được tích hợp. Cài requirements của SDVN rồi gỡ hoặc tắt custom node `SDVN_Segment_Anything` và khởi động lại ComfyUI để tránh trùng tên node. Workflow cũ và model trong `models/sams`, `models/grounding-dino`, `models/bert-base-uncased` được giữ nguyên. Thư viện Python `segment_anything` vẫn cần thiết; không cần gói custom node riêng. GroundingDINO dùng API forward BERT gốc và cần `transformers>=5.18.0`; không còn cần `timm`, `addict` hoặc `yapf`.

@@ -1,0 +1,7 @@
+Bundled from StableDiffusionVN/SDVN_Segment_Anything (Apache-2.0).
+https://github.com/StableDiffusionVN/SDVN_Segment_Anything
+GroundingDINO: Copyright (c) 2023 IDEA. All Rights Reserved.
+SAM / SAM-HQ: Copyright (c) Meta Platforms, Inc. and affiliates.
+Modifications: package-relative imports and integration into SDVN_Comfy_node.
+Additional modifications: native BERT forward and 4D attention masks for transformers 5.18; standard-library config loading.
+Inference-only stochastic depth is now Identity; truncated normal initialization uses PyTorch.

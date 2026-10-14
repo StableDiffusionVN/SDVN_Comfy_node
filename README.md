@@ -536,3 +536,7 @@ ___
 
 **Course**
 - [hungdiffusion.com](https://hungdiffusion.com/)
+
+### Built-in Segment Anything
+
+`SDVN SegmentAnything`, `SDVN SAMModelLoader`, `SDVN DinoModelLoader`, `SDVN DinoSAMSegment`, `SDVN InvertMask`, and `SDVN IsMaskEmpty` are now bundled. Install the SDVN requirements, remove or disable the separate `SDVN_Segment_Anything` custom node, and restart ComfyUI to avoid duplicate node registrations. Existing workflows and models under `models/sams`, `models/grounding-dino`, and `models/bert-base-uncased` remain supported. The Python `segment_anything` library is still required. GroundingDINO uses the native BERT forward API and requires `transformers>=5.18.0`; `timm`, `addict`, and `yapf` are no longer needed.

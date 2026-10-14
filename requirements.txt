@@ -12,3 +12,5 @@ PyYAML
 pandas
 ultralytics==8.3.107
 dynamicprompts
+segment_anything
+transformers>=5.18.0

@@ -3,7 +3,7 @@ name = "sdvn_comfy_node"
 description = "Update support Qwen Image 2.1"
 version = "2.09.24"   
 license = {file = "LICENSE"}
-dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py"]
+dependencies = ["#If MacOs - Please install aria2 manually via brew", "aria2;sys_platform != 'darwin'", "openai", "gallery-dl", "google-generativeai", "googletrans-py", "segment_anything", "transformers>=5.18.0"]
 
 [project.urls]
 Repository = "https://github.com/StableDiffusionVN/SDVN_Comfy_node"
