@@ -181,6 +181,8 @@
     "qwen_image_layered_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-Layered_ComfyUI/blob/main/split_files/diffusion_models/qwen_image_layered_bf16.safetensors", "UNET/Diffusion", "default"],
     "qwen_image_2.1_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-2.1/blob/main/diffusion_models/qwen_image_2.1_bf16.safetensors", "UNET/Diffusion", "default"],
     "qwen_image_2.1_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-2.1/blob/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors", "UNET/Diffusion", "default"],
+    "qwen_image_2.1_turbo_bf16.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-2.1/blob/main/diffusion_models/qwen_image_2.1_turbo_bf16.safetensors", "UNET/Diffusion", "default"],
+    "qwen_image_2.1_turbo_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image-2.1/blob/main/diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors", "UNET/Diffusion", "default"],
     "qwen_image_2.1_viggle_turbo_v0.3_6step_int8_convrot.safetensors": ["https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/blob/main/Qwen-Image-2.1-viggle-turbo-v0.3-6step-int8_convrot.safetensors", "UNET/Diffusion", "default"],
     
     "qwen_image_vae.safetensors": ["https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/blob/main/split_files/vae/qwen_image_vae.safetensors","VAE"],

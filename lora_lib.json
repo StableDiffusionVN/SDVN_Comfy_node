@@ -105,6 +105,7 @@
     "Qwen-Edit-Eigen-Banana.safetensors": "https://huggingface.co/eigen-ai-labs/eigen-banana-qwen-image-edit/blob/main/eigen-banana-qwen-image-edit-2509-fp16-lora.safetensors",
     "Qwen-Edit-2511-Multiple-Angles.safetensors": "https://huggingface.co/fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA/blob/main/qwen-image-edit-2511-multiple-angles-lora.safetensors",
     "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors": "https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/blob/main/Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors",
+    "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/blob/main/loras/qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
     
     "ltx-2.3-22b-distilled-lora-384.safetensors": "https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-distilled-lora-384.safetensors",
     "gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors": "https://huggingface.co/Comfy-Org/ltx-2/resolve/main/split_files/loras/gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors"
