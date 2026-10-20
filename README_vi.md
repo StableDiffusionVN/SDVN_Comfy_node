@@ -505,6 +505,7 @@ Bộ node hỗ trợ xử lý mask cơ bản và nâng cao, cũng như inpaintin
 **⚡️ Crop Inpaint | 🔄 Loop Inpaint Stitch**
 
 - Hai node này đã có sẵn phần xử lý crop/stitch trực tiếp trong SDVN, không còn cần cài thêm bộ node Inpaint-CropAndStitch bên ngoài.
+- Stitch nhận ảnh inpaint RGB hoặc RGBA. Với RGBA, alpha được nhân với mask ghép để vùng trong suốt giữ nguyên ảnh gốc. Đầu ra vẫn là RGB.
 - Node Loop Inpaint Stitch dùng để inpaint nhiều vùng liên tục khi đầu vào là list. Nó ghép kết quả lại thành một ảnh duy nhất, lý tưởng cho việc inpaint nhiều vùng chỉ trong một lần chạy.
 
 ![](preview/inpaint_loop.jpg)
@@ -536,3 +537,9 @@ ___
 ### Segment Anything tích hợp
 
 Các node `SDVN SegmentAnything`, `SDVN SAMModelLoader`, `SDVN DinoModelLoader`, `SDVN DinoSAMSegment`, `SDVN InvertMask` và `SDVN IsMaskEmpty` đã được tích hợp. Cài requirements của SDVN rồi gỡ hoặc tắt custom node `SDVN_Segment_Anything` và khởi động lại ComfyUI để tránh trùng tên node. Workflow cũ và model trong `models/sams`, `models/grounding-dino`, `models/bert-base-uncased` được giữ nguyên. Thư viện Python `segment_anything` vẫn cần thiết; không cần gói custom node riêng. GroundingDINO dùng API forward BERT gốc với mask phù hợp Transformers 4.x và 5.x. SDVN không ép nâng phiên bản Transformers (đã kiểm thử 4.50.3 và 5.18.0); không còn cần `timm`, `addict` hoặc `yapf`.
+
+Menu `sam_model` trong node hiện có thêm:
+
+- **SAM 3 / SAM 3.1:** dùng bộ nạp checkpoint và `SAM3 Detect` native của ComfyUI; cập nhật ComfyUI nếu chưa hỗ trợ. Không cần cài gói `sam3` riêng. Bỏ qua `dino_model` và `text_threshold`; `threshold` là ngưỡng tin cậy phát hiện vật. Chấp nhận quyền truy cập [SAM 3](https://huggingface.co/facebook/sam3) hoặc [SAM 3.1](https://huggingface.co/facebook/sam3.1), rồi đăng nhập Hugging Face trong môi trường ComfyUI; hoặc đặt checkpoint đầy đủ `sam3.pt` / `sam3.1_multiplex.pt` vào `models/sams`. Chỉ tải checkpoint được chọn khi chạy lần đầu.
+
+Các backend trả về một mask gộp cho mỗi ảnh. SAM 3/3.1 hỗ trợ nhiều khái niệm cách nhau bằng dấu phẩy, ví dụ `cat, dog`, mặc định tối đa 200 vật mỗi khái niệm; dùng `cat:2` để giới hạn số vật. Node xử lý từng ảnh độc lập, kể cả với SAM 3.1; không theo dõi vật xuyên suốt video. Preview và đầu ra `IMAGE` / `MASK` giữ tương thích workflow cũ. Khả năng chạy trên từng thiết bị phụ thuộc phiên bản PyTorch và ComfyUI; chưa đo hiệu năng MPS trong lần cập nhật này.

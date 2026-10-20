@@ -579,6 +579,9 @@ class CPUProcessorLogic(ProcessorLogic):
 
         # Clamp mask to [0, 1] and expand to match image channels
         resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [B, H, W, 1]
+        if resized_image.shape[-1] == 4:
+            resized_mask = resized_mask * resized_image[..., 3:4].clamp(0, 1)
+            resized_image = resized_image[..., :3]
 
         # Extract the canvas region we're about to overwrite
         canvas_crop = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]
@@ -1123,6 +1126,9 @@ class GPUProcessorLogic(ProcessorLogic):
 
         # Clamp mask to [0, 1] and expand to match image channels
         resized_mask = resized_mask.clamp(0, 1).unsqueeze(-1)  # shape: [B, H, W, 1]
+        if resized_image.shape[-1] == 4:
+            resized_mask = resized_mask * resized_image[..., 3:4].clamp(0, 1)
+            resized_image = resized_image[..., :3]
 
         # Extract the canvas region we're about to overwrite
         canvas_crop = canvas_image[:, ctc_y:ctc_y + ctc_h, ctc_x:ctc_x + ctc_w]

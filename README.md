@@ -509,6 +509,7 @@ Nodes that support both basic and advanced mask processing and inpainting.
 **⚡️ Crop Inpaint | 🔄 Loop Inpaint Stitch**
 
 - These 2 nodes include their own crop/stitch implementation inside SDVN, so the external Inpaint-CropAndStitch node set is no longer required.
+- Stitch accepts RGB or RGBA inpainted images. For RGBA, alpha multiplies the stitch mask so transparent pixels preserve the original image. The output remains RGB.
 - The Loop Inpaint Stitch node is used to iteratively inpaint multiple regions when the input is a list. It stitches the results together and returns a single image, ideal for inpainting multiple areas in one pass.
 
 ![](preview/inpaint_loop.jpg)
@@ -540,3 +541,9 @@ ___
 ### Built-in Segment Anything
 
 `SDVN SegmentAnything`, `SDVN SAMModelLoader`, `SDVN DinoModelLoader`, `SDVN DinoSAMSegment`, `SDVN InvertMask`, and `SDVN IsMaskEmpty` are now bundled. Install the SDVN requirements, remove or disable the separate `SDVN_Segment_Anything` custom node, and restart ComfyUI to avoid duplicate node registrations. Existing workflows and models under `models/sams`, `models/grounding-dino`, and `models/bert-base-uncased` remain supported. The Python `segment_anything` library is still required. GroundingDINO uses the native BERT forward API with masks adapted for Transformers 4.x and 5.x. SDVN does not force a Transformers upgrade (tested on 4.50.3 and 5.18.0); `timm`, `addict`, and `yapf` are no longer needed.
+
+The same `sam_model` menu also supports:
+
+- **SAM 3 / SAM 3.1:** uses ComfyUI's native checkpoint loader and `SAM3 Detect`; update ComfyUI if these are unavailable. No separate `sam3` package is required. `dino_model` and `text_threshold` are ignored. `threshold` controls detection confidence. Accept access to [SAM 3](https://huggingface.co/facebook/sam3) or [SAM 3.1](https://huggingface.co/facebook/sam3.1), then authenticate Hugging Face in ComfyUI's environment, or place the full `sam3.pt` / `sam3.1_multiplex.pt` checkpoint in `models/sams`. Only the selected checkpoint is downloaded, on first use.
+
+All backends return one union mask per image. SAM 3/3.1 accept comma-separated concepts, such as `cat, dog`, with up to 200 detections per concept by default; use `cat:2` to limit detections. This node processes images independently, including when using SAM 3.1; it does not track objects across a video. Preview and `IMAGE` / `MASK` outputs stay compatible with existing workflows. Device support depends on the installed PyTorch and ComfyUI versions; MPS performance has not been benchmarked here.

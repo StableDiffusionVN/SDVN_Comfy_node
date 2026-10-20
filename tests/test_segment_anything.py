@@ -33,7 +33,9 @@ class SegmentAnythingIntegrationTests(unittest.TestCase):
             self.assertEqual(list(required), [
                 'sam_model', 'dino_model', 'image', 'prompt', 'threshold', 'text_threshold',
             ])
-            self.assertEqual(len(required['sam_model'][0]), 7)
+            self.assertEqual(len(required['sam_model'][0]), 9)
+            self.assertFalse(any(name.startswith('sam2') for name in required['sam_model'][0]))
+            self.assertIn('sam3.1 (native ComfyUI)', required['sam_model'][0])
             self.assertEqual(len(required['dino_model'][0]), 2)
             self.assertEqual(module.SegmentAnything.RETURN_TYPES, ('IMAGE', 'MASK'))
 
