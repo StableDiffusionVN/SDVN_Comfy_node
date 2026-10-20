@@ -1,16 +1,17 @@
 #If MacOs - Please install aria2 manually via brew
 aria2;sys_platform != 'darwin'
-openai >= 1.99.3
+openai>=3.35.1
 gallery-dl
 instaloader
 googletrans-py
 opencv-python
 scipy
 color-matcher
-google-genai>=1.51.0
+google-genai>=2.31.0
 PyYAML
 pandas
-ultralytics==8.3.107
+ultralytics==8.4.183
 dynamicprompts
 segment_anything
-transformers
+transformers>=4.57.6
+packaging

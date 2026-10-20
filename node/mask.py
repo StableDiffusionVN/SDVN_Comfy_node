@@ -6,6 +6,7 @@ import torch
 from PIL import Image, ImageOps
 from torch.hub import download_url_to_file
 import torch.nn.functional as FF
+import comfy.model_management
 from .inpaint_cropandstitch import InpaintCropImproved, InpaintStitchImproved
 
 yolo_model_list = ["face_yolov8n-seg2_60.pt", "face_yolov8m-seg_60.pt",
@@ -16,6 +17,12 @@ yolo_model_list = ["face_yolov8n-seg2_60.pt", "face_yolov8m-seg_60.pt",
                     "yolo11s-seg.pt", "yolo11n-seg.pt", "yolo11m-seg.pt", "yolo11l-seg.pt", "yolo11x-seg.pt",
                     "yolo11l-pose.pt", "yolo11s-pose.pt", "yolo11x-pose.pt", "yolo11s.pt", "yolo11l.pt", "yolo11x.pt"
                     ]
+
+yolo26_model_urls = {
+    f"yolo26{size}-seg.pt": f"https://huggingface.co/Ultralytics/YOLO26/resolve/main/yolo26{size}-seg.pt"
+    for size in ("n", "s", "m", "l", "x")
+}
+yolo_model_list.extend(yolo26_model_urls)
 
 base_url = "https://huggingface.co/StableDiffusionVN/yolo/resolve/main/"
 
@@ -28,6 +35,7 @@ def pil2tensor(i) -> torch.Tensor:
     return image  # shape: [1, H, W, 3] hoặc [1, H, W, 4]
 
 def tensor2pil(tensor: torch.Tensor) -> Image.Image:
+    tensor = tensor.detach().cpu().clamp(0, 1)
     if tensor.ndim == 3:
         np_image = (tensor.numpy() * 255).astype(np.uint8)
     elif tensor.ndim == 4 and tensor.shape[0] == 1:
@@ -76,50 +84,51 @@ class yoloseg:
 
     def yoloseg(s, image, model_name, score, id):
         from ultralytics import YOLO
-        model_folder = s.yolo_dir
-        model_path = os.path.join(model_folder, model_name)
-        if not os.path.exists(model_folder):
-            os.makedirs(model_folder)
-        if not os.path.exists(model_path):
-            url = base_url + model_name
-            download_url_to_file(url, model_path)
-        try:
-            model = YOLO(model_path)
-        except Exception as e:
-            if "weights_only" in str(e) or "SegmentationModel" in str(e):
-                from ultralytics.nn.tasks import SegmentationModel
-                torch.serialization.add_safe_globals({'SegmentationModel': SegmentationModel})
-                model = YOLO(model_path)
-            else:
-                raise e
-        input = image
-        image = tensor2pil(image.to(model.device))
-        conf = score
-        classes = [int(x.strip()) for x in id.split(",")] if id.strip() != "" else []
-        r = model(image, classes = None if len(classes) == 0 else classes, conf = conf)[0]
 
-        for key, value in r.names.items():
-            r.names[key] = f"{key} - {value}"
-        id_list = [v for _ , v in r.names.items()]
-        id_list = '\n'.join(id_list)
-        id_box = r.boxes.cls.int().tolist()
-        num_objects = len(id_box)
-        image = Image.fromarray(r.plot()[..., ::-1])
-        image = pil2tensor(image)
-        if len(id_box) > 0 and r.masks is not None:
-            mask = r.masks.data
-            mask = torch.sum(mask, dim=0, keepdim=True)
-            mask = FF.interpolate(mask.unsqueeze(0),
-                size=(image.shape[1], image.shape[2]), mode='bilinear', align_corners=False).squeeze(0)
-            invert_mask = (1.0 - mask).to(image.device)
-            alpha_image = ALL_NODE["JoinImageWithAlpha"]().execute(input, invert_mask)[0]
+        if model_name not in s.model_list:
+            raise ValueError(f"Model YOLO không có trong danh sách: {model_name!r}")
+        model_path = os.path.join(s.yolo_dir, model_name)
+        if not os.path.isfile(model_path):
+            if model_name not in yolo_model_list:
+                raise FileNotFoundError(f"Không tìm thấy model YOLO: {model_path}")
+            os.makedirs(s.yolo_dir, exist_ok=True)
+            url = yolo26_model_urls.get(model_name, base_url + model_name)
+            download_url_to_file(url, model_path)
+        model = YOLO(model_path)
+        classes = [int(x.strip()) for x in id.split(",")] if id.strip() else None
+        id_list = '\n'.join(f"{key} - {value}" for key, value in model.names.items())
+        rgb_images = image[..., :3]
+        sources = [tensor2pil(item) for item in rgb_images]
+        device = str(comfy.model_management.get_torch_device())
+        results = model.predict(sources, classes=classes, conf=score, device=device,
+                                retina_masks=True, stream=True, verbose=False)
+        output_images, output_masks = [], []
+        num_objects = 0
+        for result in results:
+            num_objects += len(result.boxes) if result.boxes is not None else 0
+            result.names = {key: f"{key} - {value}" for key, value in result.names.items()}
+            output_images.append(pil2tensor(Image.fromarray(result.plot()[..., ::-1])))
+            if result.masks is not None and result.masks.data.shape[0] > 0:
+                mask = result.masks.data.amax(dim=0, keepdim=True).float().clamp(0, 1)
+                if mask.shape[-2:] != image.shape[1:3]:
+                    mask = FF.interpolate(mask.unsqueeze(1), size=image.shape[1:3],
+                                          mode='bilinear', align_corners=False).squeeze(1)
+                output_masks.append(mask.cpu())
+            else:
+                output_masks.append(None)
+
+        has_masks = any(mask is not None for mask in output_masks)
+        mask_size = image.shape[1:3] if has_masks else (64, 64)
+        masks = torch.cat([mask if mask is not None else torch.zeros((1, *mask_size), dtype=torch.float32)
+                           for mask in output_masks], dim=0)
+        images = torch.cat(output_images, dim=0)
+        if has_masks:
+            alpha_image = ALL_NODE["JoinImageWithAlpha"]().execute(rgb_images.cpu(), 1.0 - masks)[0]
             ui = ALL_NODE["PreviewImage"]().save_images(alpha_image)["ui"]
         else:
-            mask = torch.zeros((1, 64, 64), dtype=torch.float32)
-            ui = ALL_NODE["PreviewImage"]().save_images(image)["ui"]
+            ui = ALL_NODE["PreviewImage"]().save_images(images)["ui"]
+        return {"ui": ui, "result": (images, masks, id_list, num_objects)}
 
-        return {"ui":ui, "result": (image, mask.cpu(), id_list, num_objects)}
-       
 class MaskRegions:
     @classmethod
     def INPUT_TYPES(cls):
@@ -279,8 +288,9 @@ class GetMaskSize:
     FUNCTION = "get_size"
 
     def get_size(self, mask):
-        mask_tensor = mask[0]  # shape: [1, H, W]
-        binary_mask = (mask_tensor > 0.5).squeeze(0)  # [H, W]
+        binary_mask = mask > 0.5
+        if binary_mask.ndim == 3:
+            binary_mask = binary_mask.any(dim=0)
         coords = binary_mask.nonzero(as_tuple=False)
         if coords.numel() == 0:
             return (0, 0)

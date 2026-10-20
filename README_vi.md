@@ -401,7 +401,7 @@ Hỗ trợ sử dụng các model AI qua API
 ![](preview/chatbot2.jpeg)
 ![](preview/chatbot3.jpeg)
 
-**🎨 DALL-E 3 | 🎨 GPT Image**
+**🎨 DALL-E (GPT Image) | 🎨 GPT Image**
 
 - Hỗ trợ dịch và Dynamic prompt
 
@@ -422,7 +422,7 @@ Hỗ trợ sử dụng các model AI qua API
 
 **🎨 Gemini 3 Pro Image**
 
-- Sử dụng Gemini 3 Pro Image Preview, trả về cả ảnh và phần văn bản kèm theo
+- Sử dụng bản ổn định `gemini-3-pro-image`, trả về cả ảnh và phần văn bản kèm theo
 - Hỗ trợ tối đa 14 ảnh tham chiếu; có sẵn preset tỷ lệ khung hình và độ phân giải
 - Hỗ trợ dịch + Dynamic prompt, tự lấy API trong `API_key.json` nếu để trống
 
@@ -489,6 +489,9 @@ Bộ node hỗ trợ xử lý mask cơ bản và nâng cao, cũng như inpaintin
 **🎭 Yolo Seg Mask**
 
 - Node sử dụng model YOLO để tự động phát hiện mask chính xác, nhanh chóng và tiết kiệm GPU.
+- Hỗ trợ YOLO26-seg `n/s/m/l/x`, tải thẳng từ [Ultralytics/YOLO26](https://huggingface.co/Ultralytics/YOLO26) vào `models/yolo`. Giữ các model YOLOv8, YOLO11 và model chuyên mặt/tóc/da cùng nguồn tải cũ. Cập nhật requirements hiện có của SDVN để cài `ultralytics==8.4.183`, rồi khởi động lại ComfyUI; không cần file requirements riêng.
+- Nhận RGB/RGBA và batch ảnh, dùng thiết bị đang chọn trong ComfyUI, yêu cầu mask theo độ phân giải ảnh gốc. Mask chồng nhau được gộp trong khoảng `[0, 1]`. Mỗi ảnh có một ảnh đánh dấu và một mask gộp; `num_objects` là tổng số vật của cả batch. Model detection/pose vẫn trả ảnh đánh dấu và số vật, kèm mask rỗng.
+- Khi không tìm thấy mask, giữ mask rỗng **64×64** cho mỗi ảnh. Với batch có cả ảnh có mask và ảnh không có mask, mask rỗng dùng kích thước ảnh gốc để ghép chung thành tensor.
 
 ![](preview/yolo.jpeg)
 ![](preview/yolo_2.jpeg)
@@ -545,3 +548,21 @@ Các node `SDVN SegmentAnything`, `SDVN SAMModelLoader`, `SDVN DinoModelLoader`,
 Node tải checkpoint công khai từ [Comfy-Org SAM 3.1](https://huggingface.co/Comfy-Org/sam3.1) (`sam3.1_multiplex_fp16.safetensors`) vào `models/sam3` khi chạy lần đầu, không cần đăng nhập Hugging Face. Tái sử dụng checkpoint có sẵn và đường dẫn `sam3` mở rộng. Cần ComfyUI hỗ trợ SAM 3.1 native (`SAM3 Detect` và `SAM31`); không cần cài requirements bổ sung.
 
 Đầu ra gồm `IMAGE` (ảnh RGB đã tách nền), `MASK` (mask gộp cho mỗi ảnh) và preview. Nhận đầu vào RGB hoặc RGBA; bỏ kênh alpha đầu vào trước khi phân đoạn. Prompt hỗ trợ nhiều khái niệm cách nhau bằng dấu phẩy, ví dụ `cat, dog`, mặc định tối đa 200 vật mỗi khái niệm; dùng `cat:2` để giới hạn. Mỗi ảnh được xử lý độc lập, không theo dõi vật trong video. Chưa đo hiệu năng MPS hoặc chạy thử checkpoint đầy đủ trong lần cập nhật này.
+
+### Cập nhật node và API
+
+- Mask Size đo vùng hợp của cả batch, tránh bỏ mask ở ảnh sau khi ảnh đầu rỗng trong Crop Inpaint/Inpaint. Upscale nhận chiều rộng hoặc cao bằng 0 ở Maxsize; Scale vẫn dùng hệ số khi hai ô kích thước bằng 0. White Balance nhận RGBA và giữ alpha. Export FP8 chuyển trọng số số thực trên CPU, giữ nguyên buffer số nguyên.
+- Bộ cài kiểm tra phiên bản thư viện và điều kiện nền tảng mỗi lần khởi động; chỉ ghi dấu hoàn tất sau khi cài thành công. Requirements dùng `openai>=3.35.1`, `google-genai>=2.31.0`; cập nhật requirements hiện có rồi khởi động lại ComfyUI.
+- GPT Image có `gpt-image-2.5-sunburst` và `gpt-image-2.5-flare`, hỗ trợ PNG trong suốt khi tạo/sửa ảnh, nhiều ảnh tham chiếu và mask alpha. Node DALL-E cũ giữ ID workflow và kiểu đầu ra nhưng dùng GPT Image 2.5; `standard` tương ứng `medium`, `hd` tương ứng `high`. Workflow GPT Image đang chọn model đã ngừng cần chọn lại model hiện tại. [Tài liệu ảnh OpenAI](https://developers.openai.com/api/docs/guides/image-generation).
+- Các node ảnh Google dùng Interactions API: Nano Banana Lite dùng `gemini-3.1-flash-lite-image`, Pro dùng `gemini-3-pro-image`, Nano Banana 2 dùng `gemini-3.1-flash-image`, mặc định mới Nano Banana 2.1 dùng `gemini-nano-banana-2.1`. Node Imagen cũ chuyển sang Nano Banana 2.1; tùy chọn người được diễn đạt bằng yêu cầu trong prompt, không còn là cấu hình giới hạn người phía server của Imagen. Nano Banana 2.1 dùng tối thiểu 1K khi chọn 0,5K. API không trả ảnh sẽ báo lỗi kèm phản hồi thay vì âm thầm trả ảnh rỗng. [Tài liệu ảnh Google](https://ai.google.dev/gemini-api/docs/image-generation).
+- Chatbot thêm Gemini 3.5 Flash Lite, Gemini 3.8 Flash, DeepSeek Flash và V4 Pro. Lựa chọn Gemini 3 Flash và DeepSeek R1 cũ lần lượt dùng Gemini 3.8 Flash và DeepSeek Flash. Giữ nguyên cách nhập/lưu khóa riêng. Kiểm thử API dùng phản hồi và kết nối SDK giả lập, không phát sinh yêu cầu API trả phí.
+
+### 📝 Florence PromptGen
+
+Node `SDVN Florence PromptGen` nhận `IMAGE`, trả danh sách prompt tiếng Anh (`STRING`), một prompt cho mỗi ảnh trong batch. Dùng [Florence-2 PromptGen v2.0](https://huggingface.co/MiaoshouAI/Florence-2-base-PromptGen-v2.0) với `base` mặc định hoặc `large`.
+
+- `Detailed prompt`: mô tả chi tiết; `Short caption`: mô tả ngắn; `Tags`, `Caption + tags`, `Composition`, `Caption + tags + composition`: các kiểu prompt khác. `OCR` chỉ chép chữ trong ảnh, giữ ngôn ngữ gốc.
+- Mặc định `num_beams=1`, tối đa 256 token để ưu tiên tốc độ. Tăng `num_beams` lên 3 để thử chất lượng caption, đổi lại thời gian chạy lâu hơn.
+- Tự tải model khi chạy lần đầu vào `ComfyUI/models/LLM/Florence-2-{base|large}-PromptGen-v2.0`; dùng lại thư mục có đủ file, tự tải bổ sung khi thiếu. Không cần khóa API, node Florence bên ngoài hay Flash Attention.
+- Nhận RGB/RGBA và batch ảnh. Mặc định đưa model khỏi GPU sau khi chạy, giữ bản trong RAM để dùng lại. Bật `keep_model_loaded` để giữ trên thiết bị; ComfyUI vẫn quản lý và giải phóng bộ nhớ khi cần.
+- Cần `transformers>=4.57.6`, dùng Florence2 native, không tải hoặc thực thi mã Python từ repo model.

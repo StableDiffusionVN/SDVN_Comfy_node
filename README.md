@@ -405,7 +405,7 @@ Support the use of AI models through API
 ![](preview/chatbot2.jpeg)
 ![](preview/chatbot3.jpeg)
 
-**🎨 DALL-E 3 | 🎨 GPT Image**
+**🎨 DALL-E (GPT Image) | 🎨 GPT Image**
 
 - Support translate and Dynamic prompt
 
@@ -426,7 +426,7 @@ Support the use of AI models through API
 
 **🎨 Gemini 3 Pro Image**
 
-- Uses Gemini 3 Pro Image Preview to return both an image and accompanying text
+- Uses stable `gemini-3-pro-image` to return both an image and accompanying text
 - Accepts up to 14 reference images; supports aspect ratio and resolution presets
 - Translate + Dynamic prompt support, pulls API from `API_key.json` if not provided
 
@@ -493,6 +493,9 @@ Nodes that support both basic and advanced mask processing and inpainting.
 **🎭 Yolo Seg Mask**
 
 - A node that uses YOLO models to automatically detect masks accurately, quickly, and with minimal GPU usage.
+- Supports YOLO26-seg `n/s/m/l/x`, downloaded directly from [Ultralytics/YOLO26](https://huggingface.co/Ultralytics/YOLO26) into `models/yolo`. Existing YOLOv8, YOLO11, and specialized face/hair/skin models remain available with their original download source. Update the existing SDVN requirements to install `ultralytics==8.4.183`, then restart ComfyUI; no separate requirements file is needed.
+- Accepts RGB/RGBA and image batches, uses ComfyUI's selected device, and requests masks at the original image resolution. Overlapping masks are combined within `[0, 1]`. Outputs one annotated image and union mask per input image; `num_objects` is the total count across the batch. Detection/pose models still provide annotations and object counts, with an empty mask.
+- When no masks are found, the empty mask remains **64×64** (one per image). In a mixed batch, empty masks use the original image size so they can share a tensor with detected masks.
 
 ![](preview/yolo.jpeg)
 ![](preview/yolo_2.jpeg)
@@ -549,3 +552,21 @@ ___
 The node downloads the public [Comfy-Org SAM 3.1 checkpoint](https://huggingface.co/Comfy-Org/sam3.1) (`sam3.1_multiplex_fp16.safetensors`) into `models/sam3` on first execution, without Hugging Face authentication. Existing checkpoint files and extra `sam3` paths are reused. It requires ComfyUI's native SAM 3.1 support (`SAM3 Detect` and `SAM31`); no additional Python requirements are needed.
 
 Outputs are `IMAGE` (RGB cutout), `MASK` (one union mask per image), and a preview. RGB and RGBA inputs are accepted; input alpha is discarded before segmentation. Prompts support comma-separated concepts such as `cat, dog`, with up to 200 detections per concept by default; use `cat:2` to set a limit. Images are processed independently, without video tracking. MPS performance and full checkpoint inference have not been benchmarked here.
+
+### Node and API maintenance
+
+- Mask Size measures the union across an image batch, so an empty first mask no longer clears masks for later images in Crop Inpaint or Inpaint. Upscale accepts a zero width or height in Maxsize mode; Scale uses its scale factor even when both size fields are zero. White Balance accepts RGBA while preserving alpha. FP8 export converts floating weights on CPU and preserves integer buffers.
+- Dependency checks now inspect installed package versions and platform markers on each startup. The installation marker is written atomically only after dependency installation succeeds. Requirements use `openai>=3.35.1` and `google-genai>=2.31.0`; update the existing requirements and restart ComfyUI.
+- GPT Image offers `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`, including transparent PNG generation/editing, batched references and alpha-mask edits. The old DALL-E node keeps its workflow ID and output type but now uses GPT Image 2.5; `standard` maps to `medium`, `hd` to `high`. Existing GPT Image workflows selecting a retired model must select a current model. [OpenAI image guide](https://developers.openai.com/api/docs/guides/image-generation).
+- Google image nodes use the Interactions API: Nano Banana Lite uses `gemini-3.1-flash-lite-image`, Pro uses `gemini-3-pro-image`, Nano Banana 2 uses `gemini-3.1-flash-image`, and the new default Nano Banana 2.1 uses `gemini-nano-banana-2.1`. The old Imagen node now uses Nano Banana 2.1; its people option is expressed as a prompt instruction, not the former Imagen server-side person-generation setting. Nano Banana 2.1 uses at least 1K when 0.5K is selected. Missing images return an error with the API text instead of silently returning a blank image. [Google image guide](https://ai.google.dev/gemini-api/docs/image-generation).
+- Chatbot adds Gemini 3.5 Flash Lite, Gemini 3.8 Flash, DeepSeek Flash and V4 Pro. Existing Gemini 3 Flash and DeepSeek R1 selections route to Gemini 3.8 Flash and DeepSeek Flash respectively. Credential inputs and local key storage are unchanged. API tests use mocked responses and SDK transports; no paid API requests were made.
+
+### 📝 Florence PromptGen
+
+`SDVN Florence PromptGen` takes an `IMAGE` and returns English prompts as a `STRING` list, one per image in the batch. Uses [Florence-2 PromptGen v2.0](https://huggingface.co/MiaoshouAI/Florence-2-base-PromptGen-v2.0), with `base` by default and an optional `large` model.
+
+- Modes: `Detailed prompt`, `Short caption`, `Tags`, `Caption + tags`, `Composition`, and `Caption + tags + composition`. `OCR` transcribes visible text in its original language.
+- Defaults to `num_beams=1` and 256 output tokens for speed. Try 3 beams for caption quality at the cost of longer generation.
+- Downloads on first execution to `ComfyUI/models/LLM/Florence-2-{base|large}-PromptGen-v2.0`; reuses complete local models and resumes incomplete downloads. No API key, external Florence node pack, or Flash Attention required.
+- Accepts RGB/RGBA and image batches. Offloads from GPU after generation by default and retains a RAM copy for reuse. Enable `keep_model_loaded` to keep it on the device; ComfyUI still manages memory and can unload it when needed.
+- Requires `transformers>=4.57.6`; uses native Florence2 without downloading or executing Python code from the model repository.

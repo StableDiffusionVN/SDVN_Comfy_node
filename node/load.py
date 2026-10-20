@@ -1163,20 +1163,20 @@ class UpscaleImage:
     CATEGORY = "📂 SDVN/🏞️ Image"
 
     def upscale(self, mode, width, height, scale, model_name, image):
-        if width == 0 and height == 0:
+        if width == 0 and height == 0 and mode != 'Scale':
             s = image
         else:
             samples = image.movedim(-1, 1)
             w = samples.shape[3]
             h = samples.shape[2]
-            if mode == 'Maxsize':
+            if mode == 'Maxsize' and width > 0 and height > 0:
                 if width/height < w/h:
                     height = round(h * width / w)
                 else:
                     width = round(w * height / h)
             if mode == 'Scale':
-                width = round(w * scale)
-                height = round(h * scale)
+                width = max(1, round(w * scale))
+                height = max(1, round(h * scale))
             if width == 0:
                 width = max(1, round(w * height / h))
             elif height == 0:

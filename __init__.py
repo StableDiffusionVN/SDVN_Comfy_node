@@ -1,5 +1,7 @@
 import subprocess
 import sys, os
+from importlib.metadata import PackageNotFoundError, version
+from packaging.requirements import Requirement
 
 import platform, urllib.request, zipfile, shutil
 
@@ -39,40 +41,32 @@ def ensure_aria2_installed():
 ensure_aria2_installed()
 
 def check_pip(package_name):
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "show", package_name],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+    requirement = Requirement(package_name)
+    if requirement.marker is not None and not requirement.marker.evaluate():
         return True
-    except subprocess.CalledProcessError as e:
+    try:
+        installed_version = version(requirement.name)
+    except PackageNotFoundError:
         return False
-    
+    return requirement.specifier.contains(installed_version, prereleases=True)
+
+
 def install():
-    file_check = os.path.join(os.path.dirname(__file__),"installed.txt")
-    if not os.path.exists(file_check):
-        installed_package = []
-    else:
-        with open(file_check, 'r', encoding='utf-8') as file:
-            installed_package = file.read().splitlines()
-    list_check = os.path.join(os.path.dirname(__file__),"requirements.txt")
-    with open(list_check, 'r', encoding='utf-8') as file:
-        txt = file.read()
-        list_package = txt.splitlines()
-    if installed_package != list_package:
-        print(f"\033[33m{'Check SDVN-Comfy-Node: If your Mac doesn t have aria2 installed, install it via brew'}\033[0m")
-        for package_name in list_package:
-            if "#" not in package_name and package_name not in installed_package:
-                if check_pip(package_name):
-                    print(f"Check SDVN-Comfy-Node: Package '{package_name}' is already installed.")
-                else:
-                    print(f"Check SDVN-Comfy-Node: Package '{package_name}' not found. Installing...")
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
-            with open(file_check, "w") as file:
-                file.write(txt)
+    root = os.path.dirname(__file__)
+    with open(os.path.join(root, "requirements.txt"), encoding="utf-8") as file:
+        requirements = file.read()
+    packages = [line.strip() for line in requirements.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")]
+    missing = [package for package in packages if not check_pip(package)]
+    if missing:
+        print("Check SDVN-Comfy-Node: Installing missing or incompatible requirements...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
+    file_check = os.path.join(root, "installed.txt")
+    temporary = file_check + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as file:
+        file.write(requirements)
+    os.replace(temporary, file_check)
+
 
 install()
 
@@ -90,6 +84,7 @@ from .node.chooser import NODE_CLASS_MAPPINGS as chooser_node, NODE_DISPLAY_NAME
 from .node.dev import NODE_CLASS_MAPPINGS as dev_node, NODE_DISPLAY_NAME_MAPPINGS as dev_dis
 
 from .node.segment_anything.nodes import NODE_CLASS_MAPPINGS as segment_node, NODE_DISPLAY_NAME_MAPPINGS as segment_dis
+from .node.promptgen import NODE_CLASS_MAPPINGS as promptgen_node, NODE_DISPLAY_NAME_MAPPINGS as promptgen_dis
 
 NODE_CLASS_MAPPINGS = {
     **load_node,
@@ -104,7 +99,8 @@ NODE_CLASS_MAPPINGS = {
     **group_tools_node,
     **chooser_node,
     **dev_node,
-    **segment_node
+    **segment_node,
+    **promptgen_node
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     **load_dis,
@@ -119,7 +115,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **group_tools_dis,
     **chooser_dis,
     **dev_dis,
-    **segment_dis
+    **segment_dis,
+    **promptgen_dis
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

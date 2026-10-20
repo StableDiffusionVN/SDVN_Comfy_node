@@ -746,11 +746,12 @@ class white_balance:
     FUNCTION = "white_balance"
 
     def white_balance(s, image, temp, tint):
-        temp_adjustment = torch.tensor([1.0 + temp * 0.01, 1.0, 1.0 - temp * 0.01], device=image.device)
-        tint_adjustment = torch.tensor([1.0 + tint * 0.01, 1.0 - tint * 0.01, 1.0], device=image.device)
-        image = image * temp_adjustment * tint_adjustment
-        image = torch.clamp(image, 0, 1)
-        return (image,)
+        temp_adjustment = torch.tensor([1.0 + temp * 0.01, 1.0, 1.0 - temp * 0.01], device=image.device, dtype=image.dtype)
+        tint_adjustment = torch.tensor([1.0 + tint * 0.01, 1.0 - tint * 0.01, 1.0], device=image.device, dtype=image.dtype)
+        rgb = (image[..., :3] * temp_adjustment * tint_adjustment).clamp(0, 1)
+        if image.shape[-1] == 4:
+            rgb = torch.cat((rgb, image[..., 3:4]), dim=-1)
+        return (rgb,)
 
 class color_match:
     @classmethod
@@ -768,15 +769,15 @@ class color_match:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "color_match"
-    DESCRIPTION = "Can bang mau cua image theo ref_image, tham chieu tu node Image Color Match cua ComfyUI-Easy-Use."
+    DESCRIPTION = "Cân bằng màu RGB của image theo ref_image, hỗ trợ RGB/RGBA và giữ nguyên alpha của image. Tham khảo Image Color Match của ComfyUI-Easy-Use."
 
     def color_match(self, image, ref_image, method, blend):
         batch_size = image.shape[0]
         output = []
 
         for i in range(batch_size):
-            target = image[i:i + 1]
-            ref = _resolve_reference_image(ref_image, i, batch_size)
+            target = image[i:i + 1, ..., :3]
+            ref = _resolve_reference_image(ref_image, i, batch_size)[..., :3]
 
             if method == "wavelet":
                 target_chw = target.permute(0, 3, 1, 2)
@@ -789,9 +790,11 @@ class color_match:
             else:
                 matched = _color_match_color_matcher(target[0], ref[0], method).unsqueeze(0)
 
-            matched = torch.clamp(matched.to(dtype=image.dtype), 0.0, 1.0)
+            matched = torch.clamp(matched.to(device=image.device, dtype=image.dtype), 0.0, 1.0)
             if blend < 1.0:
                 matched = torch.lerp(target, matched, blend)
+            if image.shape[-1] == 4:
+                matched = torch.cat((matched, image[i:i + 1, ..., 3:4]), dim=-1)
             output.append(matched)
 
         return (torch.cat(output, dim=0),)

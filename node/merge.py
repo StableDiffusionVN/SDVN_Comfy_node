@@ -256,7 +256,8 @@ class ModelExport:
     def unet_fp8(s, state):
         fp8_dtype = torch.float8_e4m3fn
         for k, v in state.items():
-            state[k] = v.to(device='cuda', dtype=fp8_dtype)
+            if v.is_floating_point():
+                state[k] = v.to(device='cpu', dtype=fp8_dtype)
         return state
     def lora_model(s, state):
         diffusion_state_dict = {
