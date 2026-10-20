@@ -7,7 +7,8 @@ googletrans-py
 opencv-python
 scipy
 color-matcher
-google-genai>=2.31.0
+google-genai==2.12.0
+google-auth==2.49.0
 PyYAML
 pandas
 ultralytics==8.4.183

@@ -17,7 +17,38 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - name: Check registry version
+        id: registry
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import tomllib
+          from urllib.error import HTTPError
+          from urllib.parse import quote
+          from urllib.request import urlopen
+
+          with open("pyproject.toml", "rb") as file:
+              project = tomllib.load(file)["project"]
+          url = f"https://api.comfy.org/nodes/{quote(project['name'], safe='')}/versions"
+          try:
+              with urlopen(url, timeout=30) as response:
+                  versions = json.load(response)
+          except HTTPError as error:
+              if error.code != 404:
+                  raise
+              versions = []
+          exists = any(item["version"] == project["version"] for item in versions)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+              file.write(f"publish={str(not exists).lower()}\n")
+          if exists:
+              print(f"Version {project['version']} already exists; skipping publication.")
+          else:
+              print(f"Publishing new version {project['version']}.")
+          PY
       - name: Publish Custom Node
+        if: steps.registry.outputs.publish == 'true'
         uses: Comfy-Org/publish-node-action@main
         with:
           ## Add your own personal access token to your Github Repository secrets and reference it here.

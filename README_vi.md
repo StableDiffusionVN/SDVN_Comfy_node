@@ -552,7 +552,7 @@ Node tải checkpoint công khai từ [Comfy-Org SAM 3.1](https://huggingface.co
 ### Cập nhật node và API
 
 - Mask Size đo vùng hợp của cả batch, tránh bỏ mask ở ảnh sau khi ảnh đầu rỗng trong Crop Inpaint/Inpaint. Upscale nhận chiều rộng hoặc cao bằng 0 ở Maxsize; Scale vẫn dùng hệ số khi hai ô kích thước bằng 0. White Balance nhận RGBA và giữ alpha. Export FP8 chuyển trọng số số thực trên CPU, giữ nguyên buffer số nguyên.
-- Bộ cài kiểm tra phiên bản thư viện và điều kiện nền tảng mỗi lần khởi động; chỉ ghi dấu hoàn tất sau khi cài thành công. Requirements dùng `openai>=3.35.1`, `google-genai>=2.31.0`; cập nhật requirements hiện có rồi khởi động lại ComfyUI.
+- Bộ cài kiểm tra phiên bản thư viện và điều kiện nền tảng mỗi lần khởi động; chỉ ghi dấu hoàn tất sau khi cài thành công. Requirements dùng `openai>=3.35.1`, `google-genai==2.12.0` / `google-auth==2.49.0`; cập nhật requirements hiện có rồi khởi động lại ComfyUI.
 - GPT Image có `gpt-image-2.5-sunburst` và `gpt-image-2.5-flare`, hỗ trợ PNG trong suốt khi tạo/sửa ảnh, nhiều ảnh tham chiếu và mask alpha. Node DALL-E cũ giữ ID workflow và kiểu đầu ra nhưng dùng GPT Image 2.5; `standard` tương ứng `medium`, `hd` tương ứng `high`. Workflow GPT Image đang chọn model đã ngừng cần chọn lại model hiện tại. [Tài liệu ảnh OpenAI](https://developers.openai.com/api/docs/guides/image-generation).
 - Các node ảnh Google dùng Interactions API: Nano Banana Lite dùng `gemini-3.1-flash-lite-image`, Pro dùng `gemini-3-pro-image`, Nano Banana 2 dùng `gemini-3.1-flash-image`, mặc định mới Nano Banana 2.1 dùng `gemini-nano-banana-2.1`. Node Imagen cũ chuyển sang Nano Banana 2.1; tùy chọn người được diễn đạt bằng yêu cầu trong prompt, không còn là cấu hình giới hạn người phía server của Imagen. Nano Banana 2.1 dùng tối thiểu 1K khi chọn 0,5K. API không trả ảnh sẽ báo lỗi kèm phản hồi thay vì âm thầm trả ảnh rỗng. [Tài liệu ảnh Google](https://ai.google.dev/gemini-api/docs/image-generation).
 - Chatbot thêm Gemini 3.5 Flash Lite, Gemini 3.8 Flash, DeepSeek Flash và V4 Pro. Lựa chọn Gemini 3 Flash và DeepSeek R1 cũ lần lượt dùng Gemini 3.8 Flash và DeepSeek Flash. Giữ nguyên cách nhập/lưu khóa riêng. Kiểm thử API dùng phản hồi và kết nối SDK giả lập, không phát sinh yêu cầu API trả phí.
@@ -566,3 +566,7 @@ Node `SDVN Florence PromptGen` nhận `IMAGE`, trả danh sách prompt tiếng A
 - Tự tải model khi chạy lần đầu vào `ComfyUI/models/LLM/Florence-2-{base|large}-PromptGen-v2.0`; dùng lại thư mục có đủ file, tự tải bổ sung khi thiếu. Không cần khóa API, node Florence bên ngoài hay Flash Attention.
 - Nhận RGB/RGBA và batch ảnh. Mặc định đưa model khỏi GPU sau khi chạy, giữ bản trong RAM để dùng lại. Bật `keep_model_loaded` để giữ trên thiết bị; ComfyUI vẫn quản lý và giải phóng bộ nhớ khi cần.
 - Cần `transformers>=4.57.6`, dùng Florence2 native, không tải hoặc thực thi mã Python từ repo model.
+
+### Tương thích thư viện Colab
+
+Chốt Gemini SDK `2.12.0` và `google-auth==2.49.0` để khớp thư viện xác thực của Colab, vẫn giữ API tạo ảnh Interactions. Bộ cài lúc khởi động sửa các phiên bản đã cài không tương thích. Khởi động lại phiên Colab sau khi cập nhật thư viện nếu các thư viện Google đã được nạp. Bản Registry mới dùng số `2.10.20`; workflow bỏ qua phiên bản đã có trên Registry.
