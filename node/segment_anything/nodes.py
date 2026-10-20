@@ -40,15 +40,6 @@ sam_model_list = {
     }
 }
 
-sam_model_list.update({
-    'sam3 (native ComfyUI)': {
-        'backend': 'sam3', 'repo_id': 'facebook/sam3', 'filename': 'sam3.pt',
-    },
-    'sam3.1 (native ComfyUI)': {
-        'backend': 'sam3', 'repo_id': 'facebook/sam3.1', 'filename': 'sam3.1_multiplex.pt',
-    },
-})
-
 groundingdino_model_dir_name = "grounding-dino"
 groundingdino_model_list = {
     "GroundingDINO_SwinT_OGC (694MB)": {
@@ -78,12 +69,9 @@ def list_sam_model():
 
 def load_sam_model(model_name):
     spec = sam_model_list[model_name]
-    if spec.get('backend') == 'sam3':
-        from .backends import load_sam3
-        return load_sam3(spec['repo_id'], spec['filename'])
     from .sam_hq.build_sam_hq import sam_model_registry
     sam_checkpoint_path = get_local_filepath(
-        sam_model_list[model_name]["model_url"], sam_model_dir_name)
+        spec["model_url"], sam_model_dir_name)
     model_file_name = os.path.basename(sam_checkpoint_path)
     model_type = model_file_name.split('.')[0]
     if 'hq' not in model_type and 'mobile' not in model_type:
@@ -341,9 +329,6 @@ class GroundingDinoSAMSegment:
     RETURN_TYPES = ("IMAGE", "MASK")
 
     def main(self, grounding_dino_model, sam_model, image, prompt, threshold, text_threshold):
-        if isinstance(sam_model, dict) and sam_model['backend'] == 'sam3':
-            from .backends import sam3_segment
-            return sam3_segment(sam_model, image, prompt, threshold)
         res_images = []
         res_masks = []
         for item in image:
@@ -378,8 +363,8 @@ class SegmentAnything:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "sam_model": (list_sam_model(), {"tooltip": "SAM/SAM-HQ/MobileSAM dùng GroundingDINO. SAM 3/3.1 nhận prompt trực tiếp, cần ComfyUI có hỗ trợ SAM3 native."}),
-                "dino_model": (list_groundingdino_model(), {"tooltip": "Chỉ dùng với SAM/SAM-HQ/MobileSAM; bỏ qua khi chọn SAM 3/3.1."}),
+                "sam_model": (list_sam_model(), ),
+                "dino_model": (list_groundingdino_model(), ),
                 "image": ('IMAGE', {}),
                 "prompt": ("STRING", {}),
                 "threshold": ("FLOAT", {
@@ -402,14 +387,41 @@ class SegmentAnything:
 
     def main(self, sam_model, dino_model,image, prompt, threshold, text_threshold):
         sam_load_model = SAMModelLoader().main(sam_model)[0]
-        uses_text = isinstance(sam_load_model, dict) and sam_load_model['backend'] == 'sam3'
-        dino_load_model = None if uses_text else GroundingDinoModelLoader().main(dino_model)[0]
+        dino_load_model = GroundingDinoModelLoader().main(dino_model)[0]
         output = GroundingDinoSAMSegment().main(dino_load_model, sam_load_model, image, prompt, threshold, text_threshold)
         mask = output[1]
         invert_mask = (1.0 - mask).to(image.device)
         alpha_image = ALL_NODE["JoinImageWithAlpha"]().execute(image, invert_mask)[0]
         ui = ALL_NODE["PreviewImage"]().save_images(alpha_image)["ui"]
         return {"ui":ui, "result": output}
+
+
+class SamSegment:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            'required': {
+                'image': ('IMAGE',),
+                'prompt': ('STRING', {'tooltip': 'Vật cần chọn, ví dụ cat, dog. Dùng cat:2 để giới hạn số vật.'}),
+                'threshold': ('FLOAT', {'default': 0.3, 'min': 0, 'max': 1.0, 'step': 0.01}),
+            }
+        }
+
+    CATEGORY = '📂 SDVN/🎭 Mask'
+    FUNCTION = 'main'
+    RETURN_TYPES = ('IMAGE', 'MASK')
+    DESCRIPTION = 'Chọn mask bằng SAM 3.1 từ Comfy-Org, không cần GroundingDINO hoặc đăng nhập Hugging Face.'
+
+    def main(self, image, prompt, threshold):
+        from .backends import load_sam31, sam31_segment
+
+        image = image[..., :3]
+        output = sam31_segment(load_sam31(), image, prompt, threshold)
+        invert_mask = (1.0 - output[1]).to(image.device)
+        alpha_image = ALL_NODE['JoinImageWithAlpha']().execute(image, invert_mask)[0]
+        ui = ALL_NODE['PreviewImage']().save_images(alpha_image)['ui']
+        return {'ui': ui, 'result': output}
+
 
 class InvertMask:
     @classmethod
@@ -451,6 +463,7 @@ NODE_CLASS_MAPPINGS = {
     'SDVN InvertMask': InvertMask,
     "SDVN IsMaskEmpty": IsMaskEmptyNode,
     "SDVN SegmentAnything": SegmentAnything,
+    'SDVN Sam Segment': SamSegment,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -460,4 +473,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     'SDVN InvertMask': '🧩 Invert Mask',
     "SDVN IsMaskEmpty": '🧩 Is Mask Empty',
     "SDVN SegmentAnything": '🧩 Segment Anything',
+    'SDVN Sam Segment': '🧩 Sam Segment',
 }
