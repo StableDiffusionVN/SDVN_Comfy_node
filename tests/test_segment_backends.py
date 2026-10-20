@@ -53,9 +53,9 @@ class SegmentBackendTests(unittest.TestCase):
         detect = MagicMock()
         detect.execute.return_value = (masks, [])
         self.mapping['SAM3_Detect'] = detect
-        model = {'backend': 'sam3', 'model': object(), 'clip': clip}
+        model = {'model': object(), 'clip': clip}
         with patch.object(self.nodes, 'groundingdino_predict', side_effect=AssertionError('DINO must be bypassed')):
-            images, output = self.nodes.GroundingDinoSAMSegment().main(None, model, image, 'cat, dog:2', .4, .25)
+            images, output = self.backends.sam31_segment(model, image, 'cat, dog:2', .4)
         clip.tokenize.assert_called_once_with('cat:200, dog:2')
         self.assertEqual(tuple(output.shape), (2, 4, 6))
         self.assertEqual(images.sum().item(), 3)
@@ -63,57 +63,67 @@ class SegmentBackendTests(unittest.TestCase):
         self.assertEqual(detect.execute.call_args.kwargs['threshold'], .4)
         self.assertFalse(detect.execute.call_args.kwargs['individual_masks'])
 
-    def test_sam3_combined_node_never_loads_dino_and_keeps_preview(self):
+    def test_standalone_node_never_loads_dino_and_keeps_preview(self):
         torch = self.torch
-        model = {'backend': 'sam3', 'model': object(), 'clip': MagicMock()}
-        image = torch.ones(1, 4, 6, 3)
+        model = {'model': object(), 'clip': MagicMock()}
+        image = torch.ones(1, 4, 6, 4)
         mask = torch.ones(1, 4, 6)
         self.mapping['JoinImageWithAlpha'] = MagicMock()
         self.mapping['PreviewImage'] = MagicMock()
         self.mapping['PreviewImage']().save_images.return_value = {'ui': {'images': ['preview']}}
-        with patch.object(self.nodes, 'load_sam_model', return_value=model), patch.object(
+        with patch.object(self.nodes, 'load_sam_model', side_effect=AssertionError('Legacy SAM must not load')), patch.object(
                 self.nodes, 'load_groundingdino_model', side_effect=AssertionError('DINO must not load')), patch.object(
-                self.backends, 'sam3_segment', return_value=(image, mask)):
-            result = self.nodes.SegmentAnything().main('sam3 (native ComfyUI)', 'unused', image, 'cat', .3, .25)
+                self.backends, 'load_sam31', return_value=model), patch.object(
+                self.backends, 'sam31_segment', return_value=(image[..., :3], mask)) as segment:
+            result = self.nodes.SamSegment().main(image, 'cat', .3)
         self.assertEqual(result['ui'], {'images': ['preview']})
         self.assertIs(result['result'][1], mask)
+        self.assertEqual(segment.call_args.args[1].shape[-1], 3)
+        self.assertEqual(self.mapping['JoinImageWithAlpha']().execute.call_args.args[0].shape[-1], 3)
 
     def test_native_loader_uses_local_checkpoint_and_managed_model(self):
         self.mapping['SAM3_Detect'] = object
         model, clip = object(), object()
         self.stubs['comfy.sd'].load_checkpoint_guess_config = MagicMock(return_value=(model, clip, None, None))
-        for repo, filename in (('facebook/sam3', 'sam3.pt'), ('facebook/sam3.1', 'sam3.1_multiplex.pt')):
-            with self.subTest(repo=repo):
-                path = Path(self.temp.name) / 'sams' / filename
-                path.parent.mkdir(exist_ok=True)
-                path.touch()
-                loaded = self.backends.load_sam3(repo, filename)
-                self.assertIs(loaded['model'], model)
-                self.assertIs(loaded['clip'], clip)
-                self.stubs['comfy.sd'].load_checkpoint_guess_config.assert_called_with(str(path), output_vae=False)
+        path = Path(self.temp.name) / 'sam3' / self.backends.SAM31_FILENAME
+        path.parent.mkdir()
+        path.touch()
+        with patch.object(self.backends, 'download_url_to_file') as download:
+            loaded = self.backends.load_sam31()
+        self.assertIs(loaded['model'], model)
+        self.assertIs(loaded['clip'], clip)
+        self.stubs['comfy.sd'].load_checkpoint_guess_config.assert_called_once_with(str(path), output_vae=False)
+        download.assert_not_called()
+
+    def test_extra_checkpoint_path_is_reused(self):
+        self.mapping['SAM3_Detect'] = object
+        self.stubs['folder_paths'].get_full_path = MagicMock(return_value='/extra/sam31.safetensors')
+        self.stubs['comfy.sd'].load_checkpoint_guess_config = MagicMock(return_value=(object(), object(), None, None))
+        with patch.object(self.backends, 'download_url_to_file') as download:
+            self.backends.load_sam31()
+        self.stubs['folder_paths'].get_full_path.assert_called_once_with('sam3', self.backends.SAM31_FILENAME)
+        self.stubs['comfy.sd'].load_checkpoint_guess_config.assert_called_once_with('/extra/sam31.safetensors', output_vae=False)
+        download.assert_not_called()
 
     def test_old_comfyui_fails_before_download(self):
-        with self.assertRaisesRegex(RuntimeError, 'SAM3 Detect native'):
-            self.backends.load_sam3('facebook/sam3', 'sam3.pt')
-        self.mapping['SAM3_Detect'] = object
-        del self.stubs['comfy.supported_models'].SAM31
-        with self.assertRaisesRegex(RuntimeError, 'chưa hỗ trợ SAM 3.1'):
-            self.backends.load_sam3('facebook/sam3.1', 'sam3.1_multiplex.pt')
+        with patch.object(self.backends, 'download_url_to_file') as download:
+            with self.assertRaisesRegex(RuntimeError, 'SAM3 Detect native'):
+                self.backends.load_sam31()
+            self.mapping['SAM3_Detect'] = object
+            del self.stubs['comfy.supported_models'].SAM31
+            with self.assertRaisesRegex(RuntimeError, 'chưa hỗ trợ SAM 3.1'):
+                self.backends.load_sam31()
+        download.assert_not_called()
 
-    def test_native_download_is_limited_to_selected_checkpoint(self):
+    def test_download_uses_public_comfy_org_checkpoint_without_auth(self):
         self.mapping['SAM3_Detect'] = object
         self.stubs['comfy.sd'].load_checkpoint_guess_config = MagicMock(return_value=(object(), object(), None, None))
-        hub = types.ModuleType('huggingface_hub')
-        errors = types.ModuleType('huggingface_hub.errors')
-        errors.GatedRepoError = type('GatedRepoError', (RuntimeError,), {})
-        hub.hf_hub_download = MagicMock(return_value='/download/sam3.pt')
-        with patch.dict(sys.modules, {'huggingface_hub': hub, 'huggingface_hub.errors': errors}):
-            self.backends.load_sam3('facebook/sam3', 'sam3.pt')
-            hub.hf_hub_download.assert_called_once_with(
-                repo_id='facebook/sam3', filename='sam3.pt', local_dir=str(Path(self.temp.name) / 'sams'))
-            hub.hf_hub_download.side_effect = errors.GatedRepoError('access denied')
-            with self.assertRaisesRegex(RuntimeError, 'https://huggingface.co/facebook/sam3.1'):
-                self.backends.load_sam3('facebook/sam3.1', 'sam3.1_multiplex.pt')
+        with patch.dict(sys.modules, {'huggingface_hub': None}), patch.object(
+                self.backends, 'download_url_to_file') as download:
+            self.backends.load_sam31()
+        download.assert_called_once_with(
+            'https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors',
+            str(Path(self.temp.name) / 'sam3' / 'sam3.1_multiplex_fp16.safetensors'))
 
     def test_model_name_is_allowlisted(self):
         with patch.object(self.nodes, 'get_local_filepath') as download:

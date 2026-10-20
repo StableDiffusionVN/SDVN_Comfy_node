@@ -28,16 +28,18 @@ class SegmentAnythingIntegrationTests(unittest.TestCase):
                 'SDVN SAMModelLoader', 'SDVN DinoModelLoader',
                 'SDVN DinoSAMSegment', 'SDVN SegmentAnything',
                 'SDVN InvertMask', 'SDVN IsMaskEmpty',
+                'SDVN Sam Segment',
             })
             required = module.SegmentAnything.INPUT_TYPES()['required']
             self.assertEqual(list(required), [
                 'sam_model', 'dino_model', 'image', 'prompt', 'threshold', 'text_threshold',
             ])
-            self.assertEqual(len(required['sam_model'][0]), 9)
-            self.assertFalse(any(name.startswith('sam2') for name in required['sam_model'][0]))
-            self.assertIn('sam3.1 (native ComfyUI)', required['sam_model'][0])
+            self.assertEqual(len(required['sam_model'][0]), 7)
+            self.assertFalse(any(name.startswith(('sam2', 'sam3')) for name in required['sam_model'][0]))
             self.assertEqual(len(required['dino_model'][0]), 2)
             self.assertEqual(module.SegmentAnything.RETURN_TYPES, ('IMAGE', 'MASK'))
+            self.assertEqual(list(module.SamSegment.INPUT_TYPES()['required']), ['image', 'prompt', 'threshold'])
+            self.assertEqual(module.SamSegment.RETURN_TYPES, ('IMAGE', 'MASK'))
 
     def test_bundled_imports_resolve_inside_sdvn(self):
         for path in PACKAGE.rglob('*.py'):

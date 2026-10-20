@@ -17,9 +17,9 @@ def load_sam31():
 
     if not hasattr(supported_models, 'SAM31'):
         raise RuntimeError('Bản ComfyUI này chưa hỗ trợ SAM 3.1. Cập nhật ComfyUI rồi khởi động lại.')
-    checkpoint = folder_paths.get_full_path('checkpoints', SAM31_FILENAME)
+    checkpoint = folder_paths.get_full_path('sam3', SAM31_FILENAME)
     if checkpoint is None:
-        local_dir = os.path.join(folder_paths.models_dir, 'checkpoints')
+        local_dir = os.path.join(folder_paths.models_dir, 'sam3')
         checkpoint = os.path.join(local_dir, SAM31_FILENAME)
         if not os.path.isfile(checkpoint):
             os.makedirs(local_dir, exist_ok=True)
