@@ -490,6 +490,12 @@ Nodes that support both basic and advanced mask processing and inpainting.
 
 ![](preview/mask_node.png)
 
+**🎭 Grow Mask** (`SDVN Grow Mask`)
+
+- `expand`: positive grows, negative shrinks, zero keeps the mask; measured in pixels.
+- `direction`: `all` matches standard Grow Mask; eight directions or `custom` ramp the amount from zero at the opposite edge toward the chosen direction, using each batch item’s mask bounds.
+- `angle` applies to `custom`: 0° right, 90° bottom, 180° left, 270° top. `tapered_corners` follows the original node.
+
 **🎭 Yolo Seg Mask**
 
 - A node that uses YOLO models to automatically detect masks accurately, quickly, and with minimal GPU usage.

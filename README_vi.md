@@ -486,6 +486,12 @@ Bộ node hỗ trợ xử lý mask cơ bản và nâng cao, cũng như inpaintin
 
 ![](preview/mask_node.png)
 
+**🎭 Grow Mask** (`SDVN Grow Mask`)
+
+- `expand`: dương mở rộng, âm thu nhỏ, 0 giữ nguyên; đơn vị pixel.
+- `direction`: `all` xử lý đều như Grow Mask gốc; 8 hướng hoặc `custom` tăng dần từ mép đối diện (giữ nguyên) đến hướng chọn. Tính riêng theo biên mask của từng ảnh trong batch.
+- `angle` chỉ dùng cho `custom`: 0° phải, 90° dưới, 180° trái, 270° trên. `tapered_corners` giống node gốc.
+
 **🎭 Yolo Seg Mask**
 
 - Node sử dụng model YOLO để tự động phát hiện mask chính xác, nhanh chóng và tiết kiệm GPU.

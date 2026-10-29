@@ -2,6 +2,7 @@ from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 import folder_paths
 import os
 import numpy as np
+from scipy import ndimage
 import torch
 from PIL import Image, ImageOps
 from torch.hub import download_url_to_file
@@ -128,6 +129,68 @@ class yoloseg:
         else:
             ui = ALL_NODE["PreviewImage"]().save_images(images)["ui"]
         return {"ui": ui, "result": (images, masks, id_list, num_objects)}
+
+class GrowMask:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "mask": ("MASK",),
+            "expand": ("INT", {"default": 0, "min": -16384, "max": 16384, "step": 1,
+                                "tooltip": "Số dương mở rộng, số âm thu nhỏ (pixel)."}),
+            "direction": (["all", "top", "bottom", "left", "right", "top_left", "top_right",
+                           "bottom_left", "bottom_right", "custom"], {"default": "all"}),
+            "angle": ("FLOAT", {"default": 90.0, "min": 0.0, "max": 360.0, "step": 1.0,
+                                 "tooltip": "Chỉ dùng với custom: 0° phải, 90° dưới, 180° trái, 270° trên."}),
+            "tapered_corners": ("BOOLEAN", {"default": True}),
+        }}
+
+    CATEGORY = "📂 SDVN/🎭 Mask"
+    RETURN_TYPES = ("MASK",)
+    RETURN_NAMES = ("mask",)
+    FUNCTION = "grow_mask"
+    DESCRIPTION = "Mở rộng/thu nhỏ mask đều hoặc tăng dần theo hướng chọn, giữ nguyên phía đối diện."
+
+    def grow_mask(self, mask, expand, direction="all", angle=90.0, tapered_corners=True):
+        angles = {"right": 0, "bottom_right": 45, "bottom": 90, "bottom_left": 135,
+                  "left": 180, "top_left": 225, "top": 270, "top_right": 315}
+        radians = np.deg2rad(angle if direction == "custom" else angles.get(direction, 0))
+        dx, dy = np.cos(radians), np.sin(radians)
+        dx = 0.0 if abs(dx) < 1e-10 else dx
+        dy = 0.0 if abs(dy) < 1e-10 else dy
+        c = 0 if tapered_corners else 1
+        kernel = np.array([[c, 1, c], [1, 1, 1], [c, 1, c]])
+        operation = ndimage.grey_dilation if expand > 0 else ndimage.grey_erosion
+        masks = mask.reshape(-1, *mask.shape[-2:])
+        outputs = []
+        for item in masks:
+            original = item.detach().to(device="cpu", dtype=torch.float32).numpy()
+            current = original.copy()
+            result = original.copy()
+            radius = None
+            if direction != "all":
+                ys, xs = np.nonzero(original > 0)
+                if not len(ys):
+                    outputs.append(result)
+                    continue
+                # Project the mask bounds onto the chosen direction; opposite edge stays at zero.
+                projection = xs * dx + ys * dy
+                low, high = projection.min(), projection.max()
+                y, x = np.ogrid[:original.shape[0], :original.shape[1]]
+                radius = np.clip((x * dx + y * dy - low) / max(high - low, 1), 0, 1) * abs(expand)
+            for step in range(1, abs(expand) + 1):
+                previous = current
+                current = operation(current, footprint=kernel)
+                if radius is None:
+                    result = current
+                else:
+                    weight = np.clip(radius - (step - 1), 0, 1)
+                    result += (current - previous) * weight
+                if np.array_equal(current, previous):
+                    break
+            outputs.append(result)
+        output = torch.from_numpy(np.stack(outputs)).to(device=mask.device, dtype=mask.dtype)
+        return (output,)
+
 
 class MaskRegions:
     @classmethod
@@ -371,6 +434,7 @@ class MaskColorOverlay:
 
 NODE_CLASS_MAPPINGS = {
     "SDVN Yolo8 Seg": yoloseg,
+    "SDVN Grow Mask": GrowMask,
     "SDVN Mask Regions": MaskRegions,
     "SDVN Inpaint Crop": inpaint_crop,
     "SDVN Loop Inpaint Stitch": LoopInpaintStitch,
@@ -380,6 +444,7 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Yolo8 Seg": "🎭 Yolo Seg Mask",
+    "SDVN Grow Mask": "🎭 Grow Mask",
     "SDVN Mask Regions": "🧩 Mask Regions",
     "SDVN Inpaint Crop": "⚡️ Crop Inpaint",
     "SDVN Loop Inpaint Stitch": "🔄 Loop Inpaint Stitch",
