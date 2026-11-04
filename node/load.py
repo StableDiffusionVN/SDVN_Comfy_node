@@ -252,22 +252,12 @@ async def sdvn_load_image_preview_file(request):
         return web.Response(status=500)
 
 def civit_downlink(link):
-    command = ['wget', link, '-O', 'model.html']
-    subprocess.run(command, check=True, text=True, capture_output=True)
-    try:
-        # Mở tệp và đọc nội dung
-        with open('model.html', 'r', encoding='utf-8') as file:
-            html_content = file.read()
-        pattern = r'"modelVersionId":(\d+),'
-        model_id = re.findall(pattern, html_content)
-        if model_id:
-            api_link = f'https://civitai.com/api/download/models/{model_id[0]}'
-            print(f'Download model id_link: {api_link}')
-            return api_link
-        else:
-            return "Không tìm thấy đoạn nội dung phù hợp."
-    except requests.RequestException as e:
-        return f"Lỗi khi tải trang: {e}"
+    response = requests.get(link, timeout=(15, 60))
+    response.raise_for_status()
+    model_id = re.findall(r'"modelVersionId":(\d+),', response.text)
+    if not model_id:
+        raise ValueError("Không tìm thấy modelVersionId trên trang Civitai.")
+    return f'https://civitai.com/api/download/models/{model_id[0]}'
 
 
 def check_link(link):
@@ -283,6 +273,7 @@ def check_link(link):
         else:
             return link
 
+    return link
 
 def token(link):
     if "civitai" in link:
@@ -309,21 +300,54 @@ def get_hf_token():
     return None
 
 def download_model(url, name, type):
-    url = url.split("?")[0]
-    url = check_link(url)
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
-    if not os.path.isfile(path_model):
-        command = ['aria2c', '-c', '-x', '8', '-s', '8', '-k', '1M']
-        hf_token = get_hf_token() if "huggingface.co" in url else None
-        if hf_token:
-            command.append(f'--header=Authorization: Bearer {hf_token}')
-        elif "huggingface.co" in url and apix_license.has_key():
-            # No HuggingFace token here: the aPix license server signs a temporary
-            # link for private SDVN models (None = public model, download as is).
-            url = apix_license.signed_download_url(url) or url
-        command += [f'{url}{token(url)}', '-d', folder_path, '-o', name]
-        subprocess.run(command, check=True, text=True, capture_output=True)
+    # An interrupted aria2 transfer may already have created the destination.
+    if os.path.isfile(path_model) and not os.path.exists(path_model + ".aria2"):
+        return
+    url = check_link(url)
+    hf_token = get_hf_token() if "huggingface.co" in url else None
+    headers = {}
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+    elif "huggingface.co" in url and apix_license.has_key():
+        url = apix_license.signed_download_url(url) or url
+    if "civitai.com" in url and "token" not in urllib.parse.parse_qs(urllib.parse.urlsplit(url).query):
+        url += ("&" if "?" in url else "?") + token(url).lstrip("?")
+    os.makedirs(os.path.dirname(path_model), exist_ok=True)
+    aria2 = shutil.which("aria2c")
+    if aria2:
+        command = [aria2, '-c', '-x', '8', '-s', '8', '-k', '1M']
+        for key, value in headers.items():
+            command.append(f'--header={key}: {value}')
+        command += [url, '-d', folder_path, '-o', name]
+        try:
+            subprocess.run(command, check=True, text=True, capture_output=True)
+            return
+        except (OSError, subprocess.CalledProcessError):
+            print("SDVN: aria2c không tải được model, chuyển sang tải bằng Python.")
+    print(f"SDVN: Đang tải model {name} bằng Python...")
+    temporary = path_model + ".sdvn-download"
+    try:
+        with requests.get(url, headers=headers, stream=True, timeout=(15, 120)) as response:
+            response.raise_for_status()
+            downloaded = 0
+            with open(temporary, "wb") as output:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        output.write(chunk)
+                        downloaded += len(chunk)
+            expected = response.headers.get("Content-Length")
+            if not downloaded or (expected and not response.headers.get("Content-Encoding")
+                                  and downloaded != int(expected)):
+                raise RuntimeError("Model tải chưa đầy đủ; hãy chạy lại node để tải lại.")
+        os.replace(temporary, path_model)
+        if os.path.exists(path_model + ".aria2"):
+            os.remove(path_model + ".aria2")
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
 
 class LoadImage:
     @classmethod
