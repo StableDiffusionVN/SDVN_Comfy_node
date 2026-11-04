@@ -7,6 +7,7 @@ from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
 from comfy_api.latest import io
 from .style_store import get_style_prompts, style_list
+from . import apix_license
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 import node_helpers
 
@@ -317,6 +318,10 @@ def download_model(url, name, type):
         hf_token = get_hf_token() if "huggingface.co" in url else None
         if hf_token:
             command.append(f'--header=Authorization: Bearer {hf_token}')
+        elif "huggingface.co" in url and apix_license.has_key():
+            # No HuggingFace token here: the aPix license server signs a temporary
+            # link for private SDVN models (None = public model, download as is).
+            url = apix_license.signed_download_url(url) or url
         command += [f'{url}{token(url)}', '-d', folder_path, '-o', name]
         subprocess.run(command, check=True, text=True, capture_output=True)
 
@@ -651,10 +656,9 @@ class CheckpointLoaderDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
     with open(model_lib_path, 'r') as json_file:
         _modellist = json.load(json_file)
-    if get_hf_token() is None:
-        modellist = {name: url for name, url in _modellist.items() if "[SDVN]" not in name}
-    else:
-        modellist = _modellist
+    # [SDVN] models are always listed: they download with a HuggingFace token or an aPix key
+    # (which may arrive after start-up), and ComfyUI rejects values missing from the list.
+    modellist = _modellist
     checkpointlist = list(set(folder_paths.get_filename_list("checkpoints") + list(modellist)))
     checkpointlist.sort()
     @classmethod
@@ -731,10 +735,7 @@ class LoraLoader:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"lora_lib.json")
     with open(model_lib_path, 'r') as json_file:
         _loralist = json.load(json_file)
-    if get_hf_token() is None:
-        loralist = {name: url for name, url in _loralist.items() if "[SDVN]" not in name}
-    else:
-        loralist = _loralist
+    loralist = _loralist
 
     @classmethod
     def available_loras(cls):
