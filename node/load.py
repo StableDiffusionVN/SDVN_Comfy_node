@@ -1,3 +1,4 @@
+import ntpath
 import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
 import folder_paths, comfy.utils, comfy.model_management, server
 from PIL import Image, ImageOps
@@ -76,11 +77,11 @@ def insta_download(url,index):
         index = int(url.split('index=')[1])
     id = re.findall(r'p/(.*)', url)[0].split('?')[0].split('/')[0].strip()
     path_folder = os.path.join(folder_paths.get_input_directory(), 'instadownload')
-    command = ['instaloader', '--slide', str(index), '--no-captions', '--no-metadata-json', '--dirname-pattern', path_folder, '--filename-pattern', id, '--', f'-{id}']
+    command = [sys.executable, '-m', 'instaloader', '--slide', str(index), '--no-captions', '--no-metadata-json', '--dirname-pattern', path_folder, '--filename-pattern', id, '--', f'-{id}']
     subprocess.run(command, check=True,text=True, capture_output=True)
     path_img = os.path.join(path_folder, f"{id}_{index}.jpg")
     if not os.path.exists(path_img):
-        path_img = path_img.split('_')[0] + '.jpg'
+        path_img = os.path.join(path_folder, f'{id}.jpg')
     return path_img
 
 def run_gallery_dl(url):
@@ -102,7 +103,7 @@ def run_gallery_dl(url):
     if 'instagram.com' in url:
         index = index + 1
         return insta_download(url,index)
-    command = ['gallery-dl', '-G', url]
+    command = [sys.executable, '-m', 'gallery_dl', '-G', url]
     try:
         result = subprocess.run(command, check=True,text=True, capture_output=True)
         result = result.stdout.strip()
@@ -148,16 +149,6 @@ def _sdvn_cache_preview_file(resolved_path):
         }
 
     abs_path = os.path.abspath(resolved_path)
-    if abs_path.startswith(input_dir):
-        rel_path = os.path.relpath(abs_path, temp_root).replace("\\", "/")
-        subfolder = os.path.dirname(rel_path).replace("\\", "/")
-        if subfolder in ("", "."):
-            subfolder = ""
-        return abs_path, {
-            "filename": os.path.basename(abs_path),
-            "subfolder": subfolder,
-            "type": "temp",
-        }
     ext = os.path.splitext(abs_path)[1].lower()
     if ext not in allowed_exts:
         ext = ".png"
@@ -542,12 +533,20 @@ class LoadPinterest:
 
     def pintrest_board_download(s, url, range):
         input_folder = folder_paths.get_input_directory()
-        id_folder = url.split("https://www.pinterest.com/")[-1] if "/search/pins/" not in url else "search/"+(url.split("https://www.pinterest.com/search/pins/?q=")[-1].replace("%20", "_"))
-        save_folder = os.path.join(input_folder, "pintrest", id_folder, range)
-        if range != "" or range != "-1":
-            command = ['gallery-dl', '--range', range, url, "-D", save_folder]
-        else:
-            command = ['gallery-dl', url, "-D", save_folder]
+        parsed = urllib.parse.urlsplit(url)
+        # URL queries and ranges may contain characters forbidden in Windows paths.
+        parts = [re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', part).strip(' .')
+                 for part in parsed.path.split('/') if part]
+        # Prefix components to also avoid reserved Windows names (CON, AUX, ...).
+        id_folder = os.path.join(*(f"p_{part or '_'}" for part in parts)) if parts else "pins"
+        if parsed.query:
+            id_folder = os.path.join(id_folder, hashlib.sha1(parsed.query.encode()).hexdigest()[:12])
+        range_folder = "range_" + re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', range).strip(' .')
+        save_folder = os.path.join(input_folder, "pintrest", id_folder, range_folder)
+        command = [sys.executable, '-m', 'gallery_dl']
+        if range not in ("", "-1"):
+            command += ['--range', range]
+        command += [url, "-D", save_folder]
         try:
             subprocess.run(command, check=True, text=True, capture_output=True)
         except subprocess.CalledProcessError as e:
@@ -678,7 +677,7 @@ class LoadImageUltimate:
 
 class CheckpointLoaderDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         _modellist = json.load(json_file)
     # [SDVN] models are always listed: they download with a HuggingFace token or an aPix key
     # (which may arrive after start-up), and ComfyUI rejects values missing from the list.
@@ -718,7 +717,7 @@ class CheckpointLoaderDownload:
         path = folder_paths.get_full_path_or_raise("checkpoints", Ckpt_name)
         index = 0
         if not Download or Download_url == '':
-            name = Ckpt_name.split("/")[-1].rsplit(".", 1)[0]
+            name = os.path.splitext(ntpath.basename(Ckpt_name))[0]
             for i in ["jpg","jpeg","png"]:
                 if os.path.exists(os.path.join(os.path.dirname(path),f"{name}.{i}")):
                     i_cover = os.path.join(os.path.dirname(path),f"{name}.{i}")
@@ -757,7 +756,7 @@ class CheckpointLoaderDownloadFilter(CheckpointLoaderDownload):
         
 class LoraLoader:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"lora_lib.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         _loralist = json.load(json_file)
     loralist = _loralist
 
@@ -806,7 +805,7 @@ class LoraLoader:
         path = folder_paths.get_full_path_or_raise("loras", lora_name)
         index = 0
         if not Download or Download_url == '':
-            name = lora_name.split("/")[-1].rsplit(".", 1)[0]
+            name = os.path.splitext(ntpath.basename(lora_name))[0]
             for i in ["jpg","jpeg","png"]:
                 if os.path.exists(os.path.join(os.path.dirname(path),f"{name}.{i}")):
                     i_cover = os.path.join(os.path.dirname(path),f"{name}.{i}")
@@ -1163,7 +1162,7 @@ class Easy_KSampler:
 
 class UpscaleImage:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_upscale_model = []
     for key, value in modellist.items():
@@ -1222,7 +1221,7 @@ class UpscaleImage:
 
 class UpscaleLatentImage:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_upscale_model = []
     for key, value in modellist.items():
@@ -1270,7 +1269,7 @@ def preprocessor_list():
 
 class AutoControlNetApply:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_controlnet_model = []
     for key, value in modellist.items():
@@ -1344,7 +1343,7 @@ class AutoControlNetApply:
 
 class DiffsynthControlNetApply:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_model_patches_model = []
     for key, value in modellist.items():
@@ -1588,7 +1587,7 @@ IMAGE_MODES = [
 
 class ApplyStyleModel:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_style_model = []
     list_vision_model = []
@@ -1961,7 +1960,7 @@ class CheckpointDownload:
     
 class CheckpointDownloadList:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
 
     @classmethod
@@ -2189,7 +2188,7 @@ class InstantIDModelDownload:
 
 class DualClipDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_clip = []
     for key, value in modellist.items():
@@ -2218,9 +2217,9 @@ class DualClipDownload:
 class LTXAVTextEncoderDownload:
     checkpoint_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
     clip_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(checkpoint_lib_path, 'r') as json_file:
+    with open(checkpoint_lib_path, 'r', encoding='utf-8') as json_file:
         checkpointlist = json.load(json_file)
-    with open(clip_lib_path, 'r') as json_file:
+    with open(clip_lib_path, 'r', encoding='utf-8') as json_file:
         cliplist = json.load(json_file)
     list_checkpoint = list(checkpointlist)
     list_clip = []
@@ -2256,7 +2255,7 @@ class LTXAVTextEncoderDownload:
     
 class QuadrupleCLIPDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_clip = []
     for key, value in modellist.items():
@@ -2284,7 +2283,7 @@ class QuadrupleCLIPDownload:
     
 class AnyDownloadList:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
 
     @classmethod

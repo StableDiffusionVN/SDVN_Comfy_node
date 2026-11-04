@@ -60,7 +60,7 @@ class join_parameter:
         return (r,)
 class auto_generate:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
-    with open(model_lib_path, 'r') as json_file:
+    with open(model_lib_path, 'r', encoding='utf-8') as json_file:
         modellist = json.load(json_file)
     list_upscale_model = []
     for key, value in modellist.items():

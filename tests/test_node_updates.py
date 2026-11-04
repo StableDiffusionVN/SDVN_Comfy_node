@@ -140,8 +140,8 @@ class RequirementsUpdateTests(unittest.TestCase):
     def namespace(self, root, installed_version):
         return load_symbols('__init__.py', ['check_pip', 'install'], {
             'Requirement': Requirement, 'PackageNotFoundError': PackageNotFoundError,
-            'version': installed_version, 'os': os, 'sys': sys,
-            '__file__': str(root / '__init__.py'), 'subprocess': types.SimpleNamespace(check_call=MagicMock()),
+            'version': installed_version, 'os': os, 'sys': sys, 'invalidate_caches': MagicMock(),
+            '__file__': str(root / '__init__.py'), 'subprocess': types.SimpleNamespace(check_call=MagicMock(), CalledProcessError=subprocess.CalledProcessError),
         })
 
     def test_version_constraints_and_platform_markers(self):
@@ -151,6 +151,35 @@ class RequirementsUpdateTests(unittest.TestCase):
         self.assertTrue(ns['check_pip']('example; python_version < "2.0"'))
         ns['version'].side_effect = PackageNotFoundError
         self.assertFalse(ns['check_pip']('missing'))
+
+    def test_first_clone_installs_missing_dependency_with_current_python(self):
+        with tempfile.TemporaryDirectory(prefix='Comfy UI ') as directory:
+            root = Path(directory)
+            (root / 'requirements.txt').write_text('missing-package>=2.0\n', encoding='utf-8')
+            ns = self.namespace(root, MagicMock(side_effect=PackageNotFoundError))
+            ns['install']()
+            ns['subprocess'].check_call.assert_called_once_with(
+                [sys.executable, '-m', 'pip', 'install', 'missing-package>=2.0'])
+            self.assertTrue((root / 'installed.txt').exists())
+            ns['invalidate_caches'].assert_called_once()
+
+    def test_satisfied_requirements_do_not_run_pip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'requirements.txt').write_text('example>=1.0\n', encoding='utf-8')
+            ns = self.namespace(root, MagicMock(return_value='2.0'))
+            ns['install']()
+            ns['subprocess'].check_call.assert_not_called()
+
+    def test_stale_marker_does_not_skip_dependency_checks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            requirements = 'example==2.0\n'
+            (root / 'requirements.txt').write_text(requirements, encoding='utf-8')
+            (root / 'installed.txt').write_text(requirements, encoding='utf-8')
+            ns = self.namespace(root, MagicMock(return_value='1.0'))
+            ns['install']()
+            ns['subprocess'].check_call.assert_called_once()
 
     def test_failed_install_does_not_mark_requirements_complete(self):
         with tempfile.TemporaryDirectory() as directory:

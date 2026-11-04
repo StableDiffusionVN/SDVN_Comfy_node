@@ -562,9 +562,8 @@ def get_name_file(file_path):
     if len(list_txt) == 0:
         return ["None"]
     else:
-        for i in list_txt:
-            list_txt[list_txt.index(i)] = i.replace(f"{file_path}/","")
-        list_txt = ["None"] + list_txt
+        root = os.path.dirname(file_path) if os.path.isfile(file_path) else file_path
+        list_txt = ["None"] + [os.path.relpath(path, root).replace("\\", "/") for path in list_txt]
         return list_txt
 
 class LoadTextFile:
@@ -598,7 +597,7 @@ class LoadTextFile:
                 path = custom_path
             else:
                 path = os.path.join(folder_paths.get_input_directory(), input_dir)
-            with open(path, 'r') as file:
+            with open(path, 'r', encoding='utf-8-sig') as file:
                 content = file.read().strip()
 
         if mode == "fullfile":
@@ -648,7 +647,7 @@ class SaveTextFile:
                 }
                 path = os.path.join(list_dir[save_dir],save_name)
             if os.path.exists(path):
-                with open(path, 'r') as file:
+                with open(path, 'r', encoding='utf-8-sig') as file:
                     old_content = file.read()
             else:
                 old_content = ""
@@ -662,7 +661,7 @@ class SaveTextFile:
                 new_content = f"{content}\n{old_content}"
             elif mode == "join_first_string":
                 new_content = f"{content}, {old_content}"
-            with open(path, 'w') as file:
+            with open(path, 'w', encoding='utf-8') as file:
                 file.write(new_content)
         return ()
 

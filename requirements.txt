@@ -1,3 +1,4 @@
+requests
 #If MacOs - Please install aria2 manually via brew
 aria2;sys_platform == 'linux'
 openai>=3.35.1

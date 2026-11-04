@@ -1,22 +1,16 @@
 import subprocess
 import sys, os
 from importlib.metadata import PackageNotFoundError, version
-from packaging.requirements import Requirement
+from importlib import invalidate_caches
 
-import platform
-
-def ensure_aria2_installed():
-    # Model downloads use Python when aria2c is unavailable, including Windows.
-    system = platform.system().lower()
-    if system == "linux":
-        try:
-            print("✅ Đang cài fonts-jetbrains-mono trên Linux...")
-            subprocess.check_call(["sudo", "apt", "install", "-y", "fonts-jetbrains-mono"])
-            print("✅ Đã cài fonts-jetbrains-mono thành công!")
-        except Exception as e:
-            print("❌ Lỗi khi cài fonts-jetbrains-mono:", e)
-
-ensure_aria2_installed()
+# This bootstrap must run before importing any node or third-party helper.
+try:
+    from packaging.requirements import Requirement
+except ImportError:
+    print("SDVN: Installing packaging into ComfyUI's Python...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "packaging"])
+    invalidate_caches()
+    from packaging.requirements import Requirement
 
 def check_pip(package_name):
     requirement = Requirement(package_name)
@@ -38,12 +32,23 @@ def install():
     missing = [package for package in packages if not check_pip(package)]
     if missing:
         print("Check SDVN-Comfy-Node: Installing missing or incompatible requirements...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", *missing])
+        except subprocess.CalledProcessError:
+            print(f"SDVN: Dependency installation failed in {sys.executable}. "
+                  "Check pip output above, network access and Python compatibility; "
+                  "installation will be retried on the next startup.")
+            raise
+        invalidate_caches()
     file_check = os.path.join(root, "installed.txt")
     temporary = file_check + ".tmp"
-    with open(temporary, "w", encoding="utf-8") as file:
-        file.write(requirements)
-    os.replace(temporary, file_check)
+    try:
+        with open(temporary, "w", encoding="utf-8") as file:
+            file.write(requirements)
+        os.replace(temporary, file_check)
+    except OSError as error:
+        # This file is informational; dependency checks run on every startup.
+        print(f"SDVN: Cannot write installed.txt: {error}")
 
 
 install()

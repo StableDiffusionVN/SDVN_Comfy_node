@@ -1,7 +1,7 @@
 from PIL import Image
 from PIL.ExifTags import TAGS
 from PIL.PngImagePlugin import PngInfo
-import json, ast, os, torch
+import json, ast, os, ntpath, torch
 import numpy as np
 from collections import defaultdict
 import yaml
@@ -27,8 +27,8 @@ class img_info:
     def read(self, img_path, info_type):
         try:
             with Image.open(img_path) as img:
-                img_name = img_path.split('/')[-1].split(".")[0]
-                img_type = img_path.split('/')[-1].split(".")[-1]
+                img_name = os.path.splitext(ntpath.basename(img_path))[0]
+                img_type = os.path.splitext(ntpath.basename(img_path))[1].lstrip(".")
                 metadata = img.info
                 color_mode = img.mode
                 image_size = img.size
@@ -235,7 +235,7 @@ class exif_check:
             return (resulf,)
 
 def get_metadata(filepath):
-    name = filepath.split("/")[-1].rsplit(".", 1)[0]
+    name = os.path.splitext(ntpath.basename(filepath))[0]
     if os.path.exists(os.path.join(os.path.dirname(filepath),f"{name}.txt")):
         txt = os.path.join(os.path.dirname(filepath),f"{name}.txt")
         with open(txt, "r", encoding="utf-8") as file:
@@ -390,12 +390,12 @@ class model_info_editor:
                 data_dict["Url"] = Url
             update_metadata(model_path, data_dict)
         if Txt_save and Txt_note != "":
-            name = model_path.split("/")[-1].rsplit(".", 1)[0]
+            name = os.path.splitext(ntpath.basename(model_path))[0]
             txt_path = os.path.join(os.path.dirname(model_path),f"{name}.txt")
             with open(txt_path, "w", encoding="utf-8") as file:
                 file.write(Txt_note)
         if image_cover is not None:
-            name = model_path.split("/")[-1].rsplit(".", 1)[0]
+            name = os.path.splitext(ntpath.basename(model_path))[0]
             img_path = os.path.join(os.path.dirname(model_path),f"{name}.png")
             image = tensor2pil(image_cover)
             image.save(img_path, format="PNG")

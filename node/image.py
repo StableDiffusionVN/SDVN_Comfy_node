@@ -2,6 +2,7 @@ from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 import torch, numpy as np, copy, datetime
 import torch.nn.functional as tF
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
+import sys
 import platform, math, folder_paths, os, subprocess, cv2
 import torchvision.transforms.functional as F
 os_name = platform.system()
@@ -697,7 +698,7 @@ class img_scraper:
             main_folder = custom_save_folder
         sub_folder = url.split('//')[-1].split('/')[0].split('www.')[-1]
         folder = os.path.join(main_folder,sub_folder)
-        command = ["gallery-dl", "--cookies-from-browser", cookies, "--directory", folder, url]
+        command = [sys.executable, "-m", "gallery_dl", "--cookies-from-browser", cookies, "--directory", folder, url]
         subprocess.run(command, check=True,text=True, capture_output=True)
         result = ALL_NODE["SDVN Load Image Folder"]().load_image(folder, -1, False, 0)["result"][0]
         return (result,)
