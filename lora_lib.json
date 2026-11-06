@@ -11,6 +11,7 @@
     "[SDVN]_Upscale_Klein-9b_v1.safetensors": "https://huggingface.co/phamhungd/sell-model/blob/main/Lora/%5BSDVN%5D-Upscale_klein_9b_v1.safetensors",
     "[SDVN]_Upscale_Arc_Klein-9b_v1.safetensors": "https://huggingface.co/phamhungd/sell-model/blob/main/Lora/%5BSDVN%5D_Upscale_Arc_Klein-9b_v1.safetensors",
     "[SDVN]_Upscale_Product_Klein-9b_v1.safetensors": "https://huggingface.co/phamhungd/sell-model/resolve/main/Lora/%5BSDVN%5D_Upscale_Product_Klein-9b_v1.safetensors",
+    "[SDVN]_Upscale_Land_Klein-9b_v1.safetensors": "https://huggingface.co/phamhungd/sell-model/blob/main/Lora/%5BSDVN%5D_Upscale_Land_Klein-9b_v1.safetensors",
     "[SDVN]_Mikami_face-9b.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/resolve/main/Lora/%5BSDVN%5D_Mikami_face-9b.safetensors",
     "[SDVN]_Mikami_face-z.safetensors": "https://huggingface.co/phamhungd/SDVN-Model/resolve/main/Lora/%5BSDVN%5D_Mikami_face-z.safetensors",
 
