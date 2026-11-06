@@ -55,6 +55,29 @@ def _wavelet_color_fix_tensor(target, source):
     _, source_low = _wavelet_decomposition(source)
     return target_high + source_low
 
+def _guided_color_fix_tensor(target, source):
+    if target.dtype in (torch.float16, torch.bfloat16):
+        target = target.float()
+    source = source.to(target)
+    if target.shape[-2:] != source.shape[-2:]:
+        source = tF.interpolate(source, size=target.shape[-2:], mode="bilinear", align_corners=False)
+
+    def box_mean(image):
+        # Separable 33×33 box filter with truncated windows at the borders.
+        image = tF.avg_pool2d(image, (1, 33), stride=1, padding=(0, 16), count_include_pad=False)
+        return tF.avg_pool2d(image, (33, 1), stride=1, padding=(16, 0), count_include_pad=False)
+
+    # Use target luminance to guide the smoothing of the RGB correction.
+    guide = (target * target.new_tensor([0.2126, 0.7152, 0.0722])[None, :, None, None]).sum(dim=1, keepdim=True)
+    correction = source - target
+    mean_guide = box_mean(guide)
+    mean_correction = box_mean(correction)
+    variance = (box_mean(guide.square()) - mean_guide.square()).clamp_min(0)
+    covariance = box_mean(guide * correction) - mean_guide * mean_correction
+    slope = covariance / (variance + 0.01 ** 2)
+    intercept = mean_correction - slope * mean_guide
+    return target + box_mean(slope) * guide + box_mean(intercept)
+
 def _resolve_reference_image(ref_image, index, batch_size):
     ref_batch = ref_image.shape[0]
     if ref_batch == 1:
@@ -761,7 +784,7 @@ class color_match:
             "required": {
                 "image": ("IMAGE",),
                 "ref_image": ("IMAGE",),
-                "method": (["wavelet", "adain", "mkl", "hm", "reinhard", "mvgd", "hm-mvgd-hm", "hm-mkl-hm"], {"default": "wavelet"}),
+                "method": (["wavelet", "adain", "mkl", "hm", "reinhard", "mvgd", "hm-mvgd-hm", "hm-mkl-hm", "guided"], {"default": "wavelet"}),
                 "blend": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
             }
         }
@@ -770,7 +793,7 @@ class color_match:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "color_match"
-    DESCRIPTION = "Cân bằng màu RGB của image theo ref_image, hỗ trợ RGB/RGBA và giữ nguyên alpha của image. Tham khảo Image Color Match của ComfyUI-Easy-Use."
+    DESCRIPTION = "Cân bằng màu RGB của image theo ref_image và giữ nguyên alpha. Chế độ guided dùng cho ảnh cùng cảnh đã căn khớp để hạn chế vệt hằn ở biên sáng–tối. Tham khảo Image Color Match của ComfyUI-Easy-Use."
 
     def color_match(self, image, ref_image, method, blend):
         batch_size = image.shape[0]
@@ -780,7 +803,11 @@ class color_match:
             target = image[i:i + 1, ..., :3]
             ref = _resolve_reference_image(ref_image, i, batch_size)[..., :3]
 
-            if method == "wavelet":
+            if method == "guided":
+                target_chw = target.permute(0, 3, 1, 2)
+                ref_chw = ref.permute(0, 3, 1, 2)
+                matched = _guided_color_fix_tensor(target_chw, ref_chw).permute(0, 2, 3, 1)
+            elif method == "wavelet":
                 target_chw = target.permute(0, 3, 1, 2)
                 ref_chw = ref.permute(0, 3, 1, 2)
                 matched = _wavelet_color_fix_tensor(target_chw, ref_chw).permute(0, 2, 3, 1)

@@ -115,7 +115,8 @@ class ImageNodeUpdateTests(unittest.TestCase):
 
         ns = load_symbols('node/image.py', [
             '_calc_mean_std', '_adaptive_instance_normalization', '_wavelet_blur',
-            '_wavelet_decomposition', '_wavelet_color_fix_tensor', '_resolve_reference_image', 'color_match',
+            '_wavelet_decomposition', '_wavelet_color_fix_tensor', '_guided_color_fix_tensor',
+            '_resolve_reference_image', 'color_match',
         ], {'torch': torch, 'tF': torch.nn.functional, '_color_match_color_matcher': matcher})
         node = ns['color_match']()
         image = torch.rand(2, 5, 7, 4, dtype=torch.float64)
@@ -134,6 +135,21 @@ class ImageNodeUpdateTests(unittest.TestCase):
             self.assertEqual(mixed.shape[-1], 3)
         matched_batch, = node.color_match(image, image.flip(0), 'adain', .5)
         torch.testing.assert_close(matched_batch[..., 3:], image[..., 3:], rtol=0, atol=0)
+
+    def test_guided_color_match_preserves_shadow_at_high_contrast_edge(self):
+        torch = self.torch
+        cls = load_symbols('node/image.py', [
+            '_guided_color_fix_tensor', '_resolve_reference_image', 'color_match',
+        ], {'torch': torch, 'tF': torch.nn.functional})['color_match']
+        image = torch.full((1, 64, 256, 3), .02, dtype=torch.float16)
+        image[:, :, 128:] = .90
+        ref = torch.full_like(image, .01)
+        ref[:, :, 128:] = .55
+
+        matched, = cls().color_match(image, ref, 'guided', 1.)
+
+        self.assertEqual(matched.dtype, image.dtype)
+        torch.testing.assert_close(matched, ref, atol=5e-4, rtol=0)
 
 
 class RequirementsUpdateTests(unittest.TestCase):
