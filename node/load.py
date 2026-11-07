@@ -252,12 +252,6 @@ def civit_downlink(link):
 
 
 def check_link(link):
-    if 'huggingface.co' in link:
-        if 'blob' in link:
-            link = link.replace('blob', 'resolve')
-            return link
-        else:
-            return link
     if 'civitai.com' in link:
         if 'civitai.com/models' in link:
             return civit_downlink(link)
@@ -291,17 +285,32 @@ def get_hf_token():
     return None
 
 def download_model(url, name, type):
+    parsed_url = urllib.parse.urlsplit(url)
+    is_huggingface = parsed_url.hostname == "huggingface.co"
+    if is_huggingface:
+        # Match file URLs for both namespaced and legacy unnamespaced repos.
+        file_route = re.match(r"^/(?:[^/]+/)??[^/]+/(blob|resolve)/[^/]+/.+", parsed_url.path)
+        if file_route:
+            filename = urllib.parse.unquote(parsed_url.path.rsplit("/", 1)[-1])
+            if (name == "model.safetensors" and not filename.endswith((".", " "))
+                    and re.fullmatch(r'[^<>:"/\\|?*\x00-\x1f]+', filename)):
+                name = filename
+            if file_route[1] == "blob":
+                start, end = file_route.span(1)
+                path = parsed_url.path[:start] + "resolve" + parsed_url.path[end:]
+                url = parsed_url._replace(path=path).geturl()
     folder_path = os.path.join(folder_paths.models_dir, type)
     path_model = os.path.join(folder_path, name)
     # An interrupted aria2 transfer may already have created the destination.
     if os.path.isfile(path_model) and not os.path.exists(path_model + ".aria2"):
-        return
-    url = check_link(url)
-    hf_token = get_hf_token() if "huggingface.co" in url else None
+        return name
+    if not is_huggingface:
+        url = check_link(url)
+    hf_token = get_hf_token() if is_huggingface else None
     headers = {}
     if hf_token:
         headers["Authorization"] = f"Bearer {hf_token}"
-    elif "huggingface.co" in url and apix_license.has_key():
+    elif is_huggingface and apix_license.has_key():
         url = apix_license.signed_download_url(url) or url
     if "civitai.com" in url and "token" not in urllib.parse.parse_qs(urllib.parse.urlsplit(url).query):
         url += ("&" if "?" in url else "?") + token(url).lstrip("?")
@@ -314,7 +323,7 @@ def download_model(url, name, type):
         command += [url, '-d', folder_path, '-o', name]
         try:
             subprocess.run(command, check=True, text=True, capture_output=True)
-            return
+            return name
         except (OSError, subprocess.CalledProcessError):
             print("SDVN: aria2c không tải được model, chuyển sang tải bằng Python.")
     print(f"SDVN: Đang tải model {name} bằng Python...")
@@ -338,6 +347,7 @@ def download_model(url, name, type):
     finally:
         if os.path.exists(temporary):
             os.remove(temporary)
+    return name
 
 
 class LoadImage:
@@ -711,8 +721,7 @@ class CheckpointLoaderDownload:
                 Download_url = self.modellist[Ckpt_name]
                 Ckpt_url_name = Ckpt_name        
         if Download and Download_url != "":
-            download_model(Download_url, Ckpt_url_name, "checkpoints")
-            Ckpt_name = Ckpt_url_name
+            Ckpt_name = download_model(Download_url, Ckpt_url_name, "checkpoints")
         results = ALL_NODE["CheckpointLoaderSimple"]().load_checkpoint(Ckpt_name)
         path = folder_paths.get_full_path_or_raise("checkpoints", Ckpt_name)
         index = 0
@@ -800,8 +809,7 @@ class LoraLoader:
                 Download_url = self.loralist[lora_name]
                 Lora_url_name = lora_name
         if Download and Download_url != '':
-            download_model(Download_url, Lora_url_name, "loras")
-            lora_name = Lora_url_name
+            lora_name = download_model(Download_url, Lora_url_name, "loras")
         path = folder_paths.get_full_path_or_raise("loras", lora_name)
         index = 0
         if not Download or Download_url == '':
@@ -1956,7 +1964,7 @@ class CheckpointDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def checkpoint_download(self, Download_url, Ckpt_url_name):
-        download_model(Download_url, Ckpt_url_name, "checkpoints")
+        Ckpt_url_name = download_model(Download_url, Ckpt_url_name, "checkpoints")
         return ALL_NODE["CheckpointLoaderSimple"]().load_checkpoint(Ckpt_url_name)
     
 class CheckpointDownloadList:
@@ -2002,7 +2010,7 @@ class LoraDownload:
     DESCRIPTION = "LoRA dùng để điều chỉnh mô hình diffusion và CLIP, thay đổi cách khử nhiễu latent, ví dụ áp dụng style. Có thể kết hợp nhiều node LoRA."
 
     def load_lora(self, model, clip, Download_url, Lora_url_name, strength_model, strength_clip):
-        download_model(Download_url, Lora_url_name, "loras")
+        Lora_url_name = download_model(Download_url, Lora_url_name, "loras")
         return ALL_NODE["LoraLoader"]().load_lora(model, clip, Lora_url_name, strength_model, strength_clip)
 
 class CLIPVisionDownload:
@@ -2018,7 +2026,7 @@ class CLIPVisionDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "clip_vision")
+        Url_name = download_model(Download_url, Url_name, "clip_vision")
         return ALL_NODE["CLIPVisionLoader"]().load_clip(Url_name)
 
 class UpscaleModelDownload:
@@ -2034,7 +2042,7 @@ class UpscaleModelDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "upscale_models")
+        Url_name = download_model(Download_url, Url_name, "upscale_models")
         return ALL_NODE["UpscaleModelLoader"]().load_model(Url_name)
 
 class LatentUpscaleModelDownload:
@@ -2050,7 +2058,7 @@ class LatentUpscaleModelDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "latent_upscale_models")
+        Url_name = download_model(Download_url, Url_name, "latent_upscale_models")
         loader = ALL_NODE["LatentUpscaleModelLoader"]()
         if hasattr(loader, "load_model"):
             return loader.load_model(Url_name)
@@ -2070,7 +2078,7 @@ class VAEDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "vae")
+        Url_name = download_model(Download_url, Url_name, "vae")
         return ALL_NODE["VAELoader"]().load_vae(Url_name)
 
 class ControlNetDownload:
@@ -2086,7 +2094,7 @@ class ControlNetDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "controlnet")
+        Url_name = download_model(Download_url, Url_name, "controlnet")
         return ALL_NODE["ControlNetLoader"]().load_controlnet(Url_name)
 
 class UNETDownload:
@@ -2103,7 +2111,7 @@ class UNETDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name, weight_dtype):
-        download_model(Download_url, Url_name, "diffusion_models")
+        Url_name = download_model(Download_url, Url_name, "diffusion_models")
         return ALL_NODE["UNETLoader"]().load_unet(Url_name,weight_dtype)
 
 class CLIPDownload:
@@ -2120,7 +2128,7 @@ class CLIPDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name, type):
-        download_model(Download_url, Url_name, "text_encoders")
+        Url_name = download_model(Download_url, Url_name, "text_encoders")
         return ALL_NODE["CLIPLoader"]().load_clip(Url_name,type)
 
 class ModelPatchDownload:
@@ -2136,7 +2144,7 @@ class ModelPatchDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "model_patches")
+        Url_name = download_model(Download_url, Url_name, "model_patches")
         return ALL_NODE["ModelPatchLoader"]().load_model_patch(Url_name)
     
 class StyleModelDownload:
@@ -2152,7 +2160,7 @@ class StyleModelDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "style_models")
+        Url_name = download_model(Download_url, Url_name, "style_models")
         return ALL_NODE["StyleModelLoader"]().load_style_model(Url_name)
 
 class IPAdapterModelDownload:
@@ -2168,7 +2176,7 @@ class IPAdapterModelDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "ipadapter")
+        Url_name = download_model(Download_url, Url_name, "ipadapter")
         return ALL_NODE["IPAdapterModelLoader"]().load_ipadapter_model(Url_name)
 
 class InstantIDModelDownload:
@@ -2184,7 +2192,7 @@ class InstantIDModelDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
-        download_model(Download_url, Url_name, "instantid")
+        Url_name = download_model(Download_url, Url_name, "instantid")
         return ALL_NODE["InstantIDModelLoader"]().load_model(Url_name)
 
 class DualClipDownload:
@@ -2211,8 +2219,8 @@ class DualClipDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(s, CLIP_name1, CLIP_name2, type, device="default"):
-        download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
-        download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
+        CLIP_name1 = download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
+        CLIP_name2 = download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
         return ALL_NODE["DualCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, type, device=device)
     
 class LTXAVTextEncoderDownload:
@@ -2247,8 +2255,8 @@ class LTXAVTextEncoderDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(s, Ckpt_name, CLIP_name, device="default"):
-        download_model(s.checkpointlist[Ckpt_name], Ckpt_name, "checkpoints")
-        download_model(s.cliplist[CLIP_name][0], CLIP_name, "text_encoders")
+        Ckpt_name = download_model(s.checkpointlist[Ckpt_name], Ckpt_name, "checkpoints")
+        CLIP_name = download_model(s.cliplist[CLIP_name][0], CLIP_name, "text_encoders")
         output = ALL_NODE["LTXAVTextEncoderLoader"].execute(CLIP_name, Ckpt_name, device=device)
         if hasattr(output, "result"):
             return output.result if output.result is not None else output
@@ -2276,10 +2284,10 @@ class QuadrupleCLIPDownload:
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(s, CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4):
-        download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
-        download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
-        download_model(s.modellist[CLIP_name3][0], CLIP_name3, "text_encoders")
-        download_model(s.modellist[CLIP_name4][0], CLIP_name4, "text_encoders")
+        CLIP_name1 = download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
+        CLIP_name2 = download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
+        CLIP_name3 = download_model(s.modellist[CLIP_name3][0], CLIP_name3, "text_encoders")
+        CLIP_name4 = download_model(s.modellist[CLIP_name4][0], CLIP_name4, "text_encoders")
         return ALL_NODE["QuadrupleCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4)
     
 class AnyDownloadList:
