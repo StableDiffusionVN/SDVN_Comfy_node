@@ -1064,6 +1064,7 @@ ModelType_list = {
     "Z-Image": [1, "euler", "simple"],
     "Boogu": [1, "lcm", "sgm_uniform"],
     "Krea2": [1, "euler", "simple"],
+    "QwenImage21": [1, "euler", "simple"],
 }
 
 StepsType_list = {

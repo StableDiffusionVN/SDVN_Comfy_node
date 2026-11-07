@@ -784,7 +784,7 @@ class color_match:
             "required": {
                 "image": ("IMAGE",),
                 "ref_image": ("IMAGE",),
-                "method": (["wavelet", "adain", "mkl", "hm", "reinhard", "mvgd", "hm-mvgd-hm", "hm-mkl-hm", "guided"], {"default": "wavelet"}),
+                "method": (["guided", "wavelet", "adain", "mkl", "hm", "reinhard", "mvgd", "hm-mvgd-hm", "hm-mkl-hm"], {"default": "guided"}),
                 "blend": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
             }
         }
