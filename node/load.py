@@ -1675,6 +1675,8 @@ class ApplyStyleModel:
             return (positive, para)
 
 class KontextReference:
+    image_inputs = ("image", *(f"image{i}" for i in range(2, 17)))
+
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
@@ -1683,10 +1685,9 @@ class KontextReference:
                     "vae": ("VAE", ),
                              },
                 "optional": {
-                     "image": ("IMAGE",),
-                     "image2": ("IMAGE",),
-                     "image3": ("IMAGE",),
+                     **dict.fromkeys(s.image_inputs[:3], ("IMAGE",)),
                      "mask": ("MASK",),
+                     **dict.fromkeys(s.image_inputs[3:], ("IMAGE",)),
                 },  
                              }
     
@@ -1696,29 +1697,32 @@ class KontextReference:
 
     CATEGORY = "📂 SDVN"
 
-    def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None):
+    def append(s, img_size, conditioning, vae, image=None, image2=None, image3=None, mask=None, **images):
         if mask is not None:
             if ALL_NODE["SDVN Get Mask Size"]().get_size(mask)[0] == 0:
                 mask = None
-        img_list = []
-        for img in [image, image2, image3]:
-            if img is not None:
-                img_list.append(img)
-        if len(img_list) > 0:
-            width, height = ALL_NODE["SDVN Image Size"]().imagesize(image = img_list[0], latent = None, maxsize = img_size)
-            first_img = UpscaleImage().upscale("Resize", width, height, scale=1, model_name="None", image=img_list[0])[0]
-            first_img_latent = ALL_NODE["VAEEncode"]().encode(vae, first_img)[0]
-            if len(img_list) > 1:
-                img = ALL_NODE["SDVN Image Layout"]().layout(["row"], ["Left-Right"], [height],[""], ["left"], [40], [image], [image2], [image3])[0]
-                latent = ALL_NODE["VAEEncode"]().encode(vae, img)[0]
-            else:
-                latent = first_img_latent
-            conditioning = ALL_NODE["ReferenceLatent"]().execute(conditioning, latent)[0]
-            if mask is not None:
-                first_img_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_img_latent, mask)[0]
-            return (conditioning,width,height,first_img_latent)
-        else:
+        img_list = [image, image2, image3]
+        img_list.extend(images.get(name) for name in s.image_inputs[3:])
+        img_list = [img for img in img_list if img is not None]
+        if not img_list:
             return (conditioning, img_size, img_size, None)
+
+        image_size = ALL_NODE["SDVN Image Size"]()
+        upscale = UpscaleImage()
+        encode = ALL_NODE["VAEEncode"]()
+        ref_latents = []
+        for img in img_list:
+            width, height = image_size.imagesize(image=img, latent=None, maxsize=img_size)
+            resized = upscale.upscale("Resize", width, height, scale=1, model_name="None", image=img)[0]
+            latent = encode.encode(vae, resized)[0]
+            if not ref_latents:
+                first_width, first_height, first_latent = width, height, latent
+            ref_latents.append(latent["samples"])
+
+        conditioning = node_helpers.conditioning_set_values(conditioning, {"reference_latents": ref_latents}, append=True)
+        if mask is not None:
+            first_latent = ALL_NODE["SetLatentNoiseMask"]().set_mask(first_latent, mask)[0]
+        return (conditioning, first_width, first_height, first_latent)
 
 class BooguEditTextEncoder(io.ComfyNode):
     @classmethod

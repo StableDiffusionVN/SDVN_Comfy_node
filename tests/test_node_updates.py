@@ -151,6 +151,36 @@ class ImageNodeUpdateTests(unittest.TestCase):
         self.assertEqual(matched.dtype, image.dtype)
         torch.testing.assert_close(matched, ref, atol=5e-4, rtol=0)
 
+    def test_apply_reference_encodes_each_image_and_keeps_first_latent(self):
+        image_a, image_b, vae, mask = object(), object(), object(), object()
+        latent_a, latent_b = {'samples': object()}, {'samples': object()}
+        sizing, upscale, encoder, conditioning_set = (MagicMock() for _ in range(4))
+        sizing.imagesize.side_effect = [(1024, 512), (512, 1024)]
+        upscale.upscale.side_effect = [(image_a,), (image_b,)]
+        encoder.encode.side_effect = [(latent_a,), (latent_b,)]
+        masked_latent = dict(latent_a, noise_mask=mask)
+        masker = MagicMock()
+        masker.set_mask.return_value = (masked_latent,)
+        nodes = {
+            'SDVN Image Size': lambda: sizing,
+            'VAEEncode': lambda: encoder,
+            'SDVN Get Mask Size': lambda: types.SimpleNamespace(get_size=lambda _: (1,)),
+            'SetLatentNoiseMask': lambda: masker,
+        }
+        cls = load_symbols('node/load.py', ['KontextReference'], {
+            'ALL_NODE': nodes, 'UpscaleImage': lambda: upscale,
+            'node_helpers': types.SimpleNamespace(conditioning_set_values=conditioning_set),
+        })['KontextReference']
+        conditioning = object()
+        result = cls().append(1024, conditioning, vae, image=image_a, image10=image_b, mask=mask)
+
+        self.assertEqual([call.args for call in encoder.encode.call_args_list], [(vae, image_a), (vae, image_b)])
+        conditioning_set.assert_called_once_with(
+            conditioning, {'reference_latents': [latent_a['samples'], latent_b['samples']]}, append=True,
+        )
+        masker.set_mask.assert_called_once_with(latent_a, mask)
+        self.assertEqual(result, (conditioning_set.return_value, 1024, 512, masked_latent))
+
 
 class RequirementsUpdateTests(unittest.TestCase):
     def namespace(self, root, installed_version):
