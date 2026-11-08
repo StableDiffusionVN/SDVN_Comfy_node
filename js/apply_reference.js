@@ -11,6 +11,7 @@ app.registerExtension({
 
 		function syncImageInputs(node) {
 			const inputs = node.inputs ?? [];
+			const previousCount = inputs.length;
 			const linked = new Set(inputs.filter((input) => input.link != null).map((input) => input.name));
 			const visible = new Set(imageNames.slice(0, imageNames.findLastIndex((name) => linked.has(name)) + 2));
 
@@ -21,6 +22,9 @@ app.registerExtension({
 				if (node.findInputSlot(name) < 0) {
 					node.addInput(name, "IMAGE", { shape: LiteGraph.HOLLOW_CIRCLE_SHAPE });
 				}
+			}
+			if (node.inputs.length !== previousCount) {
+				node.setSize([node.size[0], node.computeSize()[1]]);
 			}
 		}
 
