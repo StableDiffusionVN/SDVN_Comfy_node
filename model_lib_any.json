@@ -229,5 +229,5 @@
     "krea2-qwen3vl_4b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Krea-2/blob/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors", "CLIP", "krea2"],
 
     "Flux3-image-klein-int8-convrot.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux_3/blob/main/diffusion_models/Flux3-image-klein-int8-convrot.safetensors", "UNET/Diffusion", "default"],
-    "qwen3vl_4b_int8_convrot.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux_3/blob/main/text_encoder/qwen3vl_4b_int8_convrot.safetensors", "CLIP", "flux3"]
+    "Flux3-qwen3vl_4b_int8_convrot.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux_3/blob/main/text_encoder/qwen3vl_4b_int8_convrot.safetensors", "CLIP", "flux3"]
 }
