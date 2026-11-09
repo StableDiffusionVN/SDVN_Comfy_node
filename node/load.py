@@ -468,8 +468,8 @@ class SDVNLoadVideo:
         return inputs
 
     CATEGORY = "📂 SDVN"
-    RETURN_TYPES = ("VIDEO", "FLOAT", "FLOAT", "IMAGE", "FLOAT", "INT", "AUDIO")
-    RETURN_NAMES = ("video", "start_time", "end_time", "images", "fps", "length", "audio")
+    RETURN_TYPES = ("VIDEO", "IMAGE", "FLOAT", "INT", "AUDIO")
+    RETURN_NAMES = ("video", "images", "fps", "length", "audio")
     FUNCTION = "load_video"
 
     @classmethod
@@ -482,7 +482,7 @@ class SDVNLoadVideo:
 
     def load_video(self, video, start_time, end_time, minimax_frame=False):
         if video == "None":
-            return (None, 0.0, 0.0, None, 0.0, 0, None)
+            return (None, None, 0.0, 0, None)
         source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
         duration = source.get_duration()
         start_time, end_time = _media_time_range(start_time, end_time, duration)
@@ -504,7 +504,7 @@ class SDVNLoadVideo:
             else:
                 images = images[:length]
             fps = output_fps
-        return (source, start_time, end_time, images, fps, images.shape[0], components.audio)
+        return (source, images, fps, images.shape[0], components.audio)
 
 
 class SDVNLoadAudio:
@@ -513,8 +513,8 @@ class SDVNLoadAudio:
         return _media_loader_inputs("audio", ["audio", "video"])
 
     CATEGORY = "📂 SDVN"
-    RETURN_TYPES = ("AUDIO", "FLOAT", "FLOAT")
-    RETURN_NAMES = ("audio", "start_time", "end_time")
+    RETURN_TYPES = ("AUDIO",)
+    RETURN_NAMES = ("audio",)
     FUNCTION = "load_audio"
 
     @classmethod
@@ -527,7 +527,7 @@ class SDVNLoadAudio:
 
     def load_audio(self, audio, start_time, end_time):
         if audio == "None":
-            return (None, 0.0, 0.0)
+            return (None,)
         source = ALL_NODE["LoadAudio"].execute(audio)[0]
         waveform, sample_rate = source["waveform"], source["sample_rate"]
         start_time, end_time = _media_time_range(start_time, end_time, waveform.shape[-1] / sample_rate)
@@ -536,7 +536,7 @@ class SDVNLoadAudio:
         if start_sample >= end_sample:
             raise ValueError("Đoạn audio đã chọn ngắn hơn một mẫu âm thanh.")
         trimmed = {**source, "waveform": waveform[..., start_sample:end_sample]}
-        return (trimmed, start_sample / sample_rate, end_sample / sample_rate)
+        return (trimmed,)
 
 
 class LoadImageFolder:
