@@ -461,6 +461,9 @@ class SDVNLoadVideo:
     @classmethod
     def INPUT_TYPES(cls):
         inputs = _media_loader_inputs("video", ["video"])
+        inputs["required"]["end_time"][1]["tooltip"] = (
+            "Mốc kết thúc, tính bằng giây. 0 = đến hết tệp. Vượt thời lượng = lấy toàn bộ video."
+        )
         inputs["optional"] = {
             "minimax_frame": ("BOOLEAN", {"default": False,
                 "tooltip": "Giảm xuống tối đa 24 fps rồi cắt images về số frame dạng 17k + 5, không lặp frame."}),
@@ -485,6 +488,8 @@ class SDVNLoadVideo:
             return (None, None, 0.0, 0, None)
         source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
         duration = source.get_duration()
+        if end_time > duration:
+            start_time, end_time = 0.0, duration
         start_time, end_time = _media_time_range(start_time, end_time, duration)
         if start_time or end_time < duration:
             source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
