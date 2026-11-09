@@ -460,11 +460,16 @@ def _media_time_range(start_time, end_time, duration):
 class SDVNLoadVideo:
     @classmethod
     def INPUT_TYPES(cls):
-        return _media_loader_inputs("video", ["video"])
+        inputs = _media_loader_inputs("video", ["video"])
+        inputs["optional"] = {
+            "minimax_frame": ("BOOLEAN", {"default": False,
+                "tooltip": "Giảm xuống tối đa 24 fps rồi cắt images về số frame dạng 17k + 5, không lặp frame."}),
+        }
+        return inputs
 
     CATEGORY = "📂 SDVN"
-    RETURN_TYPES = ("VIDEO", "FLOAT", "FLOAT", "IMAGE", "FLOAT", "INT")
-    RETURN_NAMES = ("video", "start_time", "end_time", "images", "fps", "length")
+    RETURN_TYPES = ("VIDEO", "FLOAT", "FLOAT", "IMAGE", "FLOAT", "INT", "AUDIO")
+    RETURN_NAMES = ("video", "start_time", "end_time", "images", "fps", "length", "audio")
     FUNCTION = "load_video"
 
     @classmethod
@@ -475,9 +480,9 @@ class SDVNLoadVideo:
     def IS_CHANGED(cls, video, **kwargs):
         return None if video == "None" else os.stat(folder_paths.get_annotated_filepath(video)).st_mtime_ns
 
-    def load_video(self, video, start_time, end_time):
+    def load_video(self, video, start_time, end_time, minimax_frame=False):
         if video == "None":
-            return (None, 0.0, 0.0, None, 0.0, 0)
+            return (None, 0.0, 0.0, None, 0.0, 0, None)
         source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
         duration = source.get_duration()
         start_time, end_time = _media_time_range(start_time, end_time, duration)
@@ -485,7 +490,21 @@ class SDVNLoadVideo:
             source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
         components = source.get_components()
         images = components.images
-        return (source, start_time, end_time, images, float(components.frame_rate), images.shape[0])
+        fps = float(components.frame_rate)
+        if minimax_frame:
+            output_fps = min(fps, 24.0)
+            available = math.ceil(images.shape[0] * output_fps / fps)
+            frame_count = min(available, math.floor((end_time - start_time) * output_fps + 1e-9))
+            if frame_count < 5:
+                raise ValueError("MiniMax Frame cần ít nhất 5 frame trong đoạn video đã chọn.")
+            length = frame_count - (frame_count - 5) % 17
+            if fps > output_fps:
+                indices = (torch.arange(length, device=images.device) * (fps / output_fps)).long()
+                images = images.index_select(0, indices)
+            else:
+                images = images[:length]
+            fps = output_fps
+        return (source, start_time, end_time, images, fps, images.shape[0], components.audio)
 
 
 class SDVNLoadAudio:
