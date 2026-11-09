@@ -229,5 +229,12 @@
     "krea2-qwen3vl_4b_fp8_scaled.safetensors": ["https://huggingface.co/Comfy-Org/Krea-2/blob/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors", "CLIP", "krea2"],
 
     "Flux3-image-klein-int8-convrot.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux_3/blob/main/diffusion_models/Flux3-image-klein-int8-convrot.safetensors", "UNET/Diffusion", "default"],
-    "Flux3-qwen3vl_4b_int8_convrot.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux_3/blob/main/text_encoder/qwen3vl_4b_int8_convrot.safetensors", "CLIP", "flux3"]
+    "Flux3-qwen3vl_4b_int8_convrot.safetensors": ["https://huggingface.co/StableDiffusionVN/Flux_3/blob/main/text_encoder/qwen3vl_4b_int8_convrot.safetensors", "CLIP", "flux3"],
+
+    "minimax_h3_fl2va_pruned_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors", "UNET/Diffusion", "default"],
+    "minimax_h3_ref2va_pruned_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors", "UNET/Diffusion", "default"],
+    "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": ["https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "CLIP", "minimax"],
+    "minimax_h3_video_vae_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_int8_convrot.safetensors", "VAE"],
+    "minimax_h3_audio_vae_fp32.safetensors": ["https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors", "VAE"],
+    "minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors": ["https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/model_patches/minimax_h3_fun_controlnet_union_pruned_int8_convrot.safetensors", "ModelPatch"]
 }
