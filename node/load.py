@@ -6,7 +6,7 @@ from googletrans import LANGUAGES
 from aiohttp import web
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
-from comfy_api.latest import io
+from comfy_api.latest import InputImpl, io
 from .style_store import get_style_prompts, style_list
 from . import apix_license
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
@@ -435,6 +435,90 @@ class LoadImage:
             if not folder_paths.exists_annotated_filepath(image):
                 return "Invalid image file: {}".format(image)
         return True
+
+def _media_loader_inputs(name, content_types):
+    input_dir = folder_paths.get_input_directory()
+    files = [os.path.relpath(os.path.join(root, file), input_dir).replace("\\", "/")
+             for root, _, filenames in os.walk(input_dir) for file in filenames]
+    files = folder_paths.filter_files_content_types(files, content_types)
+    return {"required": {
+        name: (sorted_none_first(files), {"default": "None", f"{name}_upload": True}),
+        "start_time": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.1, "round": 0.1,
+                                 "tooltip": "Mốc bắt đầu, tính bằng giây."}),
+        "end_time": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.1, "round": 0.1,
+                               "tooltip": "Mốc kết thúc, tính bằng giây. 0 = đến hết tệp."}),
+    }}
+
+
+def _media_time_range(start_time, end_time, duration):
+    end_time = min(end_time, duration) if end_time else duration
+    if not 0 <= start_time < end_time:
+        raise ValueError("Mốc bắt đầu phải nhỏ hơn mốc kết thúc và nằm trong thời lượng tệp.")
+    return start_time, end_time
+
+
+class SDVNLoadVideo:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return _media_loader_inputs("video", ["video"])
+
+    CATEGORY = "📂 SDVN"
+    RETURN_TYPES = ("VIDEO", "FLOAT", "FLOAT", "IMAGE", "FLOAT", "INT")
+    RETURN_NAMES = ("video", "start_time", "end_time", "images", "fps", "length")
+    FUNCTION = "load_video"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, video):
+        return video == "None" or folder_paths.exists_annotated_filepath(video) or f"Không tìm thấy video: {video}"
+
+    @classmethod
+    def IS_CHANGED(cls, video, **kwargs):
+        return None if video == "None" else os.stat(folder_paths.get_annotated_filepath(video)).st_mtime_ns
+
+    def load_video(self, video, start_time, end_time):
+        if video == "None":
+            return (None, 0.0, 0.0, None, 0.0, 0)
+        source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
+        duration = source.get_duration()
+        start_time, end_time = _media_time_range(start_time, end_time, duration)
+        if start_time or end_time < duration:
+            source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
+        components = source.get_components()
+        images = components.images
+        return (source, start_time, end_time, images, float(components.frame_rate), images.shape[0])
+
+
+class SDVNLoadAudio:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return _media_loader_inputs("audio", ["audio", "video"])
+
+    CATEGORY = "📂 SDVN"
+    RETURN_TYPES = ("AUDIO", "FLOAT", "FLOAT")
+    RETURN_NAMES = ("audio", "start_time", "end_time")
+    FUNCTION = "load_audio"
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, audio):
+        return audio == "None" or folder_paths.exists_annotated_filepath(audio) or f"Không tìm thấy audio: {audio}"
+
+    @classmethod
+    def IS_CHANGED(cls, audio, **kwargs):
+        return None if audio == "None" else os.stat(folder_paths.get_annotated_filepath(audio)).st_mtime_ns
+
+    def load_audio(self, audio, start_time, end_time):
+        if audio == "None":
+            return (None, 0.0, 0.0)
+        source = ALL_NODE["LoadAudio"].execute(audio)[0]
+        waveform, sample_rate = source["waveform"], source["sample_rate"]
+        start_time, end_time = _media_time_range(start_time, end_time, waveform.shape[-1] / sample_rate)
+        start_sample = round(start_time * sample_rate)
+        end_sample = round(end_time * sample_rate)
+        if start_sample >= end_sample:
+            raise ValueError("Đoạn audio đã chọn ngắn hơn một mẫu âm thanh.")
+        trimmed = {**source, "waveform": waveform[..., start_sample:end_sample]}
+        return (trimmed, start_sample / sample_rate, end_sample / sample_rate)
+
 
 class LoadImageFolder:
     @classmethod
@@ -2348,6 +2432,8 @@ NODE_CLASS_MAPPINGS = {
     "SDVN Load Lora": LoraLoader,
     "SDVN Load Lora Filter": LoraLoaderFilter,
     "SDVN Load Image": LoadImage,
+    "SDVN Load Video": SDVNLoadVideo,
+    "SDVN Load Audio": SDVNLoadAudio,
     "SDVN Load Image Folder": LoadImageFolder,
     "SDVN Load Image Url": LoadImageUrl,
     "SDVN LoadPinterest": LoadPinterest,
@@ -2395,6 +2481,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Load Lora": "🎨 Load Lora",
     "SDVN Load Lora Filter": "🎨 Load Lora Filter",
     "SDVN Load Image": "🏞️ Load Image",
+    "SDVN Load Video": "🎬 Load Video",
+    "SDVN Load Audio": "🔊 Load Audio",
     "SDVN Load Image Folder": "🏞️ Load Image Folder",
     "SDVN Load Image Url": "📥 Load Image Url",
     "SDVN LoadPinterest": "📥 Load Pinterest",
