@@ -11,13 +11,18 @@ import json
 import os
 import threading
 import time
+import uuid
 
 import requests
 
 LICENSE_URL = os.getenv("APIX_LICENSE_URL", "https://apix.sdvn.vn/license").rstrip("/")
 _API_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "API_key.json")
 _lock = threading.Lock()
-_state = {"key": None, "token": None, "expires": 0.0, "label": "", "error": ""}
+_state = {"key": None, "token": None, "expires": 0.0, "label": "", "error": "", "device": ""}
+# A key may be installed on many machines but may limit how many RUN at once. aPix Builder sends its
+# machine id with the key so this server's downloads count as that machine; a key set directly here
+# (APIX_KEY / API_key.json) counts as this ComfyUI server.
+_SERVER_DEVICE = f"comfy-{uuid.uuid4()}"
 
 
 class ApixLicenseError(RuntimeError):
@@ -53,7 +58,7 @@ def _post(route, payload):
 
 
 def _open_session(key):
-    status, data = _post("/v1/session", {"key": key})
+    status, data = _post("/v1/session", {"key": key, "deviceId": _state["device"] or _SERVER_DEVICE})
     if status != 200 or not data.get("token"):
         raise ApixLicenseError(data.get("error") or f"License server trả lỗi {status}")
     expires = time.time() + 6 * 3600
@@ -65,12 +70,13 @@ def _open_session(key):
     _state.update(key=key, token=data["token"], expires=expires, label=data.get("label", ""), error="")
 
 
-def set_key(key):
+def set_key(key, device=""):
     """Validate a key now (called by aPix through the HTTP route)."""
     key = str(key or "").strip()
     if not key:
         raise ApixLicenseError("Thiếu mã aPix")
     with _lock:
+        _state.update(device=str(device or "")[:80])
         try:
             _open_session(key)
         except ApixLicenseError as error:
@@ -135,7 +141,7 @@ def _register_routes():
             data = {}
         import asyncio
         try:
-            result = await asyncio.to_thread(set_key, data.get("key"))
+            result = await asyncio.to_thread(set_key, data.get("key"), data.get("deviceId"))
             return web.json_response({"ok": True, **result})
         except ApixLicenseError as error:
             return web.json_response({"ok": False, "error": str(error)}, status=401)
