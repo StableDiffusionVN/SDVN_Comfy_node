@@ -308,13 +308,36 @@ def download_model(url, name, type):
         url = check_link(url)
     hf_token = get_hf_token() if is_huggingface else None
     headers = {}
+    signed_url = None
     if hf_token:
         headers["Authorization"] = f"Bearer {hf_token}"
     elif is_huggingface and apix_license.has_key():
-        url = apix_license.signed_download_url(url) or url
+        signed_url = apix_license.signed_download_url(url)
     if "civitai.com" in url and "token" not in urllib.parse.parse_qs(urllib.parse.urlsplit(url).query):
         url += ("&" if "?" in url else "?") + token(url).lstrip("?")
     os.makedirs(os.path.dirname(path_model), exist_ok=True)
+    while True:
+        try:
+            return _download_model_file(signed_url or url, name, folder_path, path_model, headers)
+        except requests.HTTPError as error:
+            if not is_huggingface or error.response.status_code not in (401, 403):
+                raise
+            if signed_url:
+                raise RuntimeError(f"Link tải aPix cho {name} bị từ chối. Hãy chạy lại node để lấy link mới.") from None
+            if hf_token and apix_license.has_key():
+                signed_url = apix_license.signed_download_url(url)
+                if signed_url:
+                    headers.clear()
+                    continue
+            raise RuntimeError(
+                f"Hugging Face từ chối tải {name} (HTTP {error.response.status_code}). "
+                "Với model SDVN, hãy nhập mã aPix trong Settings của aPix Builder "
+                'hoặc điền mục "aPix" trong API_key.json của bộ node. '
+                "Nếu dùng token Hugging Face, hãy kiểm tra token có quyền đọc repo chứa model."
+            ) from None
+
+
+def _download_model_file(url, name, folder_path, path_model, headers):
     aria2 = shutil.which("aria2c")
     if aria2:
         command = [aria2, '-c', '-x', '8', '-s', '8', '-k', '1M']
