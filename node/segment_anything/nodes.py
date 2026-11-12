@@ -16,15 +16,19 @@ import glob
 logger = logging.getLogger('comfyui_segment_anything')
 
 sam_model_dir_name = "sams"
+sam_checkpoint_base_url = (
+    "https://huggingface.co/ybelkada/segment-anything/resolve/"
+    "7790786db131bcdc639f24a915d9f2c331d843ee/checkpoints"
+)
 sam_model_list = {
     "sam_vit_h (2.56GB)": {
-        "model_url": "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
+        "model_url": f"{sam_checkpoint_base_url}/sam_vit_h_4b8939.pth"
     },
     "sam_vit_l (1.25GB)": {
-        "model_url": "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth"
+        "model_url": f"{sam_checkpoint_base_url}/sam_vit_l_0b3195.pth"
     },
     "sam_vit_b (375MB)": {
-        "model_url": "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
+        "model_url": f"{sam_checkpoint_base_url}/sam_vit_b_01ec64.pth"
     },
     "sam_hq_vit_h (2.57GB)": {
         "model_url": "https://huggingface.co/lkeab/hq-sam/resolve/main/sam_hq_vit_h.pth"
