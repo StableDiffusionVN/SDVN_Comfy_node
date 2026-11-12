@@ -104,31 +104,29 @@ def _color_match_color_matcher(image, ref_image, method):
 def create_image_with_text(text, image_size=(1200, 100), font_size=40, align = "left"):
     image = Image.new('RGB', image_size, color=(255, 255, 255))
     draw = ImageDraw.Draw(image)
-    font_size = round(font_size*(image_size[1]/100))
     try:
         if os_name == "Darwin":
             font = ImageFont.truetype("Tahoma.ttf", font_size)
         elif os_name == "Linux":
-            #sudo apt install fonts-jetbrains-mono
             font = ImageFont.truetype("JetBrainsMono-Regular.ttf", font_size)
-            # font = ImageFont.truetype("LiberationMono-Regular.ttf", font_size)
         else:
             font = ImageFont.truetype("arialbd.ttf", font_size)
-    except IOError:
-        font = ImageFont.load_default() 
+    except OSError:
+        font = ImageFont.load_default(size=font_size)
 
     text_bbox = draw.textbbox((0, 0), text, font=font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
+    padding = min(max(0, image_size[0] - text_width) // 2, max(4, font_size // 2))
     if align == "left":
-        text_x = 50
+        text_x = padding
     elif align == "center":
         text_x = (image_size[0] - text_width) / 2
     elif align == "right":
-        text_x = (image_size[0] - text_width) - 50
+        text_x = image_size[0] - text_width - padding
     text_y = (image_size[1] - text_height) / 2
 
-    draw.text((text_x, text_y), text, font=font, fill=(0, 0, 0))
+    draw.text((text_x - text_bbox[0], text_y - text_bbox[1]), text, font=font, fill=(0, 0, 0))
     
     return image
 
@@ -683,12 +681,11 @@ class image_layout:
                 r = list_img[0]
         if ( mode != "row") or ( len(label) == 1 and mode == "row" and ',' not in label[0]):
             label = label[0]
-            if label != "":
-                samples = r.movedim(-1, 1)
-                w = samples.shape[3]
-                h = samples.shape[2]
-                img_label = create_image_with_text(label, image_size=(w, round(50 * (h / 512))), font_size = font_size, align = align)
-                img_label = pil2tensor(img_label)
+            if label and font_size > 0:
+                h, w = r.shape[1:3]
+                label_height = max(round(50 * h / 512), 2 * font_size)
+                img_label = create_image_with_text(label, image_size=(w, label_height), font_size=font_size, align=align)
+                img_label = pil2tensor(img_label).to(r)
                 list_img = [r, img_label]
                 list_img = [tensor.squeeze(0) for tensor in list_img]
                 img_layout = torch.cat(list_img, dim=0)
