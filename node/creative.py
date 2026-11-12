@@ -258,7 +258,7 @@ class ImageSize:
             "optional": {
                 "image": ("IMAGE",),
                 "latent": ("LATENT",),
-                "maxsize": ("INT", {"default": 0, "min": 0, "max": 10240, "tooltip": "0 = noset"}),
+                "maxsize": ("INT", {"default": 0, "min": 0, "max": 20000, "tooltip": "0 = noset"}),
             }}
     CATEGORY = "📂 SDVN/💡 Creative"
     RETURN_TYPES = ("INT", "INT",)

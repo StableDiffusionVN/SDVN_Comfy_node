@@ -1076,7 +1076,7 @@ class SDVNCLIPTextEncodeQwenImage21(io.ComfyNode):
                 io.Combo.Input("style", none2list(style_list()[0]), default="None", tooltip="Chọn style mẫu có sẵn để thêm vào prompt."),
                 io.Combo.Input("translate", lang_list(), tooltip="Ngôn ngữ dịch prompt."),
                 io.Combo.Input("mode", ["max size", "max resolution"], default="max resolution", tooltip="Max size giới hạn cạnh dài như KontextReference; max resolution giữ tổng diện tích như node Qwen Image 2.1 gốc."),
-                io.Int.Input("resolution", default=1024, min=0, max=4096, step=32, tooltip="Kích thước ảnh tham chiếu theo chế độ đã chọn. 0 giữ kích thước ảnh gốc."),
+                io.Int.Input("resolution", default=1024, min=0, max=20000, step=32, tooltip="Kích thước ảnh tham chiếu theo chế độ đã chọn. 0 giữ kích thước ảnh gốc."),
                 io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, tooltip="Seed ngẫu nhiên cho prompt."),
                 io.Vae.Input("vae", optional=True, tooltip="VAE dùng để mã hóa ảnh tham chiếu thành reference latent."),
                 io.Autogrow.Input(
@@ -1246,8 +1246,8 @@ class Easy_KSampler:
                 "negative": ("CONDITIONING", {"tooltip": "Điều kiện mô tả thuộc tính bạn muốn loại trừ khỏi ảnh."}),
                 "latent_image": ("LATENT", {"tooltip": "Latent image cần khử nhiễu."}),
                 "vae": ("VAE", {"tooltip": "Mô hình VAE dùng để giải mã latent thành ảnh."}),
-                "tile_width": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 64, "tooltip": "Chiều rộng tile khi dùng chế độ tiled diffusion."}),
-                "tile_height": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 64, "tooltip": "Chiều cao tile khi dùng chế độ tiled diffusion."}),
+                "tile_width": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 64, "tooltip": "Chiều rộng tile khi dùng chế độ tiled diffusion."}),
+                "tile_height": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 64, "tooltip": "Chiều cao tile khi dùng chế độ tiled diffusion."}),
                 "FluxGuidance":  ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1, "tooltip": "Tham số điều chỉnh FluxGuidance (nếu dùng model Flux)."}),
             }
         }
@@ -1316,8 +1316,8 @@ class UpscaleImage:
             "mode": (["Maxsize", "Resize", "Scale"], {"tooltip": "Chọn chế độ phóng to: Maxsize (giới hạn dài nhất), Resize (đặt kích thước), Scale (phóng theo tỉ lệ)."}),
             "model_name": (none2list(s.list_full_upscale_model), {"default": "None", "tooltip": "Chọn model phóng to (nếu có)."}),
             "scale": ("FLOAT", {"default": 1, "min": 0, "max": 10, "step": 0.01, "tooltip": "Tỉ lệ phóng to ảnh (chỉ dùng khi chọn chế độ Scale)."}),
-            "width": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều rộng ảnh đầu ra."}),
-            "height": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều cao ảnh đầu ra."}),
+            "width": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1, "tooltip": "Chiều rộng ảnh đầu ra."}),
+            "height": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1, "tooltip": "Chiều cao ảnh đầu ra."}),
             "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cần phóng to."}),
         }}
 
@@ -1375,8 +1375,8 @@ class UpscaleLatentImage:
             "mode": (["Maxsize", "Resize", "Scale"], {"tooltip": "Chọn chế độ phóng to: Maxsize (giới hạn dài nhất), Resize (đặt kích thước), Scale (phóng theo tỉ lệ)."}),
             "model_name": (none2list(s.list_full_upscale_model), {"default": "None", "tooltip": "Chọn model phóng to (nếu có)."}),
             "scale": ("FLOAT", {"default": 2, "min": 0, "max": 10, "step": 0.01, "tooltip": "Tỉ lệ phóng to ảnh (chỉ dùng khi chọn chế độ Scale)."}),
-            "width": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều rộng ảnh đầu ra."}),
-            "height": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, "tooltip": "Chiều cao ảnh đầu ra."}),
+            "width": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1, "tooltip": "Chiều rộng ảnh đầu ra."}),
+            "height": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1, "tooltip": "Chiều cao ảnh đầu ra."}),
             "latent": ("LATENT", {"tooltip": "Latent cần phóng to."}),
             "vae": ("VAE", {"tooltip": "Mô hình VAE dùng để giải mã latent."}),
         }}
@@ -1424,7 +1424,7 @@ class AutoControlNetApply:
                              "control_net": (none2list(s.list_full_controlnet_model),{"tooltip": "Chọn model ControlNet, một số model có trong danh sách tải xuống tự động."}),
                              "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
                              "union_type": (["None","auto"] + list(UNION_CONTROLNET_TYPES.keys()),{"tooltip": "Kiểu hợp nhất ControlNet (Áp dụng cho Controlnet Union)."}),
-                             "resolution": ("INT", {"default": 512, "min": 512, "max": 4096, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                             "resolution": ("INT", {"default": 512, "min": 512, "max": 20000, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                              "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
                              "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước đầu sử dụng ControlNet."}),
                              "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001, "tooltip": "Phần trăm bước cuối sử dụng ControlNet."})
@@ -1499,7 +1499,7 @@ class DiffsynthControlNetApply:
                             "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
                             "model_patch": (none2list(s.list_full_model_patches_model),{"tooltip": "Chọn model ControlNet, một số model có trong danh sách tải xuống tự động."}),
                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
-                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                             "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01, "tooltip": "Mức độ ảnh hưởng của ControlNet lên ảnh sinh ra."}),
                              },
                 "optional": {
@@ -1545,7 +1545,7 @@ class DiffsynthUnionLoraApply:
                             "vae": ("VAE", {"tooltip": "Mô hình VAE"}),
                             "image": ("IMAGE", {"tooltip": "Ảnh đầu vào cho ControlNet."}),
                             "preprocessor": (preprocessor_list(),{"tooltip": "Tiền xử lý ảnh cho ControlNet, cần cài đặt ControlNet Aux."}),
-                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
+                            "resolution": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 1, "tooltip": "Độ phân giải cho preprocessor."}),
                              },
                 }
 
@@ -1811,7 +1811,7 @@ class KontextReference:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {
-                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
+                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 20000, "step": 1}),
                     "conditioning": ("CONDITIONING", ),
                     "vae": ("VAE", ),
                              },
@@ -1864,7 +1864,7 @@ class BooguEditTextEncoder(io.ComfyNode):
             category="📂 SDVN",
             inputs=[
                 io.String.Input("prompt", multiline=True, dynamic_prompts=True, tooltip="Prompt mô tả nội dung cần chỉnh sửa."),
-                io.Int.Input("maxsize", default=0, min=0, max=4096, step=1, tooltip="Giới hạn cạnh dài của ảnh reference. 0 = giữ kích thước gốc."),
+                io.Int.Input("maxsize", default=0, min=0, max=20000, step=1, tooltip="Giới hạn cạnh dài của ảnh reference. 0 = giữ kích thước gốc."),
                 io.Combo.Input("translate", lang_list(), tooltip="Ngôn ngữ dịch prompt."),
                 io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, tooltip="Seed ngẫu nhiên cho prompt."),
                 io.Clip.Input("clip", tooltip="Mô hình CLIP/Boogu text encoder dùng để mã hóa prompt và ảnh."),
@@ -1943,7 +1943,7 @@ class QwenEditTextEncoder:
     def INPUT_TYPES(s):
         return {"required": {
                     "prompt": ("STRING", {"multiline": True, "tooltip": "Prompt mô tả nội dung bạn muốn sinh ra."}),
-                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
+                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 20000, "step": 1}),
                     "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
                     "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),
@@ -2009,7 +2009,7 @@ class QwenEditTextEncoderPlus:
     def INPUT_TYPES(s):
         return {"required": {
                     "prompt": ("STRING", {"multiline": True, "tooltip": "Prompt mô tả nội dung bạn muốn sinh ra."}),
-                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 4096, "step": 1}),
+                    "img_size": ("INT",  {"default": 0, "min": 0, "max": 20000, "step": 1}),
                     "translate": (lang_list(),{"tooltip": "Ngôn ngữ dịch prompt."}),
                     "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "tooltip": "Seed ngẫu nhiên cho prompt."}),
                     "clip": ("CLIP", {"tooltip": "Mô hình CLIP dùng để mã hóa prompt."}),

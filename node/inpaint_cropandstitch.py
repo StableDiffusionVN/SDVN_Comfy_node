@@ -1159,10 +1159,10 @@ class InpaintCropImproved:
                 # Pre-resize input image
                 "preresize": ("BOOLEAN", {"default": False, "tooltip": "Resize the original image before processing."}),
                 "preresize_mode": (["ensure minimum resolution", "ensure maximum resolution", "ensure minimum and maximum resolution"], {"default": "ensure minimum resolution"}),
-                "preresize_min_width": ("INT", {"default": 1024, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
-                "preresize_min_height": ("INT", {"default": 1024, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
-                "preresize_max_width": ("INT", {"default": MAX_RESOLUTION, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
-                "preresize_max_height": ("INT", {"default": MAX_RESOLUTION, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
+                "preresize_min_width": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1}),
+                "preresize_min_height": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1}),
+                "preresize_max_width": ("INT", {"default": MAX_RESOLUTION, "min": 0, "max": 20000, "step": 1}),
+                "preresize_max_height": ("INT", {"default": MAX_RESOLUTION, "min": 0, "max": 20000, "step": 1}),
 
                 # Mask manipulation
                 "mask_fill_holes": ("BOOLEAN", {"default": True, "tooltip": "Mark as masked any areas fully enclosed by mask."}),
@@ -1183,8 +1183,8 @@ class InpaintCropImproved:
 
                 # Output
                 "output_resize_to_target_size": ("BOOLEAN", {"default": True, "tooltip": "Force a specific resolution for sampling."}),
-                "output_target_width": ("INT", {"default": 512, "min": 64, "max": MAX_RESOLUTION, "step": 1}),
-                "output_target_height": ("INT", {"default": 512, "min": 64, "max": MAX_RESOLUTION, "step": 1}),
+                "output_target_width": ("INT", {"default": 512, "min": 64, "max": 20000, "step": 1}),
+                "output_target_height": ("INT", {"default": 512, "min": 64, "max": 20000, "step": 1}),
                 "output_padding": (["0", "8", "16", "32", "64", "128", "256", "512"], {"default": "32"}),
                 
                 # Device Mode

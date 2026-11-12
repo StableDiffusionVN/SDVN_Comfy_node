@@ -983,7 +983,7 @@ class Gemini_Flash2_Image:
         return {
             "required": {
                 "Gemini_API": ("STRING", {"default": "", "multiline": False, "tooltip": "Get API: https://aistudio.google.com/apikey"}),
-                "max_size_input": ("INT", {"default":0,"min":0,"max":2048,"step":64, "tooltip": "Giới hạn kích thước ảnh"}),
+                "max_size_input": ("INT", {"default":0,"min":0,"max":20000,"step":64, "tooltip": "Giới hạn kích thước ảnh"}),
                 "preset": (image_preset_list(), {"tooltip": "Preset prompt cho tạo ảnh."}),
                 "prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Main prompt", "tooltip": "Nội dung yêu cầu chính"}),
                 "sub_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "Sub prompt", "tooltip": "Prompt phụ, ghép giống node chatbot"}),

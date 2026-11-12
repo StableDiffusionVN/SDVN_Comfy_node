@@ -357,8 +357,8 @@ class SplitTile:
         return {
             "required": {
                 "image": ("IMAGE",),
-                "tile_width": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 16}),
-                "tile_height": ("INT", {"default": 512, "min": 16, "max": 8192, "step": 16}),
+                "tile_width": ("INT", {"default": 512, "min": 16, "max": 20000, "step": 16}),
+                "tile_height": ("INT", {"default": 512, "min": 16, "max": 20000, "step": 16}),
                 "overlap": ("INT", {"default": DEFAULT_OVERLAP, "min": 0, "max": 4096, "step": 16}),
                 "force_uniform_tiles": ("BOOLEAN", {"default": True}),
                 "pad_mode": (["edge", "reflect", "constant"], {"default": "edge"}),
@@ -1023,7 +1023,7 @@ class ICLora_layout:
             "required": {
                 "image1": ("IMAGE",),  
                 "image2": ("IMAGE",),    
-                "height_size": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 1})
+                "height_size": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 1})
                 },
             "optional":{
                 "mask1": ("MASK",),    
@@ -1144,7 +1144,7 @@ class EmptyLatentRatio:
         return {
             "required": {
                 "ratio": (["1:1", "4:5", "5:4", "2:3", "3:2", "16:9", "9:16", "1:2", "2:1",],),
-                "maxsize": ("INT", {"default": 1024, "min": 0, "max": 4096, "step": 1, }),
+                "maxsize": ("INT", {"default": 1024, "min": 0, "max": 20000, "step": 1, }),
             }
         }
 
@@ -1281,7 +1281,7 @@ class MaskLayoutFit:
                 "margin_bottom": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
                 "margin_left": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
                 "margin_right": ("INT", {"default": 0, "min": 0, "max": 16384, "step": 1}),
-                "max_output_side": ("INT", {"default": 1024, "min": 1, "max": 16384, "step": 1}),
+                "max_output_side": ("INT", {"default": 1024, "min": 1, "max": 20000, "step": 1}),
                 "fill_mode": (["white", "edge_nearest"], {"default": "white"}),
             }
         }
