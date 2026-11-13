@@ -261,5 +261,72 @@ class RequirementsUpdateTests(unittest.TestCase):
             self.assertEqual(call.call_args.args[0][-2:], ['first==2.0', 'second>=2.0'])
 
 
+
+@unittest.skipUnless(importlib.util.find_spec('torch'), 'Requires PyTorch')
+class LoadVideoBlockTests(unittest.TestCase):
+    def setUp(self):
+        import math
+        import torch
+        self.torch = torch
+        self.ns = load_symbols('node/load.py', ['_media_time_range', '_minimax_length', '_video_block_range',
+                                                '_slice_audio', 'SDVNLoadVideo'],
+                               {'math': math, 'torch': torch})
+
+    def blocks(self, total, n, minimax=False):
+        return [self.ns['_video_block_range'](total, n, i, minimax) for i in range(n)]
+
+    def test_plain_blocks_are_contiguous_and_last_takes_remainder(self):
+        for total, n in [(100, 3), (7, 7), (101, 4), (24, 1)]:
+            blocks = self.blocks(total, n)
+            self.assertEqual([s for s, _ in blocks], [sum(l for _, l in blocks[:i]) for i in range(n)])
+            self.assertEqual(sum(l for _, l in blocks), total)
+            self.assertTrue(all(l == total // n for _, l in blocks[:-1]))
+
+    def test_minimax_blocks_are_17k_plus_5_and_contiguous(self):
+        for total, n in [(200, 4), (96, 2), (241, 3), (22, 2), (10, 2), (500, 7)]:
+            blocks = self.blocks(total, n, True)
+            for i, (start, length) in enumerate(blocks):
+                self.assertEqual((length - 5) % 17, 0, (total, n, blocks))
+                self.assertEqual(start, sum(l for _, l in blocks[:i]))
+            self.assertLess(total - sum(l for _, l in blocks), 17)
+        self.assertEqual(self.blocks(200, 4, True), [(0, 56), (56, 56), (112, 56), (168, 22)])
+
+    def test_invalid_block_requests_raise(self):
+        block_range = self.ns['_video_block_range']
+        with self.assertRaises(ValueError):
+            block_range(100, 3, 3)
+        with self.assertRaises(ValueError):
+            block_range(2, 3, 0)
+        with self.assertRaises(ValueError):
+            block_range(9, 2, 0, True)
+
+    def test_block_mode_selects_frames_audio_and_trims_video(self):
+        torch = self.torch
+        frames = torch.arange(96).float().view(96, 1, 1, 1)
+        audio = {'waveform': torch.arange(4000).float().view(1, 1, 4000), 'sample_rate': 1000}
+        trims = []
+
+        class FakeVideo:
+            def get_duration(self):
+                return 4.0
+            def as_trimmed(self, start, duration, strict_duration=False):
+                trims.append((round(start, 6), round(duration, 6)))
+                return self
+            def get_components(self):
+                return types.SimpleNamespace(images=frames, audio=audio, frame_rate=24)
+
+        self.ns['InputImpl'] = types.SimpleNamespace(VideoFromFile=lambda path: FakeVideo())
+        self.ns['folder_paths'] = types.SimpleNamespace(get_annotated_filepath=lambda name: name)
+        node = self.ns['SDVNLoadVideo']()
+        _, images, fps, length, out_audio = node.load_video('a.mp4', 0, 0, True, 'block', 2, 1)
+        self.assertEqual((fps, length), (24.0, 39))
+        self.assertEqual(images[0].item(), 56)
+        self.assertEqual(trims, [(round(56 / 24, 6), round(39 / 24, 6))])
+        self.assertEqual(out_audio['waveform'].shape[-1], 1625)
+        _, images, _, length, _ = node.load_video('a.mp4', 0, 0, False, 'block', 3, 2)
+        self.assertEqual((length, images[0].item()), (32, 64))
+        _, images, _, length, _ = node.load_video('a.mp4', 0, 0, True, 'time', 2, 0)
+        self.assertEqual(length, 90)
+
 if __name__ == '__main__':
     unittest.main()

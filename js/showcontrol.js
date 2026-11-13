@@ -65,6 +65,16 @@ function addShowControl(nodeType, nodeData) {
                     index: v === "Insta"
                 })
             },
+            "SDVN Load Video": {
+                controller: "trim_mode",
+                keepSize: true,
+                targets: (v) => ({
+                    start_time: v !== "block",
+                    end_time: v !== "block",
+                    num_blocks: v === "block",
+                    index: v === "block"
+                })
+            },
             "SDVN Save Text": {
                 controller: "save_dir",
                 targets: (v) => ({
@@ -78,6 +88,45 @@ function addShowControl(nodeType, nodeData) {
 
         const controller = node.widgets?.find(w => w.name === config.controller);
         if (!controller) return;
+
+        if (node.comfyClass === "SDVN Load Video") {
+            const widgets = node.widgets;
+            const originalOrder = [...widgets];
+            const video = widgets.find(w => w.name === "video");
+            if (video) {
+                widgets.splice(widgets.indexOf(controller), 1);
+                widgets.splice(widgets.indexOf(video) + 1, 0, controller);
+                const minimax = widgets.find(w => w.name === "minimax_frame");
+                if (minimax) {
+                    widgets.splice(widgets.indexOf(minimax), 1);
+                    const upload = widgets.findIndex(w =>
+                        w.name === "upload" || w.name === "choose file to upload" ||
+                        w.label === "choose file to upload"
+                    );
+                    widgets.splice(upload < 0 ? widgets.length : upload, 0, minimax);
+                }
+
+                // Saved workflows store widget values in schema order.
+                const configure = node.configure;
+                node.configure = function (...args) {
+                    const displayOrder = [...widgets];
+                    widgets.splice(0, widgets.length, ...originalOrder, ...displayOrder.filter(w => !originalOrder.includes(w)));
+                    try {
+                        return configure.apply(this, args);
+                    } finally {
+                        widgets.splice(0, widgets.length, ...displayOrder, ...widgets.filter(w => !displayOrder.includes(w)));
+                    }
+                };
+                chainCallback(node, "onSerialize", function (data) {
+                    if (data.widgets_values) {
+                        data.widgets_values = [
+                            ...originalOrder.map(w => data.widgets_values[widgets.indexOf(w)]),
+                            ...widgets.flatMap((w, index) => originalOrder.includes(w) ? [] : [data.widgets_values[index]]),
+                        ];
+                    }
+                });
+            }
+        }
 
         const visibilityMap = config.targets(controller.value);
         for (const name of Object.keys(visibilityMap)) {

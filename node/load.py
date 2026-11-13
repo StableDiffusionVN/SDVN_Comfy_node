@@ -480,6 +480,43 @@ def _media_time_range(start_time, end_time, duration):
     return start_time, end_time
 
 
+def _minimax_length(frame_count):
+    """Làm tròn xuống số frame dạng 17k + 5."""
+    return frame_count - (frame_count - 5) % 17
+
+
+def _video_block_range(total, num_blocks, index, minimax=False):
+    """Chia total frame thành num_blocks đoạn liền nhau, trả về (frame bắt đầu, số frame) của đoạn index.
+    Thường: các đoạn dài total // num_blocks, phần dư dồn vào đoạn cuối.
+    MiniMax: các đoạn dài 17k + 5 gần total / num_blocks nhất; đoạn cuối nhận phần còn lại
+    (thiếu hoặc dư), làm tròn xuống 17k + 5."""
+    if not 0 <= index < num_blocks:
+        raise ValueError(f"index phải nằm trong khoảng 0 – {num_blocks - 1} khi chia {num_blocks} đoạn.")
+    min_size = 5 if minimax else 1
+    if minimax:
+        size = 17 * max(0, round((total / num_blocks - 5) / 17)) + 5
+        while size > 5 and total - (num_blocks - 1) * size < 5:
+            size -= 17
+    else:
+        size = total // num_blocks
+    if size < min_size or total - (num_blocks - 1) * size < min_size:
+        raise ValueError(f"Video có {total} frame, không đủ để chia thành {num_blocks} đoạn"
+                         + (" (mỗi đoạn MiniMax cần ít nhất 5 frame)." if minimax else "."))
+    start = index * size
+    if index < num_blocks - 1:
+        return start, size
+    length = total - start
+    return start, _minimax_length(length) if minimax else length
+
+
+def _slice_audio(audio, start_time, end_time):
+    if not audio:
+        return audio
+    sample_rate = audio["sample_rate"]
+    waveform = audio["waveform"][..., round(start_time * sample_rate):round(end_time * sample_rate)]
+    return {**audio, "waveform": waveform}
+
+
 class SDVNLoadVideo:
     @classmethod
     def INPUT_TYPES(cls):
@@ -490,6 +527,12 @@ class SDVNLoadVideo:
         inputs["optional"] = {
             "minimax_frame": ("BOOLEAN", {"default": False,
                 "tooltip": "Giảm xuống tối đa 24 fps rồi cắt images về số frame dạng 17k + 5, không lặp frame."}),
+            "trim_mode": (["time", "block"], {"default": "time",
+                "tooltip": "time: cắt theo start_time – end_time. block: chia cả video thành num_blocks đoạn liền nhau và lấy đoạn thứ index."}),
+            "num_blocks": ("INT", {"default": 2, "min": 1, "max": 1000,
+                "tooltip": "Số đoạn sẽ chia. Phần dư (hoặc thiếu khi bật minimax_frame) dồn vào đoạn cuối, nối các đoạn lại vẫn thành video hoàn chỉnh."}),
+            "index": ("INT", {"default": 0, "min": 0, "max": 999,
+                "tooltip": "Vị trí đoạn sẽ lấy, 0 = đoạn đầu tiên."}),
         }
         return inputs
 
@@ -506,33 +549,46 @@ class SDVNLoadVideo:
     def IS_CHANGED(cls, video, **kwargs):
         return None if video == "None" else os.stat(folder_paths.get_annotated_filepath(video)).st_mtime_ns
 
-    def load_video(self, video, start_time, end_time, minimax_frame=False):
+    def load_video(self, video, start_time, end_time, minimax_frame=False, trim_mode="time", num_blocks=2, index=0):
         if video == "None":
             return (None, None, 0.0, 0, None)
         source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
         duration = source.get_duration()
-        if end_time > duration:
+        block_mode = trim_mode == "block"
+        if block_mode:
             start_time, end_time = 0.0, duration
-        start_time, end_time = _media_time_range(start_time, end_time, duration)
-        if start_time or end_time < duration:
-            source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
+        else:
+            if end_time > duration:
+                start_time, end_time = 0.0, duration
+            start_time, end_time = _media_time_range(start_time, end_time, duration)
+            if start_time or end_time < duration:
+                source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
         components = source.get_components()
         images = components.images
+        audio = components.audio
         fps = float(components.frame_rate)
+        output_fps = min(fps, 24.0) if minimax_frame else fps
         if minimax_frame:
-            output_fps = min(fps, 24.0)
             available = math.ceil(images.shape[0] * output_fps / fps)
             frame_count = min(available, math.floor((end_time - start_time) * output_fps + 1e-9))
-            if frame_count < 5:
+        else:
+            frame_count = images.shape[0]
+        if block_mode:
+            first, length = _video_block_range(frame_count, num_blocks, index, minimax_frame)
+        else:
+            if minimax_frame and frame_count < 5:
                 raise ValueError("MiniMax Frame cần ít nhất 5 frame trong đoạn video đã chọn.")
-            length = frame_count - (frame_count - 5) % 17
-            if fps > output_fps:
-                indices = (torch.arange(length, device=images.device) * (fps / output_fps)).long()
-                images = images.index_select(0, indices)
-            else:
-                images = images[:length]
-            fps = output_fps
-        return (source, images, fps, images.shape[0], components.audio)
+            first, length = 0, _minimax_length(frame_count) if minimax_frame else frame_count
+        if fps > output_fps:
+            indices = (torch.arange(first, first + length, device=images.device) * (fps / output_fps)).long()
+            images = images.index_select(0, indices)
+        else:
+            images = images[first:first + length]
+        if block_mode:
+            block_start, block_end = first / output_fps, (first + length) / output_fps
+            source = source.as_trimmed(block_start, block_end - block_start, strict_duration=False)
+            audio = _slice_audio(audio, block_start, block_end)
+        return (source, images, output_fps, images.shape[0], audio)
 
 
 class SDVNLoadAudio:
