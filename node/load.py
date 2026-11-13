@@ -1,4 +1,6 @@
 import ntpath
+from dataclasses import replace
+from fractions import Fraction
 import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
 import folder_paths, comfy.utils, comfy.model_management, server
 from PIL import Image, ImageOps
@@ -583,11 +585,18 @@ class SDVNLoadVideo:
             indices = (torch.arange(first, first + length, device=images.device) * (fps / output_fps)).long()
             images = images.index_select(0, indices)
         else:
+            indices = None
             images = images[first:first + length]
         if block_mode:
             block_start, block_end = first / output_fps, (first + length) / output_fps
-            source = source.as_trimmed(block_start, block_end - block_start, strict_duration=False)
             audio = _slice_audio(audio, block_start, block_end)
+            alpha = components.alpha
+            if alpha is not None:
+                alpha = alpha[first:first + length] if indices is None else alpha.index_select(0, indices.to(alpha.device))
+            source = InputImpl.VideoFromComponents(replace(
+                components, images=images, audio=audio, alpha=alpha,
+                frame_rate=min(components.frame_rate, Fraction(24)) if minimax_frame else components.frame_rate,
+            ))
         return (source, images, output_fps, images.shape[0], audio)
 
 
