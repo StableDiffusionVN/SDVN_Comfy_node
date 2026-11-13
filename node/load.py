@@ -1303,7 +1303,7 @@ class Easy_KSampler:
             callback = latent_preview.prepare_callback(model, steps)
             samples = {"samples": comfy.sample.sample(
                 model, _batch_noise, steps, cfg, sampler_name, scheduler, positive, negative,
-                latent_image["samples"], denoise=denoise, callback=callback,
+                latent_image["samples"], denoise=denoise, noise_mask=latent_image.get("noise_mask"), callback=callback,
                 disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED, seed=seed,
             )}
         if vae != None:
@@ -1320,6 +1320,7 @@ class Easy_KSampler:
             for index in range(max(map(len, inputs.values()), default=0))
         ]
         latents, images = [], []
+        batch_sizes = []
         index = 0
         while index < len(rows):
             row = rows[index]
@@ -1350,24 +1351,28 @@ class Easy_KSampler:
                             vae = row.get("vae")
                             images.append(ALL_NODE["VAEDecode"]().decode(vae, latent)[0] if vae is not None else None)
                         index += count
+                        batch_sizes.append(count)
                         continue
                     comfy.model_management.soft_empty_cache()
                     logging.info("SDVN KSampler: reducing batch from %d to %d after OOM", count, limit)
                     continue
                 index += 1
+                batch_sizes.append(1)
+        if len(rows) > 1:
+            logging.info("SDVN KSampler: %d list items, sampling batch sizes %s", len(rows), batch_sizes)
         return latents, images
 
     @staticmethod
     def _can_batch(row):
         latent = row.get("latent_image")
-        if latent is None or row.get("Tiled") or "noise_mask" in latent:
+        if latent is None or row.get("Tiled"):
             return False
         samples = latent["samples"]
         if samples.is_nested or samples.ndim != 4 or samples.shape[0] != 1:
             return False
         # Extra conditioning (ControlNet, regions, references, etc.) can be per image.
         return all(
-            embedding is not None and embedding.shape[0] == 1
+            (embedding is None or embedding.shape[0] == 1)
             and metadata.keys() <= {"pooled_output", "guidance"}
             and (metadata.get("pooled_output") is None or metadata["pooled_output"].shape[0] == 1)
             for conditioning in (row["positive"], row.get("negative") or ())
@@ -1382,10 +1387,28 @@ class Easy_KSampler:
             if name in {"model", "positive", "negative", "vae"}:
                 if value is not other[name]:
                     return False
-            elif name != "latent_image" and value != other[name]:
+            elif name == "seed" and value != other[name]:
+                # These samplers use randomness only in the initial noise.
+                sampler = first["sampler_name"]
+                model_type = first["ModelType"]
+                if model_type == "Auto":
+                    model_type = check_type_model(first["model"])
+                if model_type in ModelType_list:
+                    sampler = ModelType_list[model_type][1]
+                if sampler not in {"euler", "heun", "dpmpp_2m", "lms", "ddim", "uni_pc", "uni_pc_bh2"}:
+                    return False
+            elif name not in {"latent_image", "seed"} and value != other[name]:
                 return False
         left, right = first["latent_image"], other["latent_image"]
         a, b = left["samples"], right["samples"]
+        mask_a, mask_b = left.get("noise_mask"), right.get("noise_mask")
+        if mask_a is not None or mask_b is not None:
+            if mask_a is None or mask_b is None:
+                return False
+            if (mask_a.shape[-2:], mask_a.dtype, mask_a.device) != (mask_b.shape[-2:], mask_b.dtype, mask_b.device):
+                return False
+            if mask_a.numel() != math.prod(mask_a.shape[-2:]) or mask_b.numel() != math.prod(mask_b.shape[-2:]):
+                return False
         return (
             (a.shape, a.dtype, a.device) == (b.shape, b.dtype, b.device)
             and all(left.get(key) == right.get(key)
@@ -1408,11 +1431,11 @@ class Easy_KSampler:
             model, latent["samples"], latent.get("downscale_ratio_spacial"),
             latent.get("downscale_ratio_temporal"),
         ).shape)
-        # Budget for both CFG branches in the same model call.
+        # ComfyUI can schedule the CFG branches separately when memory is tight.
         low, high = 1, count
         while low < high:
             size = (low + high + 1) // 2
-            shape[0] = size * 2
+            shape[0] = size
             if model.memory_required(shape) <= available:
                 low = size
             else:
@@ -1420,7 +1443,7 @@ class Easy_KSampler:
         return low
 
     def _sample_batch(self, row, rows):
-        model, seed = row["model"], row["seed"]
+        model = row["model"]
         latents = [item["latent_image"] for item in rows]
         tensors = [
             comfy.sample.fix_empty_latent_channels(
@@ -1432,11 +1455,15 @@ class Easy_KSampler:
         if any(tensor.shape != tensors[0].shape for tensor in tensors[1:]):
             return [self.sample(**dict(item, vae=None))[0] for item in rows]
         noise = torch.cat([
-            comfy.sample.prepare_noise(tensor, seed, latent.get("batch_index"))
-            for tensor, latent in zip(tensors, latents)
+            comfy.sample.prepare_noise(tensor, item["seed"], latent.get("batch_index"))
+            for tensor, latent, item in zip(tensors, latents, rows)
         ])
         # Route through the same preset and conditioning setup as the scalar path.
         options = dict(row, latent_image={"samples": torch.cat(tensors)}, vae=None)
+        if latents[0].get("noise_mask") is not None:
+            options["latent_image"]["noise_mask"] = torch.stack([
+                latent["noise_mask"].reshape(latent["noise_mask"].shape[-2:]) for latent in latents
+            ])
         result = self.sample(**options, _batch_noise=noise)[0]["samples"]
         outputs = []
         for latent, tensor in zip(latents, result.split(1)):
