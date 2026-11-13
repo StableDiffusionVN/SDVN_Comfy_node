@@ -1,4 +1,6 @@
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
+from comfy.cli_args import args
+from comfy_api.latest import Types, io
 import torch, numpy as np, copy, datetime
 import torch.nn.functional as tF
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
@@ -1408,6 +1410,10 @@ class SaveImageCompare:
         else:
             width = 0
             height = 0
+        return self._format_dimensions(prefix, width, height)
+
+    @staticmethod
+    def _format_dimensions(prefix, width, height):
         maxsize = max(width, height)
         replacements = {
             "%dd": lambda: str(datetime.datetime.now().day).zfill(2),
@@ -1440,8 +1446,57 @@ class SaveImageCompare:
             save_result["ui"]["b_images"] = compare_images
 
         return save_result
+
+
+class SaveVideoCompare(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        media_types = [io.Image, io.Video]
+        return io.Schema(
+            node_id="SDVN Save Video Compare",
+            display_name="💾 Save Video Compare",
+            category="📂 SDVN/🏞️ Image",
+            description="Lưu ảnh hoặc video chính và kéo thanh chia để so sánh với đầu vào thứ hai.",
+            inputs=[
+                io.MultiType.Input("media", media_types, tooltip="Ảnh hoặc video chính, lưu vào thư mục output."),
+                io.String.Input("filename_prefix", default="SDVN"),
+                io.MultiType.Input("compare", media_types, optional=True, tooltip="Ảnh hoặc video dùng để xem đối chiếu."),
+            ],
+            hidden=[io.Hidden.prompt, io.Hidden.extra_pnginfo],
+            is_output_node=True,
+        )
+
+    @classmethod
+    def execute(cls, media, filename_prefix, compare=None):
+        primary = cls._save_media(media, filename_prefix, temporary=False)
+        reference = cls._save_media(compare, "SDVN_compare", temporary=True) if compare is not None else []
+        return io.NodeOutput(ui={"sdvn_compare_primary": primary, "sdvn_compare_reference": reference})
+
+    @classmethod
+    def _save_media(cls, media, prefix, temporary):
+        if isinstance(media, torch.Tensor):
+            prefix = SaveImageCompare()._format_prefix(prefix, media)
+            node = ALL_NODE["PreviewImage" if temporary else "SaveImage"]()
+            result = node.save_images(media, prefix, cls.hidden.prompt, cls.hidden.extra_pnginfo)
+            return [dict(entry, media_type="image") for entry in result["ui"]["images"]]
+
+        width, height = media.get_dimensions()
+        prefix = SaveImageCompare._format_dimensions(prefix, width, height)
+        directory = folder_paths.get_temp_directory() if temporary else folder_paths.get_output_directory()
+        folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(prefix, directory, width, height)
+        filename = f"{filename}_{counter:05}_.mp4"
+        metadata = None
+        if not temporary and not args.disable_metadata:
+            metadata = dict(cls.hidden.extra_pnginfo or {})
+            if cls.hidden.prompt is not None:
+                metadata["prompt"] = cls.hidden.prompt
+        media.save_to(os.path.join(folder, filename), format=Types.VideoContainer.MP4,
+                      codec=Types.VideoCodec.H264, metadata=metadata)
+        return [dict(filename=filename, subfolder=subfolder, type="temp" if temporary else "output",
+                     media_type="video")]
     
 NODE_CLASS_MAPPINGS = {
+    "SDVN Save Video Compare": SaveVideoCompare,
     "SDVN Image Scraper": img_scraper,
     "SDVM Image List Repeat": img_list_repeat,
     "SDVN Image Repeat": img_repeat,
