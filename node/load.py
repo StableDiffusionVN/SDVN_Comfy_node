@@ -1029,6 +1029,32 @@ Negative: {negative}
         token_n = clip.tokenize(negative)
         return (clip.encode_from_tokens_scheduled(token_p), clip.encode_from_tokens_scheduled(token_n), prompt)
 
+class SDVNString(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(
+            node_id="SDVN String",
+            display_name="SDVN String",
+            category="📂 SDVN",
+            description="Nhập văn bản hoặc dán positive prompt từ style đã lưu vào ô text.",
+            inputs=[
+                io.String.Input("text", multiline=True, default=""),
+                io.Combo.Input("style", none2list(style_list()[0]), default="None",
+                               tooltip="Chọn style để dán positive prompt vào ô text."),
+            ],
+            outputs=[io.String.Output("text")],
+        )
+
+    @classmethod
+    def execute(cls, text, style):
+        return io.NodeOutput(text)
+
+    @classmethod
+    def validate_inputs(cls, style):
+        if style == "None" or style in style_list()[0]:
+            return True
+        return f"Style không tồn tại: {style}"
+
 class CLIPTextEncodeSimple:
     @classmethod
     def INPUT_TYPES(s):
@@ -2474,6 +2500,7 @@ class AnyDownloadList:
         return  (r,)
 
 NODE_CLASS_MAPPINGS = {
+    "SDVN String": SDVNString,
     "SDVN Load Checkpoint": CheckpointLoaderDownload,
     "SDVN Load Checkpoint Filter": CheckpointLoaderDownloadFilter,
     "SDVN Load Lora": LoraLoader,

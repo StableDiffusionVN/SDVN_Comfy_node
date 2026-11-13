@@ -4,6 +4,7 @@ const TARGET_NODES = new Set([
 	"SDVN CLIP Text Encode",
 	"SDVN CLIP Text Encode Simple",
 	"SDVN CLIP Text Encode Qwen Image 2.1",
+	"SDVN String",
 ]);
 
 const STYLE_WIDGET_NAME = "style";
@@ -75,6 +76,16 @@ function refreshStyleWidget(node, payload, selectedName = null) {
 	node.setDirtyCanvas?.(true, true);
 }
 
+function pastePositive(node, payload, name) {
+	if (name === "None") return;
+	const positive = (payload.custom?.[name] ?? payload.defaults?.[name])?.[0];
+	const textWidget = node.widgets?.find((widget) => widget.name === "text");
+	if (typeof positive !== "string" || !textWidget) return;
+	textWidget.value = positive;
+	textWidget.callback?.(positive);
+	node.setDirtyCanvas?.(true, true);
+}
+
 function setStatus(dialog, message, isError = false) {
 	const statusEl = dialog?.querySelector(".sdvn-style-preset-status");
 	if (!statusEl) return;
@@ -82,7 +93,7 @@ function setStatus(dialog, message, isError = false) {
 	statusEl.style.color = isError ? "#ff8c8c" : "#b8f2c3";
 }
 
-function buildDialogContent(selectedName, styleValue, isDefaultStyle) {
+function buildDialogContent(selectedName, styleValue, isDefaultStyle, positiveOnly) {
 	const safeName = escapeHtml(selectedName === "None" ? "" : selectedName ?? "");
 	const positivePrompt = Array.isArray(styleValue) ? styleValue[0] ?? "" : "";
 	const negativePrompt = Array.isArray(styleValue) ? styleValue[1] ?? "" : "";
@@ -104,7 +115,7 @@ function buildDialogContent(selectedName, styleValue, isDefaultStyle) {
 		">
 			<div style="padding: 0 0 6px; font-weight: 600; font-size: 15px;">Save/Edit Style</div>
 			<div style="padding: 0 0 10px; font-size: 12px; opacity: 0.75;">
-				Style custom sẽ lưu sang JSON riêng dạng {"Tên style": ["positive prompt", "negative prompt"]}
+				${positiveOnly ? "Lưu positive prompt vào thư viện style." : 'Style custom sẽ lưu sang JSON riêng dạng {"Tên style": ["positive prompt", "negative prompt"]}'}
 			</div>
 			${readonlyNote}
 			<div style="padding: 0 0 10px;">
@@ -134,7 +145,7 @@ function buildDialogContent(selectedName, styleValue, isDefaultStyle) {
 					font-size: 13px;
 				">${safePositivePrompt}</textarea>
 			</div>
-			<div style="padding: 0;">
+			<div style="padding: 0;" ${positiveOnly ? "hidden" : ""}>
 				<div style="font-size: 12px; opacity: 0.8; padding-bottom: 6px;">Negative prompt</div>
 				<textarea class="sdvn-style-preset-negative" spellcheck="false" style="
 					width: 100%;
@@ -175,11 +186,14 @@ async function openStyleDialog(node, state) {
 
 	refreshStyleWidget(node, payload);
 	const selectedName = styleWidget.value ?? "None";
-	const selectedValue = payload.custom?.[selectedName] ?? payload.defaults?.[selectedName] ?? ["", ""];
+	const positiveOnly = node.comfyClass === "SDVN String";
+	const text = positiveOnly ? node.widgets?.find((widget) => widget.name === "text")?.value : "";
+	const storedValue = payload.custom?.[selectedName] ?? payload.defaults?.[selectedName] ?? ["", ""];
+	const selectedValue = positiveOnly ? [text ?? "", storedValue[1]] : storedValue;
 	const isDefaultStyle = Object.prototype.hasOwnProperty.call(payload.defaults || {}, selectedName);
 
 	state.dialog?.close?.();
-	const dialog = app.canvas.createDialog(buildDialogContent(selectedName, selectedValue, isDefaultStyle));
+	const dialog = app.canvas.createDialog(buildDialogContent(selectedName, selectedValue, isDefaultStyle, positiveOnly));
 	centerDialog(dialog);
 	if (dialog?.style) {
 		dialog.style.resize = "both";
@@ -203,7 +217,7 @@ async function openStyleDialog(node, state) {
 				name: nameInput?.value ?? "",
 				previous_name: selectedName,
 				positive_prompt: positiveTextarea?.value ?? "",
-				negative_prompt: negativeTextarea?.value ?? "",
+				negative_prompt: positiveOnly ? (payload.custom?.[selectedName]?.[1] ?? "") : (negativeTextarea?.value ?? ""),
 			};
 			const response = await fetch(API_ENDPOINTS.save, {
 				method: "POST",
@@ -215,6 +229,7 @@ async function openStyleDialog(node, state) {
 				throw new Error(result?.message || "Không thể lưu style.");
 			}
 			refreshStyleWidget(node, result, result.name);
+			if (positiveOnly) pastePositive(node, result, result.name);
 			setStatus(dialog, "Đã lưu style.");
 			setTimeout(() => closeDialog(), 200);
 		} catch (error) {
@@ -286,6 +301,21 @@ async function setupNode(node) {
 	if (!styleWidget) return;
 	const state = (node.__sdvnStylePresetState ||= {});
 	state.styleWidget = styleWidget;
+	if (node.comfyClass === "SDVN String" && !state.pasteOnSelect) {
+		const callback = styleWidget.callback;
+		let selection = 0;
+		styleWidget.callback = function (name, ...args) {
+			const result = callback?.call(this, name, ...args);
+			const current = ++selection;
+			if (name !== "None") {
+				fetchStyles().then((payload) => {
+					if (current === selection && styleWidget.value === name) pastePositive(node, payload, name);
+				}).catch((error) => console.warn("[SDVN String]", error));
+			}
+			return result;
+		};
+		state.pasteOnSelect = true;
+	}
 	ensureButton(node, state);
 	try {
 		const payload = await fetchStyles();
