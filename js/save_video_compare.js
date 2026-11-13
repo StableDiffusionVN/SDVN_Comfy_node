@@ -22,9 +22,16 @@ function slider(label, max, value, step) {
 
 function createPreview(node) {
 	const root = document.createElement("div");
-	root.style.cssText = "display:flex;flex-direction:column;gap:6px;min-height:0";
-	const widget = node.addDOMWidget("media_compare", "div", root, { serialize: false });
-	widget.computeSize = (width) => [width, 300];
+	root.style.cssText = "display:flex;flex-direction:column;gap:6px;min-height:0;height:100%";
+	const widget = node.addDOMWidget("media_compare", "div", root, {
+		serialize: false,
+		getMinHeight: () => 260,
+	});
+	widget.computeSize = (width) => [width, 260];
+	function resize(height) {
+		const minimum = node.computeSize()[1];
+		root.style.height = `${260 + Math.max(0, height - minimum)}px`;
+	}
 	let release = () => {};
 
 	function update(primary, reference) {
@@ -33,12 +40,9 @@ function createPreview(node) {
 		if (!primary.length) return;
 
 		const stage = document.createElement("div");
-		stage.style.cssText = "position:relative;height:220px;background:#181818;overflow:hidden";
+		stage.style.cssText = "position:relative;flex:1;min-height:0;background:#181818;overflow:hidden";
 		const divider = document.createElement("div");
 		divider.style.cssText = "position:absolute;inset:0 auto 0 50%;width:2px;background:white;pointer-events:none";
-		const wipe = slider("Comparison split", 100, 50, 1);
-		wipe.style.width = "100%";
-		wipe.hidden = !reference.length;
 		const toolbar = document.createElement("div");
 		toolbar.style.cssText = "display:flex;align-items:center;gap:6px";
 		const count = Math.max(primary.length, reference.length);
@@ -51,7 +55,7 @@ function createPreview(node) {
 		const download = document.createElement("a");
 		download.textContent = "Download";
 		toolbar.append(selector, download);
-		root.append(stage, wipe, toolbar);
+		root.append(stage, toolbar);
 
 		function show(index) {
 			release();
@@ -66,27 +70,44 @@ function createPreview(node) {
 			function layer(entry) {
 				const isVideo = entry.media_type === "video";
 				const element = document.createElement(isVideo ? "video" : "img");
-				element.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#181818";
+				element.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none";
 				if (isVideo) {
 					element.preload = "auto";
 					element.playsInline = true;
 					element.muted = true;
 					videos.push(element);
 				}
-				element.src = mediaUrl(entry);
+				element.src = mediaUrl(entry.preview ?? entry);
 				stage.append(element);
 				return element;
 			}
 
-			layer(a);
+			const base = layer(a);
 			const overlay = b ? layer(b) : null;
 			if (overlay) stage.append(divider);
-			wipe.oninput = () => {
+			function hideComparison() {
+				if (overlay) overlay.style.visibility = "hidden";
+				divider.hidden = true;
+			}
+			stage.onpointerleave = hideComparison;
+			stage.onpointermove = (event) => {
 				if (!overlay) return;
-				overlay.style.clipPath = `inset(0 0 0 ${wipe.value}%)`;
-				divider.style.left = `${wipe.value}%`;
+				const bounds = stage.getBoundingClientRect();
+				const width = base.videoWidth || base.naturalWidth;
+				const height = base.videoHeight || base.naturalHeight;
+				if (!width || !height || !bounds.width || !bounds.height) return;
+				const scale = Math.min(bounds.width / width, bounds.height / height);
+				const left = (bounds.width - width * scale) / 2;
+				const top = (bounds.height - height * scale) / 2;
+				const x = Math.max(left, Math.min(bounds.width - left, event.clientX - bounds.left));
+				const split = x / bounds.width * 100;
+				overlay.style.clipPath = `inset(0 ${100 - split}% 0 0)`;
+				overlay.style.visibility = "visible";
+				divider.style.left = `${split}%`;
+				divider.style.top = divider.style.bottom = `${top / bounds.height * 100}%`;
+				divider.hidden = false;
 			};
-			wipe.oninput();
+			hideComparison();
 
 			const master = videos[0];
 			const follower = videos[1];
@@ -148,7 +169,7 @@ function createPreview(node) {
 		show(0);
 	}
 
-	return { update, dispose: () => release() };
+	return { update, resize, dispose: () => release() };
 }
 
 app.registerExtension({
@@ -168,6 +189,14 @@ app.registerExtension({
 		nodeType.prototype.onExecuted = function (output) {
 			executed?.apply(this, arguments);
 			this.sdvnVideoCompare?.update(output.sdvn_compare_primary ?? [], output.sdvn_compare_reference ?? []);
+			this.sdvnVideoCompare?.resize(this.size[1]);
+		};
+
+		const resized = nodeType.prototype.onResize;
+		nodeType.prototype.onResize = function (size) {
+			const result = resized?.apply(this, arguments);
+			this.sdvnVideoCompare?.resize(size[1]);
+			return result;
 		};
 
 		const removed = nodeType.prototype.onRemoved;
