@@ -1279,10 +1279,7 @@ class Easy_KSampler:
         if tile_width == None or tile_height == None:
             tile_width = tile_height = 1024
         if latent_image == None:
-            if check_type_model(model) != "Flux2":
-                latent_image = ALL_NODE["EmptyLatentImage"]().generate(tile_width, tile_height, 1)[0]
-            else:
-                latent_image = ALL_NODE["EmptyFlux2LatentImage"]().execute(tile_width, tile_height, 1)[0]
+            latent_image = self._empty_latent(model, tile_width, tile_height)
             tile_width = int(math.ceil(tile_width/2))
             tile_height = int(math.ceil(tile_width/2))
         if Tiled == True:
@@ -1314,6 +1311,12 @@ class Easy_KSampler:
             images = None
         return (samples, images,)
 
+    @staticmethod
+    def _empty_latent(model, width, height):
+        if check_type_model(model) == "Flux2":
+            return ALL_NODE["EmptyFlux2LatentImage"]().execute(width, height, 1)[0]
+        return ALL_NODE["EmptyLatentImage"]().generate(width, height, 1)[0]
+
     def sample_list(self, **inputs):
         inputs = {name: values for name, values in inputs.items() if values}
         rows = [
@@ -1322,15 +1325,29 @@ class Easy_KSampler:
         ]
         if len(rows) > 1:
             logging.info("SDVN KSampler: received %d list items", len(rows))
+            for row in rows:
+                if row.get("latent_image") is None and not row.get("Tiled"):
+                    width, height = row.get("tile_width"), row.get("tile_height")
+                    if width is None or height is None:
+                        width = height = 1024
+                    row["latent_image"] = self._empty_latent(row["model"], width, height)
         latents, images = [], []
         batch_sizes = []
         index = 0
         while index < len(rows):
             row = rows[index]
             end = index + 1
-            if end < len(rows) and self._can_batch(row):
-                while end < len(rows) and self._matches(row, rows[end]):
-                    end += 1
+            if end < len(rows):
+                reason = self._batch_blocker(row)
+                if reason is None:
+                    while end < len(rows):
+                        reason = self._batch_mismatch(row, rows[end])
+                        if reason is not None:
+                            break
+                        end += 1
+                if reason is not None:
+                    logging.info("SDVN KSampler: batch boundary before item %d: %s",
+                                 index + 1 if end == index + 1 and self._batch_blocker(row) else end + 1, reason)
             limit = end - index
             while index < end:
                 before_node_execution()
@@ -1338,6 +1355,8 @@ class Easy_KSampler:
                 count = min(end - index, limit)
                 if count > 1:
                     count = self._batch_size(row, count)
+                    if count == 1:
+                        logging.info("SDVN KSampler: memory estimate allows one item")
                 if count == 1:
                     latent, image = self.sample(**row)
                     latents.append(latent)
@@ -1367,22 +1386,27 @@ class Easy_KSampler:
         return latents, images
 
     @staticmethod
-    def _can_batch(row):
+    def _batch_blocker(row):
         latent = row.get("latent_image")
         if latent is None or row.get("Tiled"):
-            return False
+            return "tiled sampling or missing latent"
         samples = latent["samples"]
         if samples.is_nested or samples.ndim != 4 or samples.shape[0] != 1:
-            return False
+            return f"latent shape {samples.shape}"
         # Only merge fields with a known batch layout.
-        return all(
+        if not all(
             (embedding is None or embedding.shape[0] == 1)
-            and metadata.keys() <= {"pooled_output", "guidance", "reference_latents", "reference_latents_method"}
+            and metadata.keys() <= {"pooled_output", "guidance", "reference_latents", "reference_latents_method", "attention_mask"}
             and (metadata.get("pooled_output") is None or metadata["pooled_output"].shape[0] == 1)
+            and (metadata.get("attention_mask") is None or metadata["attention_mask"].shape[0] == 1)
             and all(ref.ndim == 4 and ref.shape[0] == 1 for ref in metadata.get("reference_latents", ()))
             for conditioning in (row["positive"], row.get("negative") or ())
             for embedding, metadata in conditioning
-        )
+        ):
+            keys = sorted({key for cond in (row["positive"], row.get("negative") or ())
+                           for _, metadata in cond for key in metadata})
+            return f"conditioning fields or layout ({', '.join(keys)})"
+        return None
 
     @staticmethod
     def _conditioning_layout(conditioning):
@@ -1392,23 +1416,24 @@ class Easy_KSampler:
         if conditioning is None:
             return None
         return [
-            (layout(embedding), layout(metadata.get("pooled_output")), metadata.get("guidance"),
+            (layout(embedding), layout(metadata.get("pooled_output")), layout(metadata.get("attention_mask")), metadata.get("guidance"),
              metadata.get("reference_latents_method"),
              tuple(layout(ref) for ref in metadata.get("reference_latents", ())))
             for embedding, metadata in conditioning
         ]
 
     @classmethod
-    def _matches(cls, first, other):
-        if not cls._can_batch(other):
-            return False
+    def _batch_mismatch(cls, first, other):
+        reason = cls._batch_blocker(other)
+        if reason is not None:
+            return reason
         for name, value in first.items():
             if name in {"positive", "negative"}:
                 if value is not other[name] and cls._conditioning_layout(value) != cls._conditioning_layout(other[name]):
-                    return False
+                    return f"{name} conditioning layout differs"
             elif name in {"model", "vae"}:
                 if value is not other[name]:
-                    return False
+                    return f"{name} differs"
             elif name == "seed" and value != other[name]:
                 # These samplers use randomness only in the initial noise.
                 sampler = first["sampler_name"]
@@ -1418,24 +1443,26 @@ class Easy_KSampler:
                 if model_type in ModelType_list:
                     sampler = ModelType_list[model_type][1]
                 if sampler not in {"euler", "heun", "dpmpp_2m", "lms", "uni_pc", "uni_pc_bh2"}:
-                    return False
-            elif name not in {"latent_image", "seed"} and value != other[name]:
-                return False
+                    return f"distinct seeds with {sampler}"
+            elif name not in {"latent_image", "seed", "tile_width", "tile_height"} and value != other[name]:
+                return f"{name} differs"
         left, right = first["latent_image"], other["latent_image"]
         a, b = left["samples"], right["samples"]
         mask_a, mask_b = left.get("noise_mask"), right.get("noise_mask")
         if mask_a is not None or mask_b is not None:
             if mask_a is None or mask_b is None:
-                return False
+                return "only one item has a noise mask"
             if (mask_a.shape[-2:], mask_a.dtype, mask_a.device) != (mask_b.shape[-2:], mask_b.dtype, mask_b.device):
-                return False
+                return "noise mask size, dtype or device differs"
             if mask_a.numel() != math.prod(mask_a.shape[-2:]) or mask_b.numel() != math.prod(mask_b.shape[-2:]):
-                return False
-        return (
+                return "noise mask contains multiple items"
+        if not (
             (a.shape, a.dtype, a.device) == (b.shape, b.dtype, b.device)
             and all(left.get(key) == right.get(key)
                     for key in ("downscale_ratio_spacial", "downscale_ratio_temporal"))
-        )
+        ):
+            return f"latent layout differs ({tuple(a.shape)} vs {tuple(b.shape)})"
+        return None
 
     @staticmethod
     def _batch_size(row, count):
@@ -1496,8 +1523,9 @@ class Easy_KSampler:
             for entries in zip(*(item[name] for item in rows)):
                 embeddings, metadata = zip(*entries)
                 values = metadata[0].copy()
-                if values.get("pooled_output") is not None:
-                    values["pooled_output"] = torch.cat([item["pooled_output"] for item in metadata])
+                for key in ("pooled_output", "attention_mask"):
+                    if values.get(key) is not None:
+                        values[key] = torch.cat([item[key] for item in metadata])
                 if values.get("reference_latents"):
                     values["reference_latents"] = [
                         torch.cat(refs) for refs in zip(*(item["reference_latents"] for item in metadata))
