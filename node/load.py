@@ -3,6 +3,7 @@ import logging
 import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
 import folder_paths, comfy.utils, comfy.model_management, server
 import comfy.sample
+import comfy.sampler_helpers
 import latent_preview
 from PIL import Image, ImageOps
 from googletrans import LANGUAGES
@@ -1319,6 +1320,8 @@ class Easy_KSampler:
             {name: values[min(index, len(values) - 1)] for name, values in inputs.items()}
             for index in range(max(map(len, inputs.values()), default=0))
         ]
+        if len(rows) > 1:
+            logging.info("SDVN KSampler: received %d list items", len(rows))
         latents, images = [], []
         batch_sizes = []
         index = 0
@@ -1341,6 +1344,7 @@ class Easy_KSampler:
                     images.append(image)
                 else:
                     try:
+                        logging.info("SDVN KSampler: sampling batch of %d", count)
                         batch = self._sample_batch(row, rows[index:index + count])
                     except RuntimeError as error:
                         comfy.model_management.raise_non_oom(error)
@@ -1370,21 +1374,39 @@ class Easy_KSampler:
         samples = latent["samples"]
         if samples.is_nested or samples.ndim != 4 or samples.shape[0] != 1:
             return False
-        # Extra conditioning (ControlNet, regions, references, etc.) can be per image.
+        # Only merge fields with a known batch layout.
         return all(
             (embedding is None or embedding.shape[0] == 1)
-            and metadata.keys() <= {"pooled_output", "guidance"}
+            and metadata.keys() <= {"pooled_output", "guidance", "reference_latents", "reference_latents_method"}
             and (metadata.get("pooled_output") is None or metadata["pooled_output"].shape[0] == 1)
+            and all(ref.ndim == 4 and ref.shape[0] == 1 for ref in metadata.get("reference_latents", ()))
             for conditioning in (row["positive"], row.get("negative") or ())
             for embedding, metadata in conditioning
         )
+
+    @staticmethod
+    def _conditioning_layout(conditioning):
+        def layout(tensor):
+            return None if tensor is None else (tensor.shape, tensor.dtype, tensor.device)
+
+        if conditioning is None:
+            return None
+        return [
+            (layout(embedding), layout(metadata.get("pooled_output")), metadata.get("guidance"),
+             metadata.get("reference_latents_method"),
+             tuple(layout(ref) for ref in metadata.get("reference_latents", ())))
+            for embedding, metadata in conditioning
+        ]
 
     @classmethod
     def _matches(cls, first, other):
         if not cls._can_batch(other):
             return False
         for name, value in first.items():
-            if name in {"model", "positive", "negative", "vae"}:
+            if name in {"positive", "negative"}:
+                if value is not other[name] and cls._conditioning_layout(value) != cls._conditioning_layout(other[name]):
+                    return False
+            elif name in {"model", "vae"}:
                 if value is not other[name]:
                     return False
             elif name == "seed" and value != other[name]:
@@ -1395,7 +1417,7 @@ class Easy_KSampler:
                     model_type = check_type_model(first["model"])
                 if model_type in ModelType_list:
                     sampler = ModelType_list[model_type][1]
-                if sampler not in {"euler", "heun", "dpmpp_2m", "lms", "ddim", "uni_pc", "uni_pc_bh2"}:
+                if sampler not in {"euler", "heun", "dpmpp_2m", "lms", "uni_pc", "uni_pc_bh2"}:
                     return False
             elif name not in {"latent_image", "seed"} and value != other[name]:
                 return False
@@ -1422,8 +1444,9 @@ class Easy_KSampler:
         if device.type == "cpu":
             return 1
         memory = comfy.model_management
-        available = memory.get_free_memory(device)
-        available -= max(0, model.model_size() - model.loaded_size())
+        available = model.get_free_memory(device)
+        if not model.is_dynamic():
+            available -= max(0, model.model_size() - model.loaded_size())
         available -= memory.extra_reserved_memory()
         available *= 0.85
         latent = row["latent_image"]
@@ -1432,11 +1455,16 @@ class Easy_KSampler:
             latent.get("downscale_ratio_temporal"),
         ).shape)
         # ComfyUI can schedule the CFG branches separately when memory is tight.
+        conds = {
+            name: comfy.sampler_helpers.convert_cond(row[name])
+            for name in ("positive", "negative") if row.get(name) is not None
+        }
         low, high = 1, count
         while low < high:
             size = (low + high + 1) // 2
             shape[0] = size
-            if model.memory_required(shape) <= available:
+            _, required = comfy.sampler_helpers.estimate_memory(model, shape, conds)
+            if required <= available:
                 low = size
             else:
                 high = size - 1
@@ -1460,6 +1488,22 @@ class Easy_KSampler:
         ])
         # Route through the same preset and conditioning setup as the scalar path.
         options = dict(row, latent_image={"samples": torch.cat(tensors)}, vae=None)
+        for name in ("positive", "negative"):
+            conditioning = row.get(name)
+            if conditioning is None or all(item.get(name) is conditioning for item in rows):
+                continue
+            merged = []
+            for entries in zip(*(item[name] for item in rows)):
+                embeddings, metadata = zip(*entries)
+                values = metadata[0].copy()
+                if values.get("pooled_output") is not None:
+                    values["pooled_output"] = torch.cat([item["pooled_output"] for item in metadata])
+                if values.get("reference_latents"):
+                    values["reference_latents"] = [
+                        torch.cat(refs) for refs in zip(*(item["reference_latents"] for item in metadata))
+                    ]
+                merged.append([torch.cat(embeddings) if embeddings[0] is not None else None, values])
+            options[name] = merged
         if latents[0].get("noise_mask") is not None:
             options["latent_image"]["noise_mask"] = torch.stack([
                 latent["noise_mask"].reshape(latent["noise_mask"].shape[-2:]) for latent in latents
