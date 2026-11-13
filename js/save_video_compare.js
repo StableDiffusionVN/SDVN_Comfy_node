@@ -10,16 +10,6 @@ function mediaUrl(entry) {
 	return api.apiURL(`/view?${params}`);
 }
 
-function slider(label, max, value, step) {
-	const input = document.createElement("input");
-	input.type = "range";
-	input.setAttribute("aria-label", label);
-	input.max = max;
-	input.value = value;
-	input.step = step;
-	return input;
-}
-
 function createPreview(node) {
 	const root = document.createElement("div");
 	root.style.cssText = "display:flex;flex-direction:column;gap:6px;min-height:0;height:100%";
@@ -53,28 +43,33 @@ function createPreview(node) {
 		}
 		selector.hidden = count < 2;
 		const download = document.createElement("a");
-		download.textContent = "Download";
+		download.title = "Download";
+		download.setAttribute("aria-label", "Download");
+		download.style.cssText = "display:inline-flex;color:inherit;margin-inline-start:auto";
+		download.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/></svg>';
 		toolbar.append(selector, download);
 		root.append(stage, toolbar);
 
 		function show(index) {
 			release();
 			stage.replaceChildren();
-			toolbar.querySelectorAll("button, input").forEach((element) => element.remove());
 			const a = primary[index % primary.length];
 			const b = reference[index % reference.length];
 			download.href = mediaUrl(a);
 			download.download = a.filename;
 			const videos = [];
 
-			function layer(entry) {
+			function layer(entry, primaryLayer = false) {
 				const isVideo = entry.media_type === "video";
 				const element = document.createElement(isVideo ? "video" : "img");
 				element.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none";
 				if (isVideo) {
 					element.preload = "auto";
 					element.playsInline = true;
-					element.muted = true;
+					element.muted = !primaryLayer;
+					element.controls = primaryLayer || a.media_type !== "video";
+					element.loop = element.controls;
+					if (element.controls) element.style.pointerEvents = "auto";
 					videos.push(element);
 				}
 				element.src = mediaUrl(entry.preview ?? entry);
@@ -82,17 +77,26 @@ function createPreview(node) {
 				return element;
 			}
 
-			const base = layer(a);
+			const base = layer(a, true);
 			const overlay = b ? layer(b) : null;
 			if (overlay) stage.append(divider);
+			const referencePlayer = overlay?.controls === true;
+			const controlsHeight = 48;
 			function hideComparison() {
-				if (overlay) overlay.style.visibility = "hidden";
+				if (referencePlayer) {
+					overlay.style.clipPath = `inset(calc(100% - ${controlsHeight}px) 0 0)`;
+				} else if (overlay) overlay.style.visibility = "hidden";
 				divider.hidden = true;
 			}
 			stage.onpointerleave = hideComparison;
 			stage.onpointermove = (event) => {
 				if (!overlay) return;
 				const bounds = stage.getBoundingClientRect();
+				const localY = (event.clientY - bounds.top) / bounds.height * stage.clientHeight;
+				if ((base.controls || referencePlayer) && localY >= stage.clientHeight - controlsHeight) {
+					hideComparison();
+					return;
+				}
 				const width = base.videoWidth || base.naturalWidth;
 				const height = base.videoHeight || base.naturalHeight;
 				if (!width || !height || !bounds.width || !bounds.height) return;
@@ -101,10 +105,14 @@ function createPreview(node) {
 				const top = (bounds.height - height * scale) / 2;
 				const x = Math.max(left, Math.min(bounds.width - left, event.clientX - bounds.left));
 				const split = x / bounds.width * 100;
-				overlay.style.clipPath = `inset(0 ${100 - split}% 0 0)`;
+				const bottom = base.controls ? `${controlsHeight}px` : "0";
+				overlay.style.clipPath = `inset(0 ${100 - split}% ${bottom} 0)`;
 				overlay.style.visibility = "visible";
 				divider.style.left = `${split}%`;
-				divider.style.top = divider.style.bottom = `${top / bounds.height * 100}%`;
+				divider.style.top = `${top / bounds.height * 100}%`;
+				divider.style.bottom = base.controls
+					? `max(${divider.style.top}, ${controlsHeight}px)`
+					: divider.style.top;
 				divider.hidden = false;
 			};
 			hideComparison();
@@ -116,48 +124,23 @@ function createPreview(node) {
 				return;
 			}
 
-			const play = document.createElement("button");
-			play.type = "button";
-			play.textContent = "Play";
-			const seek = slider("Playback position", 0, 0, 0.01);
-			seek.disabled = true;
-			seek.style.cssText = "min-width:0;flex:1";
-			toolbar.prepend(play, seek);
-
 			function sync(force = false) {
 				if (!follower || !Number.isFinite(follower.duration)) return;
+				follower.playbackRate = master.playbackRate;
 				const time = Math.min(master.currentTime, follower.duration);
 				if (force || Math.abs(follower.currentTime - time) > 0.15) follower.currentTime = time;
 				if (master.paused || time >= follower.duration) follower.pause();
 				else if (follower.paused) follower.play().catch(() => {});
 			}
 
-			play.onclick = () => {
-				if (master.paused) {
-					if (master.ended) master.currentTime = 0;
-					master.play().catch(() => {});
-				} else master.pause();
-			};
-			seek.oninput = () => { master.currentTime = Number(seek.value); };
-			master.onloadedmetadata = () => {
-				seek.max = master.duration;
-				seek.disabled = !Number.isFinite(master.duration);
-			};
-			master.ontimeupdate = () => {
-				seek.value = master.currentTime;
-				sync();
-			};
-			master.onseeked = () => sync(true);
-			master.onplay = master.onpause = master.onended = () => {
-				play.textContent = master.paused ? "Play" : "Pause";
-				sync(true);
-			};
+			master.ontimeupdate = () => sync();
+			master.onseeked = master.onplay = master.onpause = master.onratechange = () => sync(true);
 			if (follower) follower.onloadedmetadata = () => sync(true);
 
 			release = () => {
 				for (const video of videos) {
 					video.onloadedmetadata = video.ontimeupdate = video.onseeked = null;
-					video.onplay = video.onpause = video.onended = null;
+					video.onplay = video.onpause = video.onratechange = null;
 					video.pause();
 					video.removeAttribute("src");
 					video.load();
