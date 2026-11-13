@@ -96,10 +96,7 @@ function createPreview(node) {
 				const bounds = stage.getBoundingClientRect();
 				const localY = (event.clientY - bounds.top) / bounds.height * stage.clientHeight;
 				if (download.contains(event.target) ||
-					((base.controls || referencePlayer) && localY >= stage.clientHeight - controlsHeight)) {
-					hideComparison();
-					return;
-				}
+					((base.controls || referencePlayer) && localY >= stage.clientHeight - controlsHeight)) return;
 				const width = base.videoWidth || base.naturalWidth;
 				const height = base.videoHeight || base.naturalHeight;
 				if (!width || !height || !bounds.width || !bounds.height) return;
@@ -108,11 +105,23 @@ function createPreview(node) {
 				const top = (bounds.height - height * scale) / 2;
 				const x = Math.max(left, Math.min(bounds.width - left, event.clientX - bounds.left));
 				const split = x / bounds.width * 100;
-				overlay.style.clipPath = `inset(0 ${100 - split}% 0 0)`;
+				// Fade out the comparison before it reaches the native controls.
+				overlay.style.clipPath = referencePlayer
+					? `polygon(0 0, ${split}% 0, ${split}% calc(100% - ${controlsHeight}px), 100% calc(100% - ${controlsHeight}px), 100% 100%, 0 100%)`
+					: `inset(0 ${100 - split}% 0 0)`;
+				if (base.controls) {
+					overlay.style.maskImage = `linear-gradient(to bottom, black calc(100% - 104px), transparent calc(100% - ${controlsHeight}px))`;
+				}
 				overlay.style.visibility = "visible";
 				divider.style.left = `${split}%`;
 				divider.style.top = `${top / bounds.height * 100}%`;
 				divider.style.bottom = divider.style.top;
+				if (base.controls || referencePlayer) {
+					const bottom = top / bounds.height * stage.clientHeight;
+					const fadeStart = Math.max(0, 104 - bottom);
+					const fadeEnd = Math.max(0, controlsHeight - bottom);
+					divider.style.background = `linear-gradient(to bottom, white calc(100% - ${fadeStart}px), transparent calc(100% - ${fadeEnd}px))`;
+				}
 				divider.hidden = false;
 			};
 			hideComparison();
