@@ -67,8 +67,19 @@ def _guided_color_fix_tensor(target, source):
         image = tF.avg_pool2d(image, (1, 33), stride=1, padding=(0, 16), count_include_pad=False)
         return tF.avg_pool2d(image, (33, 1), stride=1, padding=(16, 0), count_include_pad=False)
 
-    # Use target luminance to guide the smoothing of the RGB correction.
+    # Smooth fine texture in the guide so the correction cannot easily cancel it.
+    # Keep strong edges in the guide to prevent color bleeding across them.
     guide = (target * target.new_tensor([0.2126, 0.7152, 0.0722])[None, :, None, None]).sum(dim=1, keepdim=True)
+    height, width = guide.shape[-2:]
+    padded = tF.pad(guide, (1, 1, 1, 1), mode="replicate")
+    weighted = guide * 0.5
+    weights = torch.full_like(guide, 0.5)
+    for y, x in ((0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)):
+        neighbor = padded[..., y:y + height, x:x + width]
+        weight = torch.exp(-((neighbor - guide) / 0.08).square())
+        weighted.add_(weight * neighbor)
+        weights.add_(weight)
+    guide = weighted / weights
     correction = source - target
     mean_guide = box_mean(guide)
     mean_correction = box_mean(correction)

@@ -136,6 +136,19 @@ class ImageNodeUpdateTests(unittest.TestCase):
         matched_batch, = node.color_match(image, image.flip(0), 'adain', .5)
         torch.testing.assert_close(matched_batch[..., 3:], image[..., 3:], rtol=0, atol=0)
 
+    def test_guided_color_match_retains_fine_texture_with_smooth_reference(self):
+        torch = self.torch
+        match = load_symbols('node/image.py', ['_guided_color_fix_tensor'], {
+            'torch': torch, 'tF': torch.nn.functional,
+        })['_guided_color_fix_tensor']
+        grid = torch.arange(96)
+        texture = ((grid[:, None] + grid) % 2).float() * .04 - .02
+        target = (.4 + texture).expand(1, 3, -1, -1)
+        reference = torch.full_like(target, .5)
+        center = match(target, reference)[..., 24:-24, 24:-24]
+        self.assertAlmostEqual(center.mean().item(), .5, places=3)
+        self.assertGreater((center.max() - center.min()).item(), .034)
+
     def test_guided_color_match_preserves_shadow_at_high_contrast_edge(self):
         torch = self.torch
         cls = load_symbols('node/image.py', [

@@ -1507,7 +1507,7 @@ class Easy_KSampler:
             )
             for latent in latents
         ]
-        if any(tensor.shape != tensors[0].shape for tensor in tensors[1:]):
+        if not all(tensor.shape == tensors[0].shape for tensor in tensors[1:]):
             return [self.sample(**dict(item, vae=None))[0] for item in rows]
         noise = torch.cat([
             comfy.sample.prepare_noise(tensor, item["seed"], latent.get("batch_index"))
