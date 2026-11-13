@@ -1,5 +1,6 @@
 import ntpath
 import logging
+from time import perf_counter
 import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
 import folder_paths, comfy.utils, comfy.model_management, server
 import comfy.sample
@@ -1253,6 +1254,7 @@ class Easy_KSampler:
                 "tile_width": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 64, "tooltip": "Chiều rộng tile khi dùng chế độ tiled diffusion."}),
                 "tile_height": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 64, "tooltip": "Chiều cao tile khi dùng chế độ tiled diffusion."}),
                 "FluxGuidance":  ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1, "tooltip": "Tham số điều chỉnh FluxGuidance (nếu dùng model Flux)."}),
+                "max_list_batch": ("INT", {"default": 0, "min": 0, "max": 4096, "tooltip": "0 tự động theo bộ nhớ, 1 chạy tuần tự, giá trị lớn hơn giới hạn số mục trong mỗi batch."}),
             }
         }
 
@@ -1318,6 +1320,8 @@ class Easy_KSampler:
         return ALL_NODE["EmptyLatentImage"]().generate(width, height, 1)[0]
 
     def sample_list(self, **inputs):
+        started = perf_counter()
+        batch_cap = (inputs.pop("max_list_batch", None) or [0])[0]
         inputs = {name: values for name, values in inputs.items() if values}
         rows = [
             {name: values[min(index, len(values) - 1)] for name, values in inputs.items()}
@@ -1348,7 +1352,7 @@ class Easy_KSampler:
                 if reason is not None:
                     logging.info("SDVN KSampler: batch boundary before item %d: %s",
                                  index + 1 if end == index + 1 and self._batch_blocker(row) else end + 1, reason)
-            limit = end - index
+            limit = min(end - index, batch_cap) if batch_cap else end - index
             while index < end:
                 before_node_execution()
                 row = rows[index]
@@ -1358,9 +1362,8 @@ class Easy_KSampler:
                     if count == 1:
                         logging.info("SDVN KSampler: memory estimate allows one item")
                 if count == 1:
-                    latent, image = self.sample(**row)
+                    latent, _ = self.sample(**dict(row, vae=None))
                     latents.append(latent)
-                    images.append(image)
                 else:
                     try:
                         logging.info("SDVN KSampler: sampling batch of %d", count)
@@ -1369,10 +1372,7 @@ class Easy_KSampler:
                         comfy.model_management.raise_non_oom(error)
                         limit = count // 2
                     else:
-                        for latent in batch:
-                            latents.append(latent)
-                            vae = row.get("vae")
-                            images.append(ALL_NODE["VAEDecode"]().decode(vae, latent)[0] if vae is not None else None)
+                        latents.extend(batch)
                         index += count
                         batch_sizes.append(count)
                         continue
@@ -1381,8 +1381,15 @@ class Easy_KSampler:
                     continue
                 index += 1
                 batch_sizes.append(1)
+        sampling_done = perf_counter()
+        decoder = ALL_NODE["VAEDecode"]()
+        for row, latent in zip(rows, latents):
+            before_node_execution()
+            vae = row.get("vae")
+            images.append(decoder.decode(vae, latent)[0] if vae is not None else None)
         if len(rows) > 1:
-            logging.info("SDVN KSampler: %d list items, sampling batch sizes %s", len(rows), batch_sizes)
+            logging.info("SDVN KSampler: batches %s, sampling %.2fs, VAE decode %.2fs",
+                         batch_sizes, sampling_done - started, perf_counter() - sampling_done)
         return latents, images
 
     @staticmethod
