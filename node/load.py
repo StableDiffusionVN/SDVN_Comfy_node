@@ -1,15 +1,10 @@
 import ntpath
-import logging
-from time import perf_counter
 import requests, math, json, os, re, sys, torch, hashlib, subprocess, numpy as np, random as rd, urllib.parse, shutil
 import folder_paths, comfy.utils, comfy.model_management, server
-import comfy.sample
-import comfy.sampler_helpers
-import latent_preview
 from PIL import Image, ImageOps
 from googletrans import LANGUAGES
 from aiohttp import web
-from nodes import NODE_CLASS_MAPPINGS as ALL_NODE, before_node_execution
+from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
 from comfy_api.latest import InputImpl, io
 from .style_store import get_style_prompts, style_list
@@ -1254,25 +1249,23 @@ class Easy_KSampler:
                 "tile_width": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 64, "tooltip": "Chiều rộng tile khi dùng chế độ tiled diffusion."}),
                 "tile_height": ("INT", {"default": 1024, "min": 512, "max": 20000, "step": 64, "tooltip": "Chiều cao tile khi dùng chế độ tiled diffusion."}),
                 "FluxGuidance":  ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1, "tooltip": "Tham số điều chỉnh FluxGuidance (nếu dùng model Flux)."}),
-                "max_list_batch": ("INT", {"default": 0, "min": 0, "max": 4096, "tooltip": "0 tự động theo bộ nhớ, 1 chạy tuần tự, giá trị lớn hơn giới hạn số mục trong mỗi batch."}),
             }
         }
 
     RETURN_TYPES = ("LATENT", "IMAGE",)
     OUTPUT_TOOLTIPS = ("Latent đã được khử nhiễu.",)
-    INPUT_IS_LIST = True
-    OUTPUT_IS_LIST = (True, True)
-    FUNCTION = "sample_list"
+    FUNCTION = "sample"
 
     CATEGORY = "📂 SDVN"
     DESCRIPTION = "Sử dụng mô hình, điều kiện positive/negative để khử nhiễu latent sinh ảnh."
     
-    def sample(self, model, positive, ModelType, StepsType, sampler_name, scheduler, seed, Tiled=False, tile_width=None, tile_height=None, steps=20, cfg=7, denoise=1.0, negative=None, latent_image=None, vae=None, FluxGuidance = 3.5, _batch_noise=None):
+    def sample(self, model, positive, ModelType, StepsType, sampler_name, scheduler, seed, Tiled=False, tile_width=None, tile_height=None, steps=20, cfg=7, denoise=1.0, negative=None, latent_image=None, vae=None, FluxGuidance = 3.5):
         if ModelType == "Auto":
             ModelType = check_type_model(model)
         ModelType = 'None' if ModelType not in ModelType_list else ModelType
         if ModelType != 'None':
             cfg, sampler_name, scheduler = ModelType_list[ModelType]
+        StepsType_list["Denoise"] = steps
         if FluxGuidance != 3.5:
             positive = ALL_NODE["FluxGuidance"]().execute(positive,FluxGuidance)[0]
         if negative == None:
@@ -1281,7 +1274,10 @@ class Easy_KSampler:
         if tile_width == None or tile_height == None:
             tile_width = tile_height = 1024
         if latent_image == None:
-            latent_image = self._empty_latent(model, tile_width, tile_height)
+            if check_type_model(model) != "Flux2":
+                latent_image = ALL_NODE["EmptyLatentImage"]().generate(tile_width, tile_height, 1)[0]
+            else:
+                latent_image = ALL_NODE["EmptyFlux2LatentImage"]().execute(tile_width, tile_height, 1)[0]
             tile_width = int(math.ceil(tile_width/2))
             tile_height = int(math.ceil(tile_width/2))
         if Tiled == True:
@@ -1293,264 +1289,16 @@ class Easy_KSampler:
                 print(
                     'Not install TiledDiffusion node (https://github.com/shiimizu/ComfyUI-TiledDiffusion)')
         if StepsType != 'None':
-            base_steps = steps if StepsType == "Denoise" else StepsType_list[StepsType]
-            steps = int(math.ceil(base_steps * denoise))
-        if _batch_noise is None:
-            cls = ALL_NODE["KSampler"]
-            samples = cls().sample(model, seed, steps, cfg, sampler_name,
-                                   scheduler, positive, negative, latent_image, denoise)[0]
-        else:
-            callback = latent_preview.prepare_callback(model, steps)
-            samples = {"samples": comfy.sample.sample(
-                model, _batch_noise, steps, cfg, sampler_name, scheduler, positive, negative,
-                latent_image["samples"], denoise=denoise, noise_mask=latent_image.get("noise_mask"), callback=callback,
-                disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED, seed=seed,
-            )}
+            steps = int(math.ceil(StepsType_list[StepsType]*denoise))
+        cls = ALL_NODE["KSampler"]
+        samples = cls().sample(model, seed, steps, cfg, sampler_name,
+                               scheduler, positive, negative, latent_image, denoise)[0]
         if vae != None:
             cls_decode = ALL_NODE["VAEDecode"]
             images = cls_decode().decode(vae, samples)[0]
         else:
             images = None
         return (samples, images,)
-
-    @staticmethod
-    def _empty_latent(model, width, height):
-        if check_type_model(model) == "Flux2":
-            return ALL_NODE["EmptyFlux2LatentImage"]().execute(width, height, 1)[0]
-        return ALL_NODE["EmptyLatentImage"]().generate(width, height, 1)[0]
-
-    def sample_list(self, **inputs):
-        started = perf_counter()
-        batch_cap = (inputs.pop("max_list_batch", None) or [0])[0]
-        inputs = {name: values for name, values in inputs.items() if values}
-        rows = [
-            {name: values[min(index, len(values) - 1)] for name, values in inputs.items()}
-            for index in range(max(map(len, inputs.values()), default=0))
-        ]
-        if len(rows) > 1:
-            logging.info("SDVN KSampler: received %d list items", len(rows))
-            for row in rows:
-                if row.get("latent_image") is None and not row.get("Tiled"):
-                    width, height = row.get("tile_width"), row.get("tile_height")
-                    if width is None or height is None:
-                        width = height = 1024
-                    row["latent_image"] = self._empty_latent(row["model"], width, height)
-        latents, images = [], []
-        batch_sizes = []
-        index = 0
-        while index < len(rows):
-            row = rows[index]
-            end = index + 1
-            if end < len(rows):
-                reason = self._batch_blocker(row)
-                if reason is None:
-                    while end < len(rows):
-                        reason = self._batch_mismatch(row, rows[end])
-                        if reason is not None:
-                            break
-                        end += 1
-                if reason is not None:
-                    logging.info("SDVN KSampler: batch boundary before item %d: %s",
-                                 index + 1 if end == index + 1 and self._batch_blocker(row) else end + 1, reason)
-            limit = min(end - index, batch_cap) if batch_cap else end - index
-            while index < end:
-                before_node_execution()
-                row = rows[index]
-                count = min(end - index, limit)
-                if count > 1:
-                    count = self._batch_size(row, count)
-                    if count == 1:
-                        logging.info("SDVN KSampler: memory estimate allows one item")
-                if count == 1:
-                    latent, _ = self.sample(**dict(row, vae=None))
-                    latents.append(latent)
-                else:
-                    try:
-                        logging.info("SDVN KSampler: sampling batch of %d", count)
-                        batch = self._sample_batch(row, rows[index:index + count])
-                    except RuntimeError as error:
-                        comfy.model_management.raise_non_oom(error)
-                        limit = count // 2
-                    else:
-                        latents.extend(batch)
-                        index += count
-                        batch_sizes.append(count)
-                        continue
-                    comfy.model_management.soft_empty_cache()
-                    logging.info("SDVN KSampler: reducing batch from %d to %d after OOM", count, limit)
-                    continue
-                index += 1
-                batch_sizes.append(1)
-        sampling_done = perf_counter()
-        decoder = ALL_NODE["VAEDecode"]()
-        for row, latent in zip(rows, latents):
-            before_node_execution()
-            vae = row.get("vae")
-            images.append(decoder.decode(vae, latent)[0] if vae is not None else None)
-        if len(rows) > 1:
-            logging.info("SDVN KSampler: batches %s, sampling %.2fs, VAE decode %.2fs",
-                         batch_sizes, sampling_done - started, perf_counter() - sampling_done)
-        return latents, images
-
-    @staticmethod
-    def _batch_blocker(row):
-        latent = row.get("latent_image")
-        if latent is None or row.get("Tiled"):
-            return "tiled sampling or missing latent"
-        samples = latent["samples"]
-        if samples.is_nested or samples.ndim != 4 or samples.shape[0] != 1:
-            return f"latent shape {samples.shape}"
-        # Only merge fields with a known batch layout.
-        if not all(
-            (embedding is None or embedding.shape[0] == 1)
-            and metadata.keys() <= {"pooled_output", "guidance", "reference_latents", "reference_latents_method", "attention_mask"}
-            and (metadata.get("pooled_output") is None or metadata["pooled_output"].shape[0] == 1)
-            and (metadata.get("attention_mask") is None or metadata["attention_mask"].shape[0] == 1)
-            and all(ref.ndim == 4 and ref.shape[0] == 1 for ref in metadata.get("reference_latents", ()))
-            for conditioning in (row["positive"], row.get("negative") or ())
-            for embedding, metadata in conditioning
-        ):
-            keys = sorted({key for cond in (row["positive"], row.get("negative") or ())
-                           for _, metadata in cond for key in metadata})
-            return f"conditioning fields or layout ({', '.join(keys)})"
-        return None
-
-    @staticmethod
-    def _conditioning_layout(conditioning):
-        def layout(tensor):
-            return None if tensor is None else (tensor.shape, tensor.dtype, tensor.device)
-
-        if conditioning is None:
-            return None
-        return [
-            (layout(embedding), layout(metadata.get("pooled_output")), layout(metadata.get("attention_mask")), metadata.get("guidance"),
-             metadata.get("reference_latents_method"),
-             tuple(layout(ref) for ref in metadata.get("reference_latents", ())))
-            for embedding, metadata in conditioning
-        ]
-
-    @classmethod
-    def _batch_mismatch(cls, first, other):
-        reason = cls._batch_blocker(other)
-        if reason is not None:
-            return reason
-        for name, value in first.items():
-            if name in {"positive", "negative"}:
-                if value is not other[name] and cls._conditioning_layout(value) != cls._conditioning_layout(other[name]):
-                    return f"{name} conditioning layout differs"
-            elif name in {"model", "vae"}:
-                if value is not other[name]:
-                    return f"{name} differs"
-            elif name == "seed" and value != other[name]:
-                # These samplers use randomness only in the initial noise.
-                sampler = first["sampler_name"]
-                model_type = first["ModelType"]
-                if model_type == "Auto":
-                    model_type = check_type_model(first["model"])
-                if model_type in ModelType_list:
-                    sampler = ModelType_list[model_type][1]
-                if sampler not in {"euler", "heun", "dpmpp_2m", "lms", "uni_pc", "uni_pc_bh2"}:
-                    return f"distinct seeds with {sampler}"
-            elif name not in {"latent_image", "seed", "tile_width", "tile_height"} and value != other[name]:
-                return f"{name} differs"
-        left, right = first["latent_image"], other["latent_image"]
-        a, b = left["samples"], right["samples"]
-        mask_a, mask_b = left.get("noise_mask"), right.get("noise_mask")
-        if mask_a is not None or mask_b is not None:
-            if mask_a is None or mask_b is None:
-                return "only one item has a noise mask"
-            if (mask_a.shape[-2:], mask_a.dtype, mask_a.device) != (mask_b.shape[-2:], mask_b.dtype, mask_b.device):
-                return "noise mask size, dtype or device differs"
-            if mask_a.numel() != math.prod(mask_a.shape[-2:]) or mask_b.numel() != math.prod(mask_b.shape[-2:]):
-                return "noise mask contains multiple items"
-        if not (
-            (a.shape, a.dtype, a.device) == (b.shape, b.dtype, b.device)
-            and all(left.get(key) == right.get(key)
-                    for key in ("downscale_ratio_spacial", "downscale_ratio_temporal"))
-        ):
-            return f"latent layout differs ({tuple(a.shape)} vs {tuple(b.shape)})"
-        return None
-
-    @staticmethod
-    def _batch_size(row, count):
-        model = row["model"]
-        device = model.load_device
-        if device.type == "cpu":
-            return 1
-        memory = comfy.model_management
-        available = model.get_free_memory(device)
-        if not model.is_dynamic():
-            available -= max(0, model.model_size() - model.loaded_size())
-        available -= memory.extra_reserved_memory()
-        available *= 0.85
-        latent = row["latent_image"]
-        shape = list(comfy.sample.fix_empty_latent_channels(
-            model, latent["samples"], latent.get("downscale_ratio_spacial"),
-            latent.get("downscale_ratio_temporal"),
-        ).shape)
-        # ComfyUI can schedule the CFG branches separately when memory is tight.
-        conds = {
-            name: comfy.sampler_helpers.convert_cond(row[name])
-            for name in ("positive", "negative") if row.get(name) is not None
-        }
-        low, high = 1, count
-        while low < high:
-            size = (low + high + 1) // 2
-            shape[0] = size
-            _, required = comfy.sampler_helpers.estimate_memory(model, shape, conds)
-            if required <= available:
-                low = size
-            else:
-                high = size - 1
-        return low
-
-    def _sample_batch(self, row, rows):
-        model = row["model"]
-        latents = [item["latent_image"] for item in rows]
-        tensors = [
-            comfy.sample.fix_empty_latent_channels(
-                model, latent["samples"], latent.get("downscale_ratio_spacial"),
-                latent.get("downscale_ratio_temporal"),
-            )
-            for latent in latents
-        ]
-        if not all(tensor.shape == tensors[0].shape for tensor in tensors[1:]):
-            return [self.sample(**dict(item, vae=None))[0] for item in rows]
-        noise = torch.cat([
-            comfy.sample.prepare_noise(tensor, item["seed"], latent.get("batch_index"))
-            for tensor, latent, item in zip(tensors, latents, rows)
-        ])
-        # Route through the same preset and conditioning setup as the scalar path.
-        options = dict(row, latent_image={"samples": torch.cat(tensors)}, vae=None)
-        for name in ("positive", "negative"):
-            conditioning = row.get(name)
-            if conditioning is None or all(item.get(name) is conditioning for item in rows):
-                continue
-            merged = []
-            for entries in zip(*(item[name] for item in rows)):
-                embeddings, metadata = zip(*entries)
-                values = metadata[0].copy()
-                for key in ("pooled_output", "attention_mask"):
-                    if values.get(key) is not None:
-                        values[key] = torch.cat([item[key] for item in metadata])
-                if values.get("reference_latents"):
-                    values["reference_latents"] = [
-                        torch.cat(refs) for refs in zip(*(item["reference_latents"] for item in metadata))
-                    ]
-                merged.append([torch.cat(embeddings) if embeddings[0] is not None else None, values])
-            options[name] = merged
-        if latents[0].get("noise_mask") is not None:
-            options["latent_image"]["noise_mask"] = torch.stack([
-                latent["noise_mask"].reshape(latent["noise_mask"].shape[-2:]) for latent in latents
-            ])
-        result = self.sample(**options, _batch_noise=noise)[0]["samples"]
-        outputs = []
-        for latent, tensor in zip(latents, result.split(1)):
-            output = dict(latent, samples=tensor)
-            output.pop("downscale_ratio_spacial", None)
-            output.pop("downscale_ratio_temporal", None)
-            outputs.append(output)
-        return outputs
 
 class UpscaleImage:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
