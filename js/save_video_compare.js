@@ -45,10 +45,11 @@ function createPreview(node) {
 		const download = document.createElement("a");
 		download.title = "Download";
 		download.setAttribute("aria-label", "Download");
-		download.style.cssText = "display:inline-flex;color:inherit;margin-inline-start:auto";
+		download.style.cssText = "position:absolute;top:8px;right:8px;z-index:2;display:inline-flex;padding:6px;border-radius:6px;color:white;background:#0009";
 		download.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/></svg>';
-		toolbar.append(selector, download);
-		root.append(stage, toolbar);
+		toolbar.append(selector);
+		root.append(stage);
+		if (count > 1) root.append(toolbar);
 
 		function show(index) {
 			release();
@@ -80,6 +81,7 @@ function createPreview(node) {
 			const base = layer(a, true);
 			const overlay = b ? layer(b) : null;
 			if (overlay) stage.append(divider);
+			stage.append(download);
 			const referencePlayer = overlay?.controls === true;
 			const controlsHeight = 48;
 			function hideComparison() {
@@ -93,7 +95,8 @@ function createPreview(node) {
 				if (!overlay) return;
 				const bounds = stage.getBoundingClientRect();
 				const localY = (event.clientY - bounds.top) / bounds.height * stage.clientHeight;
-				if ((base.controls || referencePlayer) && localY >= stage.clientHeight - controlsHeight) {
+				if (download.contains(event.target) ||
+					((base.controls || referencePlayer) && localY >= stage.clientHeight - controlsHeight)) {
 					hideComparison();
 					return;
 				}
@@ -105,14 +108,11 @@ function createPreview(node) {
 				const top = (bounds.height - height * scale) / 2;
 				const x = Math.max(left, Math.min(bounds.width - left, event.clientX - bounds.left));
 				const split = x / bounds.width * 100;
-				const bottom = base.controls ? `${controlsHeight}px` : "0";
-				overlay.style.clipPath = `inset(0 ${100 - split}% ${bottom} 0)`;
+				overlay.style.clipPath = `inset(0 ${100 - split}% 0 0)`;
 				overlay.style.visibility = "visible";
 				divider.style.left = `${split}%`;
 				divider.style.top = `${top / bounds.height * 100}%`;
-				divider.style.bottom = base.controls
-					? `max(${divider.style.top}, ${controlsHeight}px)`
-					: divider.style.top;
+				divider.style.bottom = divider.style.top;
 				divider.hidden = false;
 			};
 			hideComparison();
