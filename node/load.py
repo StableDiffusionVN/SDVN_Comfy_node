@@ -1113,7 +1113,7 @@ class SDVNGenerateText(io.ComfyNode):
         native_inputs = {field.id: field for field in native.inputs}
         return io.Schema(
             node_id="SDVN Generate Text",
-            display_name="SDVN Generate Text",
+            display_name="🔡 Generate Text",
             category="📂 SDVN",
             description="Sinh văn bản từ prompt và tư liệu tham chiếu bằng TextGenerateV2.",
             inputs=[
@@ -1149,7 +1149,7 @@ class SDVNString(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(
             node_id="SDVN String",
-            display_name="SDVN String",
+            display_name="🔡 String",
             category="📂 SDVN",
             description="Nhập văn bản hoặc dán positive prompt từ style đã lưu vào ô text.",
             inputs=[
