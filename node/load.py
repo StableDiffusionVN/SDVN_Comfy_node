@@ -8,7 +8,7 @@ from googletrans import LANGUAGES
 from aiohttp import web
 from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
-from comfy_api.latest import InputImpl, io
+from comfy_api.latest import InputImpl, io, ui
 from .style_store import get_style_prompts, style_list
 from .textgen_systems import IMAGE_SYSTEM, VIDEO_SYSTEM
 from . import apix_license
@@ -607,6 +607,7 @@ class SDVNLoadAudio:
     RETURN_TYPES = ("AUDIO",)
     RETURN_NAMES = ("audio",)
     FUNCTION = "load_audio"
+    OUTPUT_NODE = True
 
     @classmethod
     def VALIDATE_INPUTS(cls, audio):
@@ -627,7 +628,7 @@ class SDVNLoadAudio:
         if start_sample >= end_sample:
             raise ValueError("Đoạn audio đã chọn ngắn hơn một mẫu âm thanh.")
         trimmed = {**source, "waveform": waveform[..., start_sample:end_sample]}
-        return (trimmed,)
+        return {"ui": ui.PreviewAudio(trimmed).as_dict(), "result": (trimmed,)}
 
 
 class LoadImageFolder:
