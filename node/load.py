@@ -10,6 +10,7 @@ from nodes import NODE_CLASS_MAPPINGS as ALL_NODE
 from comfy.cldm.control_types import UNION_CONTROLNET_TYPES
 from comfy_api.latest import InputImpl, io
 from .style_store import get_style_prompts, style_list
+from .textgen_systems import IMAGE_SYSTEM, VIDEO_SYSTEM
 from . import apix_license
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "comfy"))
 import node_helpers
@@ -1090,6 +1091,58 @@ Negative: {negative}
         token_p = clip.tokenize(positive)
         token_n = clip.tokenize(negative)
         return (clip.encode_from_tokens_scheduled(token_p), clip.encode_from_tokens_scheduled(token_n), prompt)
+
+class SDVNGenerateText(io.ComfyNode):
+    DEFAULT_TEMPLATE = "Detailed (3072)"
+    TEMPLATES = {
+        "Concise (512)": (512, dict(sampling_mode="off")),
+        "Balanced (1536)": (1536, dict(sampling_mode="on", temperature=0.7, top_k=64,
+                                       top_p=0.95, min_p=0.05, repetition_penalty=1.05, presence_penalty=0.0)),
+        "Detailed (3072)": (3072, dict(sampling_mode="on", temperature=0.5, top_k=40,
+                                       top_p=0.95, min_p=0.05, repetition_penalty=1.0, presence_penalty=0.0)),
+        "Extended (8192)": (8192, dict(sampling_mode="on", temperature=0.5, top_k=40,
+                                       top_p=0.95, min_p=0.05, repetition_penalty=1.0, presence_penalty=0.0)),
+        "Creative (3072)": (3072, dict(sampling_mode="on", temperature=0.9, top_k=64,
+                                       top_p=0.95, min_p=0.05, repetition_penalty=1.05, presence_penalty=0.2)),
+    }
+    SYSTEM_MODES = ["None", "System prompt", "Video system", "Image system"]
+
+    @classmethod
+    def define_schema(cls):
+        native = ALL_NODE["TextGenerateV2"].define_schema()
+        native_inputs = {field.id: field for field in native.inputs}
+        return io.Schema(
+            node_id="SDVN Generate Text",
+            display_name="SDVN Generate Text",
+            category="📂 SDVN",
+            description="Sinh văn bản từ prompt và tư liệu tham chiếu bằng TextGenerateV2.",
+            inputs=[
+                *(native_inputs[name] for name in ("clip", "prompt", "images", "videos", "audios", "system_prompt")),
+                io.Combo.Input("template", options=list(cls.TEMPLATES), default=cls.DEFAULT_TEMPLATE,
+                               tooltip="Chọn độ dài tối đa và cách lấy mẫu. Detailed phù hợp với prompt ảnh hoặc video nhiều chi tiết."),
+                io.Combo.Input("system", options=cls.SYSTEM_MODES, default="None",
+                               tooltip="None bỏ chat template. System prompt dùng nội dung từ cổng system_prompt."),
+                native_inputs["thinking"],
+                io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff, control_after_generate=True),
+            ],
+            outputs=native.outputs,
+        )
+
+    @classmethod
+    def execute(cls, clip, prompt, template, system, seed, thinking=False, system_prompt="",
+                images=None, videos=None, audios=None):
+        max_length, sampling = cls.TEMPLATES[template]
+        if system == "System prompt":
+            if not system_prompt or not system_prompt.strip():
+                raise ValueError("Hãy nối nội dung vào cổng system_prompt khi chọn System prompt.")
+        else:
+            system_prompt = {"Video system": VIDEO_SYSTEM, "Image system": IMAGE_SYSTEM}.get(system, "")
+        return ALL_NODE["TextGenerateV2"].execute(
+            clip=clip, prompt=prompt, max_length=max_length, sampling_mode=dict(sampling, seed=seed),
+            thinking=thinking, use_default_template=system != "None", mtp="auto",
+            system_prompt=system_prompt, images=images, videos=videos, audios=audios,
+        )
+
 
 class SDVNString(io.ComfyNode):
     @classmethod
@@ -2562,6 +2615,7 @@ class AnyDownloadList:
         return  (r,)
 
 NODE_CLASS_MAPPINGS = {
+    "SDVN Generate Text": SDVNGenerateText,
     "SDVN String": SDVNString,
     "SDVN Load Checkpoint": CheckpointLoaderDownload,
     "SDVN Load Checkpoint Filter": CheckpointLoaderDownloadFilter,
