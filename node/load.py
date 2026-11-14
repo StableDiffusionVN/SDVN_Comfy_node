@@ -530,7 +530,7 @@ class SDVNLoadVideo:
             "minimax_frame": ("BOOLEAN", {"default": False,
                 "tooltip": "Giảm xuống tối đa 24 fps rồi cắt images về số frame dạng 17k + 5, không lặp frame."}),
             "trim_mode": (["time", "block"], {"default": "time",
-                "tooltip": "time: cắt theo start_time – end_time. block: chia cả video thành num_blocks đoạn liền nhau và lấy đoạn thứ index."}),
+                "tooltip": "time: cắt theo start_time – end_time. block: cắt theo hai mốc này rồi chia đoạn đã cắt thành num_blocks và lấy đoạn thứ index."}),
             "num_blocks": ("INT", {"default": 2, "min": 1, "max": 1000,
                 "tooltip": "Số đoạn sẽ chia. Phần dư (hoặc thiếu khi bật minimax_frame) dồn vào đoạn cuối, nối các đoạn lại vẫn thành video hoàn chỉnh."}),
             "index": ("INT", {"default": 0, "min": 0, "max": 999,
@@ -557,14 +557,11 @@ class SDVNLoadVideo:
         source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
         duration = source.get_duration()
         block_mode = trim_mode == "block"
-        if block_mode:
+        if end_time > duration:
             start_time, end_time = 0.0, duration
-        else:
-            if end_time > duration:
-                start_time, end_time = 0.0, duration
-            start_time, end_time = _media_time_range(start_time, end_time, duration)
-            if start_time or end_time < duration:
-                source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
+        start_time, end_time = _media_time_range(start_time, end_time, duration)
+        if start_time or end_time < duration:
+            source = source.as_trimmed(start_time, end_time - start_time, strict_duration=False)
         components = source.get_components()
         images = components.images
         audio = components.audio

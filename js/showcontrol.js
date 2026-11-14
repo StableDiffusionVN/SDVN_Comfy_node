@@ -69,8 +69,6 @@ function addShowControl(nodeType, nodeData) {
                 controller: "trim_mode",
                 keepSize: true,
                 targets: (v) => ({
-                    start_time: v !== "block",
-                    end_time: v !== "block",
                     num_blocks: v === "block",
                     index: v === "block"
                 })
