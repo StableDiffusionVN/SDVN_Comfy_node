@@ -2324,17 +2324,28 @@ class UpscaleModelDownload:
 
 class LatentUpscaleModelDownload:
     @classmethod
-    def INPUT_TYPES(s):
+    def _presets(cls):
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_lib_any.json")
+        with open(path, encoding="utf-8") as file:
+            return {name: entry[0] for name, entry in json.load(file).items()
+                    if entry[1] == "LatentUpscaleModel"}
+
+    @classmethod
+    def INPUT_TYPES(cls):
         return {"required": { 
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
-                             }}
+                }, "optional": {
+                    "preset": (["Custom URL", *cls._presets()], {"default": "Custom URL"}),
+                }}
     RETURN_TYPES = ("LATENT_UPSCALE_MODEL",)
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
-    def download(self, Download_url, Url_name):
+    def download(self, Download_url, Url_name, preset="Custom URL"):
+        if preset != "Custom URL":
+            Download_url, Url_name = self._presets()[preset], preset
         Url_name = download_model(Download_url, Url_name, "latent_upscale_models")
         loader = ALL_NODE["LatentUpscaleModelLoader"]()
         if hasattr(loader, "load_model"):
@@ -2699,7 +2710,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SDVN Lora Download": "📥 Lora Download",
     "SDVN CLIPVision Download": "📥 CLIPVision Download",
     "SDVN UpscaleModel Download": "📥 UpscaleModel Download",
-    "SDVN LatentUpscaleModel Download": "📥 LatentUpscaleModel Download",
+    "SDVN LatentUpscaleModel Download": "📥 Download Latent Upscale Model",
     "SDVN VAE Download": "📥 VAE Download",
     "SDVN ControlNet Download": "📥 ControlNet Download",
     "SDVN UNET Download": "📥 UNET Download",

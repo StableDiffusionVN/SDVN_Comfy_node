@@ -116,6 +116,8 @@
     "RealESRGAN_x2plus.pth": ["https://huggingface.co/tomjackson2023/upscale_models/blob/main/RealESRGAN_x2plus.pth","UpscaleModel"],
     "RealESRGANv2-animevideo-xsx2.pth": ["https://huggingface.co/tomjackson2023/upscale_models/blob/main/RealESRGANv2-animevideo-xsx2.pth","UpscaleModel"],
     "ltx-2.3-spatial-upscaler-x2-1.1.safetensors": ["https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors","LatentUpscaleModel"],
+    "minimax_h3_latent_upscaler_2d_conv_v1_bf16.safetensors": ["https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler/resolve/main/minimax_h3_latent_upscaler_2d_conv_v1/minimax_h3_latent_upscaler_2d_conv_v1_bf16.safetensors","LatentUpscaleModel"],
+    "minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors": ["https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler/resolve/main/minimax_h3_latent_upscaler_3d_conv_v1/minimax_h3_latent_upscaler_3d_conv_v1_bf16.safetensors","LatentUpscaleModel"],
     
     "clip_l_hidream.safetensors": ["https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/blob/main/split_files/text_encoders/clip_l_hidream.safetensors","CLIP","sd3"],
     "clip_g_hidream.safetensors": ["https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/blob/main/split_files/text_encoders/clip_g_hidream.safetensors","CLIP","sd3"],
