@@ -503,7 +503,7 @@ def _video_block_range(total, num_blocks, index, minimax=False):
     else:
         size = total // num_blocks
     if size < min_size or total - (num_blocks - 1) * size < min_size:
-        raise ValueError(f"Video có {total} frame, không đủ để chia thành {num_blocks} đoạn"
+        raise ValueError(f"Đoạn đã chọn có {total} frame, không đủ để chia thành {num_blocks} đoạn"
                          + (" (mỗi đoạn MiniMax cần ít nhất 5 frame)." if minimax else "."))
     start = index * size
     if index < num_blocks - 1:
@@ -599,13 +599,27 @@ class SDVNLoadVideo:
 
 
 class SDVNLoadAudio:
+    SEARCH_ALIASES = ["SDVN Load Audio"]
+
     @classmethod
     def INPUT_TYPES(cls):
-        return _media_loader_inputs("audio", ["audio", "video"])
+        inputs = _media_loader_inputs("audio", ["audio", "video"])
+        inputs["optional"] = {
+            "fps": ("FLOAT", {"default": 24.0, "min": 0.01, "step": 0.01,
+                              "tooltip": "FPS dùng để tính số frame tương ứng với thời lượng audio."}),
+            "trim_mode": (["time", "block"], {"default": "time",
+                "tooltip": "block: cắt theo start_time và end_time trước, rồi chia đoạn đã cắt."}),
+            "num_blocks": ("INT", {"default": 2, "min": 1, "max": 1000}),
+            "index": ("INT", {"default": 0, "min": 0, "max": 999,
+                "tooltip": "Vị trí đoạn sẽ lấy, 0 = đoạn đầu tiên."}),
+            "minimax_frame": ("BOOLEAN", {"default": False,
+                "tooltip": "Cắt audio theo số frame dạng 17k + 5 ở FPS đã nhập."}),
+        }
+        return inputs
 
     CATEGORY = "📂 SDVN"
-    RETURN_TYPES = ("AUDIO",)
-    RETURN_NAMES = ("audio",)
+    RETURN_TYPES = ("AUDIO", "INT")
+    RETURN_NAMES = ("audio", "length")
     FUNCTION = "load_audio"
     OUTPUT_NODE = True
 
@@ -617,18 +631,30 @@ class SDVNLoadAudio:
     def IS_CHANGED(cls, audio, **kwargs):
         return None if audio == "None" else os.stat(folder_paths.get_annotated_filepath(audio)).st_mtime_ns
 
-    def load_audio(self, audio, start_time, end_time):
+    def load_audio(self, audio, start_time, end_time, fps=24.0, trim_mode="time",
+                   num_blocks=2, index=0, minimax_frame=False):
         if audio == "None":
-            return (None,)
+            return (None, 0)
         source = ALL_NODE["LoadAudio"].execute(audio)[0]
         waveform, sample_rate = source["waveform"], source["sample_rate"]
         start_time, end_time = _media_time_range(start_time, end_time, waveform.shape[-1] / sample_rate)
-        start_sample = round(start_time * sample_rate)
-        end_sample = round(end_time * sample_rate)
-        if start_sample >= end_sample:
+        trimmed = _slice_audio(source, start_time, end_time)
+        duration = trimmed["waveform"].shape[-1] / sample_rate
+        if duration == 0:
             raise ValueError("Đoạn audio đã chọn ngắn hơn một mẫu âm thanh.")
-        trimmed = {**source, "waveform": waveform[..., start_sample:end_sample]}
-        return {"ui": ui.PreviewAudio(trimmed).as_dict(), "result": (trimmed,)}
+        length = math.floor(duration * fps + 1e-9)
+        if trim_mode == "block":
+            first, length = _video_block_range(length, num_blocks, index, minimax_frame)
+            block_end = (first + length) / fps
+            if not minimax_frame and index == num_blocks - 1:
+                block_end = duration
+            trimmed = _slice_audio(trimmed, first / fps, block_end)
+        elif minimax_frame:
+            if length < 5:
+                raise ValueError("MiniMax Frame cần ít nhất 5 frame trong đoạn audio đã chọn.")
+            length = _minimax_length(length)
+            trimmed = _slice_audio(trimmed, 0, length / fps)
+        return {"ui": ui.PreviewAudio(trimmed).as_dict(), "result": (trimmed, length)}
 
 
 class LoadImageFolder:

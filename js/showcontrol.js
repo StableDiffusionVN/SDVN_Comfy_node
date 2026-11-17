@@ -5,7 +5,7 @@ function chainCallback(object, property, callback) {
         console.error("Tried to add callback to non-existent object");
         return;
     }
-    if (property in object) {
+    if (typeof object[property] === "function") {
         const original = object[property];
         object[property] = function () {
             const result = original.apply(this, arguments);
@@ -66,6 +66,14 @@ function addShowControl(nodeType, nodeData) {
                 })
             },
             "SDVN Load Video": {
+                controller: "trim_mode",
+                keepSize: true,
+                targets: (v) => ({
+                    num_blocks: v === "block",
+                    index: v === "block"
+                })
+            },
+            "SDVN Load Audio": {
                 controller: "trim_mode",
                 keepSize: true,
                 targets: (v) => ({
