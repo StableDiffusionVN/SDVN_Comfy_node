@@ -88,6 +88,19 @@ function addShowControl(nodeType, nodeData) {
         if (!controller) return;
 
         if (node.comfyClass === "SDVN Load Video") {
+            const addDOMWidget = node.addDOMWidget;
+            node.addDOMWidget = function (name, ...args) {
+                const widget = addDOMWidget.call(this, name, ...args);
+                if (name === "video-preview") {
+                    // The frontend sets its minimum from the width at video load time.
+                    queueMicrotask(() => {
+                        widget.computeLayoutSize = () => ({ minWidth: 0, minHeight: 120 });
+                        this.setDirtyCanvas(true, true);
+                    });
+                }
+                return widget;
+            };
+
             const widgets = node.widgets;
             const originalOrder = [...widgets];
             const video = widgets.find(w => w.name === "video");
