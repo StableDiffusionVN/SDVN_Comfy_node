@@ -2,8 +2,9 @@ import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 
 const PREVIEW_ENDPOINT = "/sdvn/load_image_preview";
+const LOAD_IMAGE_NODE = "SDVN Load Image";
 const NODE_CONFIG = {
-	"SDVN Load Image": [
+	[LOAD_IMAGE_NODE]: [
 		{
 			widget: "Url",
 			watch: ["Load_url"],
@@ -17,6 +18,10 @@ const NODE_CONFIG = {
 				const enabled = typeof loadWidget?.value === "boolean" ? loadWidget.value : true;
 				if (!enabled) {
 					setWidgetStatus(widget, "Load_url is disabled. Enable it to show the preview.", "info");
+					return null;
+				}
+				const image = String(findWidget(node, "image")?.value ?? "");
+				if (image.includes("clipspace") || image.includes("image_editor/")) {
 					return null;
 				}
 				return { url };
@@ -113,6 +118,43 @@ app.registerExtension({
 		const baseConfigs = NODE_CONFIG[nodeData.name];
 		if (!baseConfigs) {
 			return;
+		}
+
+		if (nodeData.name === LOAD_IMAGE_NODE) {
+			const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
+			nodeType.prototype.getExtraMenuOptions = function (canvas, options) {
+				const result = getExtraMenuOptions?.apply(this, arguments);
+				const maskOption = [...(options ?? []), ...(Array.isArray(result) ? result : [])]
+					.find((option) => /^Open in MaskEditor\b/.test(option?.content ?? ""));
+				if (typeof maskOption?.callback === "function") {
+					const open = maskOption.callback;
+					const node = this;
+					maskOption.callback = function () {
+						const urlWidget = findWidget(node, "Url");
+						const payload = baseConfigs[0].buildPayload(node, urlWidget);
+						if (!payload) {
+							return open.apply(this, arguments);
+						}
+						const { source, imageRef } = getPreviewState(node);
+						const imageWidget = findWidget(node, "image");
+						if (!imageWidget || !imageRef || source !== payload.url) {
+							setWidgetStatus(urlWidget, "Wait for the URL preview or upload the image to open Mask Editor.", "error");
+							return;
+						}
+						// Mask Editor resolves the image widget before loading RGB and alpha.
+						const imageValue = `${imageRef.subfolder}/${imageRef.filename} [${imageRef.type}]`;
+						const previousValue = imageWidget.value;
+						if (previousValue !== imageValue) {
+							imageWidget.value = imageValue;
+							imageWidget.callback?.(imageValue);
+							node.onWidgetChanged?.("image", imageValue, previousValue, imageWidget);
+						}
+						node.images = [imageRef];
+						return open.apply(this, arguments);
+					};
+				}
+				return result;
+			};
 		}
 
 		const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -224,7 +266,7 @@ async function requestPreview(node, config, payload) {
 		if (!response.ok || data.status !== "ok" || !data.preview_url) {
 			throw new Error(data?.message || response.statusText || "Preview request failed");
 		}
-		const finalUrl = sanitizeUrl(data.preview_url);
+		const finalUrl = data.preview_info ? api.apiURL(data.preview_url) : sanitizeUrl(data.preview_url);
 		if (!finalUrl) {
 			throw new Error("Preview URL missing from response");
 		}
@@ -237,6 +279,8 @@ async function requestPreview(node, config, payload) {
 			isRemote: Boolean(data.is_remote),
 		});
 		updateNodePreviewImage(node, finalUrl);
+		state.source = targetUrl;
+		state.imageRef = data.preview_info;
 		setWidgetStatus(widget, `URL preview updated${dims}.`, "success");
 		state.pendingPayload = null;
 		state.error = null;
@@ -260,6 +304,9 @@ function clearPendingState(node, config) {
 	}
 	state.pendingPayload = null;
 	state.error = null;
+	state.requestId++;
+	state.source = null;
+	state.imageRef = null;
 }
 
 function attachWatcher(node, widgetName, trigger) {

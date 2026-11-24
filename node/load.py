@@ -184,7 +184,7 @@ def _sdvn_prepare_preview_payload(resolved_path):
             print(f"SDVN preview cache error: {err}")
 
         if cached_abs_path and os.path.exists(cached_abs_path):
-            preview_url = f"/sdvn/load_image_preview/file?path={urllib.parse.quote(cached_abs_path)}"
+            preview_url = f"/view?{urllib.parse.urlencode(preview_info)}"
             try:
                 with Image.open(cached_abs_path) as img:
                     width, height = img.size
@@ -418,6 +418,8 @@ class LoadImage:
         image_path = folder_paths.get_annotated_filepath(image)
         image_path = image_path if image != "None" and os.path.exists(image_path) else None
         if Url != '' and Load_url and 'clipspace' not in image and 'image_editor/' not in image:
+            if image.startswith("sdvn_url_preview/") and image.endswith(" [temp]"):
+                image_path = None
             Url = run_gallery_dl(Url)
             if 'http' in Url:
                 i = Image.open(requests.get(Url, stream=True).raw)
