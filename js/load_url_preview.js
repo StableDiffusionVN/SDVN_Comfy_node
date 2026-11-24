@@ -6,6 +6,7 @@ const LOAD_IMAGE_NODE = "SDVN Load Image";
 const NODE_CONFIG = {
 	[LOAD_IMAGE_NODE]: [
 		{
+			bindImageWidget: true,
 			widget: "Url",
 			watch: ["Load_url"],
 			buildPayload(node, widget) {
@@ -120,43 +121,6 @@ app.registerExtension({
 			return;
 		}
 
-		if (nodeData.name === LOAD_IMAGE_NODE) {
-			const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
-			nodeType.prototype.getExtraMenuOptions = function (canvas, options) {
-				const result = getExtraMenuOptions?.apply(this, arguments);
-				const maskOption = [...(options ?? []), ...(Array.isArray(result) ? result : [])]
-					.find((option) => /^Open in MaskEditor\b/.test(option?.content ?? ""));
-				if (typeof maskOption?.callback === "function") {
-					const open = maskOption.callback;
-					const node = this;
-					maskOption.callback = function () {
-						const urlWidget = findWidget(node, "Url");
-						const payload = baseConfigs[0].buildPayload(node, urlWidget);
-						if (!payload) {
-							return open.apply(this, arguments);
-						}
-						const { source, imageRef } = getPreviewState(node);
-						const imageWidget = findWidget(node, "image");
-						if (!imageWidget || !imageRef || source !== payload.url) {
-							setWidgetStatus(urlWidget, "Wait for the URL preview or upload the image to open Mask Editor.", "error");
-							return;
-						}
-						// Mask Editor resolves the image widget before loading RGB and alpha.
-						const imageValue = `${imageRef.subfolder}/${imageRef.filename} [${imageRef.type}]`;
-						const previousValue = imageWidget.value;
-						if (previousValue !== imageValue) {
-							imageWidget.value = imageValue;
-							imageWidget.callback?.(imageValue);
-							node.onWidgetChanged?.("image", imageValue, previousValue, imageWidget);
-						}
-						node.images = [imageRef];
-						return open.apply(this, arguments);
-					};
-				}
-				return result;
-			};
-		}
-
 		const onNodeCreated = nodeType.prototype.onNodeCreated;
 		nodeType.prototype.onNodeCreated = function () {
 			const r = onNodeCreated?.apply(this, arguments);
@@ -260,13 +224,15 @@ async function requestPreview(node, config, payload) {
 			body: JSON.stringify({ url: targetUrl }),
 		});
 		const data = await response.json();
-		if (state.requestId !== requestId) {
+		if (state.requestId !== requestId || config.buildPayload(node, widget)?.url !== targetUrl) {
 			return;
 		}
 		if (!response.ok || data.status !== "ok" || !data.preview_url) {
 			throw new Error(data?.message || response.statusText || "Preview request failed");
 		}
-		const finalUrl = data.preview_info ? api.apiURL(data.preview_url) : sanitizeUrl(data.preview_url);
+		const finalUrl = data.preview_info
+			? api.apiURL(`/view?${new URLSearchParams(data.preview_info)}`)
+			: sanitizeUrl(data.preview_url);
 		if (!finalUrl) {
 			throw new Error("Preview URL missing from response");
 		}
@@ -278,14 +244,15 @@ async function requestPreview(node, config, payload) {
 			resolved: data.resolved,
 			isRemote: Boolean(data.is_remote),
 		});
+		if (config.bindImageWidget && data.preview_info) {
+			bindUrlImage(node, data.preview_info);
+		}
 		updateNodePreviewImage(node, finalUrl);
-		state.source = targetUrl;
-		state.imageRef = data.preview_info;
 		setWidgetStatus(widget, `URL preview updated${dims}.`, "success");
 		state.pendingPayload = null;
 		state.error = null;
 	} catch (error) {
-		if (state.requestId !== requestId) {
+		if (state.requestId !== requestId || config.buildPayload(node, widget)?.url !== targetUrl) {
 			return;
 		}
 		state.error = error?.message || "Unable to fetch preview";
@@ -305,8 +272,41 @@ function clearPendingState(node, config) {
 	state.pendingPayload = null;
 	state.error = null;
 	state.requestId++;
-	state.source = null;
-	state.imageRef = null;
+	if (config?.bindImageWidget && state.imageValue !== undefined) {
+		const imageWidget = findWidget(node, "image");
+		if (imageWidget?.value === state.imageValue) {
+			setImageWidgetValue(node, imageWidget, state.previousImageValue);
+		}
+		delete state.imageValue;
+		delete state.previousImageValue;
+	}
+}
+
+function bindUrlImage(node, imageRef) {
+	const widget = findWidget(node, "image");
+	if (!widget) {
+		return;
+	}
+	const state = getPreviewState(node);
+	if (widget.value !== state.imageValue) {
+		const value = String(widget.value ?? "");
+		state.previousImageValue = value.startsWith("sdvn_url_preview/") && value.endsWith(" [temp]")
+			? "None"
+			: widget.value;
+	}
+	state.imageValue = `${imageRef.subfolder}/${imageRef.filename} [${imageRef.type}]`;
+	setImageWidgetValue(node, widget, state.imageValue);
+	node.images = [imageRef];
+}
+
+function setImageWidgetValue(node, widget, value) {
+	const previousValue = widget.value;
+	if (previousValue === value) {
+		return;
+	}
+	widget.value = value;
+	widget.callback?.(value);
+	node.onWidgetChanged?.("image", value, previousValue, widget);
 }
 
 function attachWatcher(node, widgetName, trigger) {
