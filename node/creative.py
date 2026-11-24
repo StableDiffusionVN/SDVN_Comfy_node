@@ -259,13 +259,14 @@ class ImageSize:
                 "image": ("IMAGE",),
                 "latent": ("LATENT",),
                 "maxsize": ("INT", {"default": 0, "min": 0, "max": 20000, "tooltip": "0 = noset"}),
+                "align": ("INT", {"default": 1, "min": 1, "max": 20000, "tooltip": "Làm tròn width và height về bội số gần nhất sau maxsize. 1 = giữ nguyên; đúng giữa hai bội số thì làm tròn lên."}),
             }}
     CATEGORY = "📂 SDVN/💡 Creative"
     RETURN_TYPES = ("INT", "INT",)
     RETURN_NAMES = ("width", "height",)
     FUNCTION = "imagesize"
 
-    def imagesize(s, image=None, latent=None, maxsize = 0):
+    def imagesize(s, image=None, latent=None, maxsize = 0, align=1):
         if image != None:
             samples = image.movedim(-1, 1)
             w = samples.shape[3]
@@ -282,6 +283,9 @@ class ImageSize:
             else:
                 w = int(round(w * ( maxsize / h)))
                 h = maxsize
+        if align > 1:
+            w = ((2 * w + align) // (2 * align)) * align
+            h = ((2 * h + align) // (2 * align)) * align
         print(f"Image width: {w} | Image height: {h}")
         return (w, h,)
 
