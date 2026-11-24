@@ -573,6 +573,12 @@ Node `SDVN Florence PromptGen` nhận `IMAGE`, trả danh sách prompt tiếng A
 - Nhận RGB/RGBA và batch ảnh. Mặc định đưa model khỏi GPU sau khi chạy, giữ bản trong RAM để dùng lại. Bật `keep_model_loaded` để giữ trên thiết bị; ComfyUI vẫn quản lý và giải phóng bộ nhớ khi cần.
 - Cần `transformers>=4.57.6`, dùng Florence2 native, không tải hoặc thực thi mã Python từ repo model.
 
+### 🔊 SDVN TTS
+
+Node `SDVN TTS` nhận `model`, `tone`, `text` và trả `AUDIO`, nối được với Preview/Save Audio. Hỗ trợ [VieNeu-TTS-v3-Turbo](https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Turbo) (48 kHz) và [VieNeu-TTS-v3-Nano](https://huggingface.co/pnnbao-ump/VieNeu-TTS-v3-Nano) (24 kHz). `tone` tự đổi danh sách theo model, lấy bộ giọng preset của SDK `vieneu==3.8.5`.
+
+Model và codec cần thiết tự tải khi chạy lần đầu, lưu trong cache Hugging Face để dùng lại. Node chạy ONNX/CPU và giải phóng engine sau mỗi lần sinh; không tải model khi chỉ mở danh sách. Khởi động lại ComfyUI sau khi cập nhật để cài dependency, rồi tải lại giao diện để hiện danh sách giọng.
+
 ### Tương thích thư viện Colab
 
 Chốt Gemini SDK `2.12.1` và `google-auth==2.49.0` để khớp thư viện xác thực của Colab và yêu cầu `google-genai>=2.12.1` của Google ADK 2.7.1, vẫn giữ API tạo ảnh Interactions. Bộ cài lúc khởi động sửa các phiên bản đã cài không tương thích. Khởi động lại phiên Colab sau khi cập nhật thư viện nếu các thư viện Google đã được nạp. Bản Registry mới dùng số `2.10.21`; workflow bỏ qua phiên bản đã có trên Registry.

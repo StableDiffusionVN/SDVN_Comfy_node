@@ -68,6 +68,7 @@ from .node.dev import NODE_CLASS_MAPPINGS as dev_node, NODE_DISPLAY_NAME_MAPPING
 
 from .node.segment_anything.nodes import NODE_CLASS_MAPPINGS as segment_node, NODE_DISPLAY_NAME_MAPPINGS as segment_dis
 from .node.promptgen import NODE_CLASS_MAPPINGS as promptgen_node, NODE_DISPLAY_NAME_MAPPINGS as promptgen_dis
+from .node.tts import NODE_CLASS_MAPPINGS as tts_node, NODE_DISPLAY_NAME_MAPPINGS as tts_dis
 
 NODE_CLASS_MAPPINGS = {
     **load_node,
@@ -83,7 +84,8 @@ NODE_CLASS_MAPPINGS = {
     **chooser_node,
     **dev_node,
     **segment_node,
-    **promptgen_node
+    **promptgen_node,
+    **tts_node
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     **load_dis,
@@ -99,7 +101,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     **chooser_dis,
     **dev_dis,
     **segment_dis,
-    **promptgen_dis
+    **promptgen_dis,
+    **tts_dis
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

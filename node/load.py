@@ -528,6 +528,7 @@ class SDVNLoadVideo:
             "Mốc kết thúc, tính bằng giây. 0 = đến hết tệp. Vượt thời lượng = lấy toàn bộ video."
         )
         inputs["optional"] = {
+            "video_input": ("VIDEO", {"tooltip": "Ưu tiên video được nối vào thay cho tệp đã chọn."}),
             "minimax_frame": ("BOOLEAN", {"default": False,
                 "tooltip": "Giảm xuống tối đa 24 fps rồi cắt images về số frame dạng 17k + 5, không lặp frame."}),
             "trim_mode": (["time", "block"], {"default": "time",
@@ -550,12 +551,12 @@ class SDVNLoadVideo:
 
     @classmethod
     def IS_CHANGED(cls, video, **kwargs):
-        return None if video == "None" else os.stat(folder_paths.get_annotated_filepath(video)).st_mtime_ns
+        return None if kwargs.get("video_input") is not None or video == "None" else os.stat(folder_paths.get_annotated_filepath(video)).st_mtime_ns
 
-    def load_video(self, video, start_time, end_time, minimax_frame=False, trim_mode="time", num_blocks=2, index=0):
-        if video == "None":
+    def load_video(self, video, start_time, end_time, minimax_frame=False, trim_mode="time", num_blocks=2, index=0, video_input=None):
+        if video_input is None and video == "None":
             return (None, None, 0.0, 0, None)
-        source = InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
+        source = video_input if video_input is not None else InputImpl.VideoFromFile(folder_paths.get_annotated_filepath(video))
         duration = source.get_duration()
         block_mode = trim_mode == "block"
         if end_time > duration:
@@ -605,6 +606,7 @@ class SDVNLoadAudio:
     def INPUT_TYPES(cls):
         inputs = _media_loader_inputs("audio", ["audio", "video"])
         inputs["optional"] = {
+            "audio_input": ("AUDIO", {"tooltip": "Ưu tiên audio được nối vào thay cho tệp đã chọn."}),
             "fps": ("FLOAT", {"default": 24.0, "min": 0.01, "step": 0.01,
                               "tooltip": "FPS dùng để tính số frame tương ứng với thời lượng audio."}),
             "trim_mode": (["time", "block"], {"default": "time",
@@ -629,13 +631,13 @@ class SDVNLoadAudio:
 
     @classmethod
     def IS_CHANGED(cls, audio, **kwargs):
-        return None if audio == "None" else os.stat(folder_paths.get_annotated_filepath(audio)).st_mtime_ns
+        return None if kwargs.get("audio_input") is not None or audio == "None" else os.stat(folder_paths.get_annotated_filepath(audio)).st_mtime_ns
 
     def load_audio(self, audio, start_time, end_time, fps=24.0, trim_mode="time",
-                   num_blocks=2, index=0, minimax_frame=False):
-        if audio == "None":
+                   num_blocks=2, index=0, minimax_frame=False, audio_input=None):
+        if audio_input is None and audio == "None":
             return (None, 0)
-        source = ALL_NODE["LoadAudio"].execute(audio)[0]
+        source = audio_input if audio_input is not None else ALL_NODE["LoadAudio"].execute(audio)[0]
         waveform, sample_rate = source["waveform"], source["sample_rate"]
         start_time, end_time = _media_time_range(start_time, end_time, waveform.shape[-1] / sample_rate)
         trimmed = _slice_audio(source, start_time, end_time)
