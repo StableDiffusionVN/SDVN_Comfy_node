@@ -484,32 +484,33 @@ def _media_time_range(start_time, end_time, duration):
 
 
 def _minimax_length(frame_count):
-    """Làm tròn xuống số frame dạng 17k + 5."""
-    return frame_count - (frame_count - 5) % 17
+    """Làm tròn lên số frame dạng 17k + 5, tối thiểu 5 frame."""
+    return 5 + 17 * max(0, math.ceil((frame_count - 5) / 17))
 
 
 def _video_block_range(total, num_blocks, index, minimax=False):
-    """Chia total frame thành num_blocks đoạn liền nhau, trả về (frame bắt đầu, số frame) của đoạn index.
-    Thường: các đoạn dài total // num_blocks, phần dư dồn vào đoạn cuối.
-    MiniMax: các đoạn dài 17k + 5 gần total / num_blocks nhất; đoạn cuối nhận phần còn lại
-    (thiếu hoặc dư), làm tròn xuống 17k + 5."""
+    """Chia liên tiếp; MiniMax căn các đoạn trước về 17k + 5, chỉ đệm đoạn cuối."""
     if not 0 <= index < num_blocks:
         raise ValueError(f"index phải nằm trong khoảng 0 – {num_blocks - 1} khi chia {num_blocks} đoạn.")
-    min_size = 5 if minimax else 1
-    if minimax:
-        size = 17 * max(0, round((total / num_blocks - 5) / 17)) + 5
-        while size > 5 and total - (num_blocks - 1) * size < 5:
+    size = total // num_blocks
+    if minimax and num_blocks > 1:
+        size = _minimax_length(math.ceil(total / num_blocks))
+        while size > 5 and (num_blocks - 1) * size >= total:
             size -= 17
-    else:
-        size = total // num_blocks
-    if size < min_size or total - (num_blocks - 1) * size < min_size:
-        raise ValueError(f"Đoạn đã chọn có {total} frame, không đủ để chia thành {num_blocks} đoạn"
-                         + (" (mỗi đoạn MiniMax cần ít nhất 5 frame)." if minimax else "."))
+        if (num_blocks - 1) * size >= total:
+            raise ValueError("Không đủ frame để mỗi đoạn MiniMax trước đoạn cuối có ít nhất 5 frame.")
+    if size < 1:
+        raise ValueError(f"Đoạn đã chọn có {total} frame, không đủ để chia thành {num_blocks} đoạn.")
     start = index * size
-    if index < num_blocks - 1:
-        return start, size
-    length = total - start
-    return start, _minimax_length(length) if minimax else length
+    return start, size if index < num_blocks - 1 else total - start
+
+
+def _pad_media_audio(audio, duration):
+    if audio is None:
+        return None
+    waveform = audio["waveform"]
+    target = max(waveform.shape[-1], math.ceil(duration * audio["sample_rate"] - 1e-9))
+    return {**audio, "waveform": torch.nn.functional.pad(waveform, (0, target - waveform.shape[-1]))}
 
 
 def _slice_audio(audio, start_time, end_time):
@@ -530,11 +531,11 @@ class SDVNLoadVideo:
         inputs["optional"] = {
             "video_input": ("VIDEO", {"tooltip": "Ưu tiên video được nối vào thay cho tệp đã chọn."}),
             "minimax_frame": ("BOOLEAN", {"default": False,
-                "tooltip": "Giảm xuống tối đa 24 fps rồi cắt images về số frame dạng 17k + 5, không lặp frame."}),
+                "tooltip": "Giảm xuống tối đa 24 fps, lặp frame cuối và đệm audio im lặng lên 17k + 5. Chia block chỉ đệm đoạn cuối."}),
             "trim_mode": (["time", "block"], {"default": "time",
                 "tooltip": "time: cắt theo start_time – end_time. block: cắt theo hai mốc này rồi chia đoạn đã cắt thành num_blocks và lấy đoạn thứ index."}),
             "num_blocks": ("INT", {"default": 2, "min": 1, "max": 1000,
-                "tooltip": "Số đoạn sẽ chia. Phần dư (hoặc thiếu khi bật minimax_frame) dồn vào đoạn cuối, nối các đoạn lại vẫn thành video hoàn chỉnh."}),
+                "tooltip": "MiniMax căn độ dài các đoạn trước về 17k + 5, phần còn lại vào đoạn cuối và chỉ đệm đoạn cuối."}),
             "index": ("INT", {"default": 0, "min": 0, "max": 999,
                 "tooltip": "Vị trí đoạn sẽ lấy, 0 = đoạn đầu tiên."}),
         }
@@ -571,27 +572,36 @@ class SDVNLoadVideo:
         output_fps = min(fps, 24.0) if minimax_frame else fps
         if minimax_frame:
             available = math.ceil(images.shape[0] * output_fps / fps)
-            frame_count = min(available, math.floor((end_time - start_time) * output_fps + 1e-9))
+            frame_count = min(available, math.ceil((end_time - start_time) * output_fps - 1e-9))
         else:
             frame_count = images.shape[0]
-        if block_mode:
-            first, length = _video_block_range(frame_count, num_blocks, index, minimax_frame)
-        else:
-            if minimax_frame and frame_count < 5:
-                raise ValueError("MiniMax Frame cần ít nhất 5 frame trong đoạn video đã chọn.")
-            first, length = 0, _minimax_length(frame_count) if minimax_frame else frame_count
+        if frame_count < 1:
+            raise ValueError("Đoạn video đã chọn không có frame.")
+        first, length = _video_block_range(frame_count, num_blocks, index, minimax_frame) if block_mode else (0, frame_count)
+        original_length = length
+        block_start = first / output_fps
+        block_end = min((first + length) / output_fps, end_time - start_time)
         if fps > output_fps:
             indices = (torch.arange(first, first + length, device=images.device) * (fps / output_fps)).long()
             images = images.index_select(0, indices)
         else:
             indices = None
             images = images[first:first + length]
-        if block_mode:
-            block_start, block_end = first / output_fps, (first + length) / output_fps
+        alpha = components.alpha
+        if alpha is not None:
+            alpha = alpha[first:first + length] if indices is None else alpha.index_select(0, indices.to(alpha.device))
+        if block_mode or minimax_frame:
             audio = _slice_audio(audio, block_start, block_end)
-            alpha = components.alpha
-            if alpha is not None:
-                alpha = alpha[first:first + length] if indices is None else alpha.index_select(0, indices.to(alpha.device))
+        if minimax_frame:
+            length = _minimax_length(original_length)
+            padding = length - original_length
+            if padding:
+                images = torch.cat((images, images[-1:].expand(padding, *images.shape[1:])), dim=0)
+                if alpha is not None:
+                    alpha = torch.cat((alpha, alpha[-1:].expand(padding, *alpha.shape[1:])), dim=0)
+            if not block_mode or index == num_blocks - 1:
+                audio = _pad_media_audio(audio, length / output_fps)
+        if block_mode or minimax_frame:
             source = InputImpl.VideoFromComponents(replace(
                 components, images=images, audio=audio, alpha=alpha,
                 frame_rate=min(components.frame_rate, Fraction(24)) if minimax_frame else components.frame_rate,
@@ -615,7 +625,7 @@ class SDVNLoadAudio:
             "index": ("INT", {"default": 0, "min": 0, "max": 999,
                 "tooltip": "Vị trí đoạn sẽ lấy, 0 = đoạn đầu tiên."}),
             "minimax_frame": ("BOOLEAN", {"default": False,
-                "tooltip": "Cắt audio theo số frame dạng 17k + 5 ở FPS đã nhập."}),
+                "tooltip": "Đệm im lặng lên số frame dạng 17k + 5 ở FPS đã nhập, giữ nguyên audio gốc."}),
         }
         return inputs
 
@@ -648,15 +658,15 @@ class SDVNLoadAudio:
         if trim_mode == "block":
             first, length = _video_block_range(length, num_blocks, index, minimax_frame)
             block_end = (first + length) / fps
-            if not minimax_frame and index == num_blocks - 1:
+            if index == num_blocks - 1:
                 block_end = duration
             trimmed = _slice_audio(trimmed, first / fps, block_end)
-        elif minimax_frame:
-            if length < 5:
-                raise ValueError("MiniMax Frame cần ít nhất 5 frame trong đoạn audio đã chọn.")
-            length = _minimax_length(length)
-            trimmed = _slice_audio(trimmed, 0, length / fps)
-        return {"ui": ui.PreviewAudio(trimmed).as_dict(), "result": (trimmed, length)}
+        if minimax_frame and (trim_mode != "block" or index == num_blocks - 1):
+            duration = trimmed["waveform"].shape[-1] / sample_rate
+            length = _minimax_length(math.ceil(duration * fps - 1e-9))
+            trimmed = _pad_media_audio(trimmed, length / fps)
+        return {"ui": ui.PreviewAudio(trimmed).as_dict(),
+                "result": (trimmed, length)}
 
 
 class LoadImageFolder:

@@ -582,3 +582,9 @@ Model và codec cần thiết tự tải khi chạy lần đầu, lưu trong cac
 ### Tương thích thư viện Colab
 
 Chốt Gemini SDK `2.12.1` và `google-auth==2.49.0` để khớp thư viện xác thực của Colab và yêu cầu `google-genai>=2.12.1` của Google ADK 2.7.1, vẫn giữ API tạo ảnh Interactions. Bộ cài lúc khởi động sửa các phiên bản đã cài không tương thích. Khởi động lại phiên Colab sau khi cập nhật thư viện nếu các thư viện Google đã được nạp. Bản Registry mới dùng số `2.10.21`; workflow bỏ qua phiên bản đã có trên Registry.
+
+### Load Audio / Load Video: đệm MiniMax H3
+
+Khi bật `minimax_frame`, node làm tròn lên `5 + 17k`: video lặp frame cuối (kể cả alpha), audio đệm im lặng. Ví dụ 100 frame → 107 frame; không cắt bỏ nội dung gốc. `length` là số frame sau đệm.
+
+Nếu chia nhiều block, các đoạn trước có độ dài hợp lệ `5 + 17k`, đoạn cuối nhận toàn bộ phần còn lại và chỉ đoạn cuối được đệm. Ví dụ 96 frame chia 3 đoạn → 39 + 39 + 18, đoạn cuối đệm thành 22. Các đoạn liên tiếp không chồng lấn, giữ nguyên thứ tự và nội dung; phần dư chỉ nằm ở cuối video/audio ghép.

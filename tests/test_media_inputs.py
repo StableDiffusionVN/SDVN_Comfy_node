@@ -40,7 +40,7 @@ class Video:
 class MediaInputTests(unittest.TestCase):
     def setUp(self):
         tree = ast.parse((Path(__file__).resolve().parents[1] / 'node/load.py').read_text())
-        names = {'_media_time_range', '_minimax_length', '_video_block_range', '_slice_audio',
+        names = {'_media_time_range', '_minimax_length', '_video_block_range', '_slice_audio', '_pad_media_audio',
                  'SDVNLoadAudio', 'SDVNLoadVideo'}
         definitions = [n for n in tree.body if isinstance(n, (ast.ClassDef, ast.FunctionDef)) and n.name in names]
         self.files = MagicMock()
@@ -93,8 +93,41 @@ class MediaInputTests(unittest.TestCase):
         self.assertEqual(video[1][0].item(), 24)
         audio = self.ns['SDVNLoadAudio']().load_audio('None', 0, 0, minimax_frame=True,
                                                     audio_input=self.audio)['result']
-        self.assertEqual(audio[1], 90)
-        self.assertEqual(audio[0]['waveform'].shape[-1], 3750)
+        self.assertEqual(audio[1], 107)
+        self.assertEqual(audio[0]['waveform'].shape[-1], 4459)
+        self.assertTrue(torch.equal(audio[0]['waveform'][..., :4000], self.audio['waveform']))
+
+    def test_only_last_block_pads_and_all_original_content_is_preserved(self):
+        videos, audios = [], []
+        video_node, audio_node = self.ns['SDVNLoadVideo'](), self.ns['SDVNLoadAudio']()
+        for index, expected in enumerate((39, 39, 22)):
+            video = video_node.load_video('None', 0, 0, minimax_frame=True, trim_mode='block',
+                                          num_blocks=3, index=index, video_input=self.video)
+            self.assertEqual(video[3], expected)
+            self.assertEqual(len(video), 5)
+            videos.append(video[1])
+            audio = audio_node.load_audio('None', 0, 0, minimax_frame=True, trim_mode='block',
+                                          num_blocks=3, index=index, audio_input=self.audio)['result']
+            self.assertEqual(audio[1], expected)
+            self.assertEqual(len(audio), 2)
+            audios.append(audio[0]['waveform'])
+        frames = torch.cat(videos)
+        samples = torch.cat(audios, dim=-1)
+        self.assertTrue(torch.equal(frames[:96], self.video.components.images))
+        self.assertTrue(torch.equal(frames[96:], frames[95:96].expand_as(frames[96:])))
+        self.assertTrue(torch.equal(samples[..., :4000], self.audio['waveform']))
+        self.assertEqual(torch.count_nonzero(samples[..., 4000:]).item(), 0)
+
+    def test_short_video_pads_alpha_and_silent_audio(self):
+        original = Video(Components(torch.ones(1, 1, 1, 1),
+                                    {'waveform': torch.ones(1, 1, 1000), 'sample_rate': 24000},
+                                    alpha=torch.ones(1, 1, 1)))
+        result = self.ns['SDVNLoadVideo']().load_video('None', 0, 0, minimax_frame=True,
+                                                    video_input=original)
+        self.assertEqual(result[3], 5)
+        self.assertEqual(result[0].get_components().alpha.shape[0], 5)
+        self.assertEqual(result[4]['waveform'].shape[-1], 5000)
+        self.assertEqual(torch.count_nonzero(result[4]['waveform'][..., 1000:]).item(), 0)
 
 
 if __name__ == '__main__':
