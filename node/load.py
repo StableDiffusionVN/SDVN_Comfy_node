@@ -2323,14 +2323,15 @@ class CLIPVisionDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("CLIP_VISION",)
+    RETURN_TYPES = ("CLIP_VISION", any)
+    RETURN_NAMES = ("CLIP_VISION", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "clip_vision")
-        return ALL_NODE["CLIPVisionLoader"]().load_clip(Url_name)
+        return (*ALL_NODE["CLIPVisionLoader"]().load_clip(Url_name), os.path.basename(Url_name))
 
 class UpscaleModelDownload:
     @classmethod
@@ -2339,14 +2340,15 @@ class UpscaleModelDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("UPSCALE_MODEL",)
+    RETURN_TYPES = ("UPSCALE_MODEL", any)
+    RETURN_NAMES = ("UPSCALE_MODEL", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "upscale_models")
-        return ALL_NODE["UpscaleModelLoader"]().load_model(Url_name)
+        return (*ALL_NODE["UpscaleModelLoader"]().load_model(Url_name), os.path.basename(Url_name))
 
 class LatentUpscaleModelDownload:
     @classmethod
@@ -2364,7 +2366,8 @@ class LatentUpscaleModelDownload:
                 }, "optional": {
                     "preset": (["Custom URL", *cls._presets()], {"default": "Custom URL"}),
                 }}
-    RETURN_TYPES = ("LATENT_UPSCALE_MODEL",)
+    RETURN_TYPES = ("LATENT_UPSCALE_MODEL", any)
+    RETURN_NAMES = ("LATENT_UPSCALE_MODEL", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
@@ -2375,9 +2378,9 @@ class LatentUpscaleModelDownload:
         Url_name = download_model(Download_url, Url_name, "latent_upscale_models")
         loader = ALL_NODE["LatentUpscaleModelLoader"]()
         if hasattr(loader, "load_model"):
-            return loader.load_model(Url_name)
+            return (*loader.load_model(Url_name), os.path.basename(Url_name))
         output = loader.execute(Url_name)
-        return output.result if hasattr(output, "result") else output
+        return (*(output.result if hasattr(output, "result") else output), os.path.basename(Url_name))
 
 class VAEDownload:
     @classmethod
@@ -2386,14 +2389,15 @@ class VAEDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("VAE",)
+    RETURN_TYPES = ("VAE", any)
+    RETURN_NAMES = ("VAE", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "vae")
-        return ALL_NODE["VAELoader"]().load_vae(Url_name)
+        return (*ALL_NODE["VAELoader"]().load_vae(Url_name), os.path.basename(Url_name))
 
 class ControlNetDownload:
     @classmethod
@@ -2402,14 +2406,15 @@ class ControlNetDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("CONTROL_NET",)
+    RETURN_TYPES = ("CONTROL_NET", any)
+    RETURN_NAMES = ("CONTROL_NET", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "controlnet")
-        return ALL_NODE["ControlNetLoader"]().load_controlnet(Url_name)
+        return (*ALL_NODE["ControlNetLoader"]().load_controlnet(Url_name), os.path.basename(Url_name))
 
 class UNETDownload:
     @classmethod
@@ -2419,14 +2424,15 @@ class UNETDownload:
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
                     "weight_dtype": (sdvn_get_node_combo_options("UNETLoader", "weight_dtype"),)
                              }}
-    RETURN_TYPES = ("MODEL",)
+    RETURN_TYPES = ("MODEL", any)
+    RETURN_NAMES = ("MODEL", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name, weight_dtype):
         Url_name = download_model(Download_url, Url_name, "diffusion_models")
-        return ALL_NODE["UNETLoader"]().load_unet(Url_name,weight_dtype)
+        return (*ALL_NODE["UNETLoader"]().load_unet(Url_name,weight_dtype), os.path.basename(Url_name))
 
 class CLIPDownload:
     @classmethod
@@ -2436,14 +2442,15 @@ class CLIPDownload:
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
                     "type": (sdvn_get_node_combo_options("CLIPLoader", "type"),)
                              }}
-    RETURN_TYPES = ("CLIP",)
+    RETURN_TYPES = ("CLIP", any)
+    RETURN_NAMES = ("CLIP", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name, type):
         Url_name = download_model(Download_url, Url_name, "text_encoders")
-        return ALL_NODE["CLIPLoader"]().load_clip(Url_name,type)
+        return (*ALL_NODE["CLIPLoader"]().load_clip(Url_name,type), os.path.basename(Url_name))
 
 class ModelPatchDownload:
     @classmethod
@@ -2452,14 +2459,15 @@ class ModelPatchDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False}),
                              }}
-    RETURN_TYPES = ("MODEL_PATCH",)
+    RETURN_TYPES = ("MODEL_PATCH", any)
+    RETURN_NAMES = ("MODEL_PATCH", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "model_patches")
-        return ALL_NODE["ModelPatchLoader"]().load_model_patch(Url_name)
+        return (*ALL_NODE["ModelPatchLoader"]().load_model_patch(Url_name), os.path.basename(Url_name))
     
 class StyleModelDownload:
     @classmethod
@@ -2468,14 +2476,15 @@ class StyleModelDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("STYLE_MODEL",)
+    RETURN_TYPES = ("STYLE_MODEL", any)
+    RETURN_NAMES = ("STYLE_MODEL", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "style_models")
-        return ALL_NODE["StyleModelLoader"]().load_style_model(Url_name)
+        return (*ALL_NODE["StyleModelLoader"]().load_style_model(Url_name), os.path.basename(Url_name))
 
 class IPAdapterModelDownload:
     @classmethod
@@ -2484,14 +2493,15 @@ class IPAdapterModelDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("IPADAPTER",)
+    RETURN_TYPES = ("IPADAPTER", any)
+    RETURN_NAMES = ("IPADAPTER", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "ipadapter")
-        return ALL_NODE["IPAdapterModelLoader"]().load_ipadapter_model(Url_name)
+        return (*ALL_NODE["IPAdapterModelLoader"]().load_ipadapter_model(Url_name), os.path.basename(Url_name))
 
 class InstantIDModelDownload:
     @classmethod
@@ -2500,14 +2510,15 @@ class InstantIDModelDownload:
                     "Download_url": ("STRING", {"default": "", "multiline": False},),
                     "Url_name": ("STRING", {"default": "model.safetensors", "multiline": False},)
                              }}
-    RETURN_TYPES = ("INSTANTID",)
+    RETURN_TYPES = ("INSTANTID", any)
+    RETURN_NAMES = ("INSTANTID", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
 
     def download(self, Download_url, Url_name):
         Url_name = download_model(Download_url, Url_name, "instantid")
-        return ALL_NODE["InstantIDModelLoader"]().load_model(Url_name)
+        return (*ALL_NODE["InstantIDModelLoader"]().load_model(Url_name), os.path.basename(Url_name))
 
 class DualClipDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
@@ -2527,7 +2538,8 @@ class DualClipDownload:
                 "optional": {
                     "device": (sdvn_get_node_combo_options("DualCLIPLoader", "device"), {"default": "default", "advanced": True}),
                              }}
-    RETURN_TYPES = ("CLIP",)
+    RETURN_TYPES = ("CLIP", any)
+    RETURN_NAMES = ("CLIP", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
@@ -2535,7 +2547,7 @@ class DualClipDownload:
     def download(s, CLIP_name1, CLIP_name2, type, device="default"):
         CLIP_name1 = download_model(s.modellist[CLIP_name1][0], CLIP_name1, "text_encoders")
         CLIP_name2 = download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
-        return ALL_NODE["DualCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, type, device=device)
+        return (*ALL_NODE["DualCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, type, device=device), "\n".join(os.path.basename(name) for name in (CLIP_name1, CLIP_name2)))
     
 class LTXAVTextEncoderDownload:
     checkpoint_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib.json")
@@ -2563,7 +2575,8 @@ class LTXAVTextEncoderDownload:
                 "optional": {
                     "device": (sdvn_get_node_combo_options("LTXAVTextEncoderLoader", "device"), {"default": "default", "advanced": True}),
                              }}
-    RETURN_TYPES = ("CLIP",)
+    RETURN_TYPES = ("CLIP", any)
+    RETURN_NAMES = ("CLIP", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
@@ -2572,9 +2585,10 @@ class LTXAVTextEncoderDownload:
         Ckpt_name = download_model(s.checkpointlist[Ckpt_name], Ckpt_name, "checkpoints")
         CLIP_name = download_model(s.cliplist[CLIP_name][0], CLIP_name, "text_encoders")
         output = ALL_NODE["LTXAVTextEncoderLoader"].execute(CLIP_name, Ckpt_name, device=device)
+        model_name = "\n".join(os.path.basename(name) for name in (Ckpt_name, CLIP_name))
         if hasattr(output, "result"):
-            return output.result if output.result is not None else output
-        return (output,)
+            return (*(output.result if output.result is not None else (output,)), model_name)
+        return (output, model_name)
     
 class QuadrupleCLIPDownload:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
@@ -2592,7 +2606,8 @@ class QuadrupleCLIPDownload:
                     "CLIP_name3": (s.list_clip,),
                     "CLIP_name4": (s.list_clip,),
                              }}
-    RETURN_TYPES = ("CLIP",)
+    RETURN_TYPES = ("CLIP", any)
+    RETURN_NAMES = ("CLIP", "model_name")
     FUNCTION = "download"
 
     CATEGORY = "📂 SDVN/📥 Download"
@@ -2602,7 +2617,7 @@ class QuadrupleCLIPDownload:
         CLIP_name2 = download_model(s.modellist[CLIP_name2][0], CLIP_name2, "text_encoders")
         CLIP_name3 = download_model(s.modellist[CLIP_name3][0], CLIP_name3, "text_encoders")
         CLIP_name4 = download_model(s.modellist[CLIP_name4][0], CLIP_name4, "text_encoders")
-        return ALL_NODE["QuadrupleCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4)
+        return (*ALL_NODE["QuadrupleCLIPLoader"]().load_clip(CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4), "\n".join(os.path.basename(name) for name in (CLIP_name1, CLIP_name2, CLIP_name3, CLIP_name4)))
     
 class AnyDownloadList:
     model_lib_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),"model_lib_any.json")
@@ -2616,8 +2631,8 @@ class AnyDownloadList:
                 "Model": (list(s.modellist),),
             },
         }
-    RETURN_TYPES = (any,)
-    RETURN_NAMES = ("any_model",)
+    RETURN_TYPES = (any, any)
+    RETURN_NAMES = ("any_model", "model_name")
     FUNCTION = "any_download_list"
 
     CATEGORY = "📂 SDVN/📥 Download"
@@ -2650,7 +2665,7 @@ class AnyDownloadList:
             r = ALL_NODE["SDVN StyleModel Download"]().download(download_link, model_name)[0]
         if Type == "ModelPatch":
             r = ALL_NODE["SDVN ModelPatch Download"]().download(download_link, model_name)[0]
-        return  (r,)
+        return (r, os.path.basename(model_name))
 
 NODE_CLASS_MAPPINGS = {
     "SDVN Generate Text": SDVNGenerateText,
