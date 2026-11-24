@@ -251,13 +251,6 @@ class SimpleAnyInput:
         return (result,)
 
 class ImageSize:
-    LATENT_SCALE = {
-        "Flux2": 16,
-        "Flux3": 16,
-        "MiniMaxH3": 16,
-        "QwenImage21": 16,
-    }
-
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -266,21 +259,20 @@ class ImageSize:
                 "latent": ("LATENT",),
                 "maxsize": ("INT", {"default": 0, "min": 0, "max": 20000, "tooltip": "0 = noset"}),
                 "align": ("INT", {"default": 1, "min": 1, "max": 20000, "tooltip": "Làm tròn width và height về bội số gần nhất sau maxsize. 1 = giữ nguyên; đúng giữa hai bội số thì làm tròn lên."}),
-                "model": ("MODEL", {"tooltip": "Nhận diện dòng model để tính kích thước latent. Không nối model hoặc dòng chưa có trong bảng: dùng hệ số 8."}),
+                "vae": ("VAE", {"tooltip": "Lấy hệ số giải mã từ VAE để tính kích thước latent. Không nối VAE: dùng hệ số 8."}),
             }}
     CATEGORY = "📂 SDVN/💡 Creative"
     RETURN_TYPES = ("INT", "INT",)
     RETURN_NAMES = ("width", "height",)
     FUNCTION = "imagesize"
 
-    def imagesize(s, image=None, latent=None, maxsize = 0, align=1, model=None):
+    def imagesize(s, image=None, latent=None, maxsize = 0, align=1, vae=None):
         if image != None:
             samples = image.movedim(-1, 1)
             w = samples.shape[3]
             h = samples.shape[2]
         elif latent != None:
-            model_type = model.model.__class__.__name__ if model is not None else None
-            scale = s.LATENT_SCALE.get(model_type, 8)
+            scale = vae.spacial_compression_decode() if vae is not None else 8
             w = latent["samples"].shape[-1] * scale
             h = latent["samples"].shape[-2] * scale
         else:
